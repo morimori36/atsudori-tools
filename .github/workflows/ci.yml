@@ -1,0 +1,77 @@
+name: Verify and gated Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy only after explicit publication approval and public visibility
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PAGES_BASE: /atsudori-tools/
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - name: Check generated schemas have no drift
+        run: |
+          npm run schema:write
+          git diff --exit-code -- public/schemas
+      - name: Use official HTTPS Ubuntu mirror for browser dependencies
+        run: |
+          sudo python3 - <<'PY_MIRROR'
+          from pathlib import Path
+          for source in [Path('/etc/apt/sources.list'), *Path('/etc/apt/sources.list.d').glob('*.sources'), *Path('/etc/apt/sources.list.d').glob('*.list')]:
+              if source.is_file():
+                  source.write_text(source.read_text().replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu'))
+          PY_MIRROR
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:e2e
+      - run: npx playwright install --with-deps webkit
+      - run: npm run test:e2e:webkit
+      - run: npm run audit:public
+      - name: Upload verified static app only after publication approval
+        if: github.event.repository.private == false && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_PUBLICATION_APPROVED == 'true' && github.event_name == 'workflow_dispatch' && inputs.deploy
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: dist
+
+  deploy:
+    needs: verify
+    if: github.event.repository.private == false && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_PUBLICATION_APPROVED == 'true' && github.event_name == 'workflow_dispatch' && inputs.deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        id: deployment

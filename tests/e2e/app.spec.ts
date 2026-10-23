@@ -1,0 +1,331 @@
+import {test,expect} from '@playwright/test';
+import type {Page} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
+import {fictionalRules} from '../helpers/rank-rules';
+import {CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
+test('all catalog tables can be registered manually without a preloaded master',async({page})=>{
+  const m=syntheticCatalog();
+  await tab(page,'catalog');
+  await page.locator('#catalog-meta [name=catalogId]').fill(m.catalogId);
+  await page.locator('#catalog-meta button').click();
+  const rows:Record<string,unknown[]>={bands:m.bands,characters:m.characters,characterRankLevels:[3],memberLevels:[m.memberLevels[0]],memberTraining:[m.memberTraining[0]],memberAwakening:[m.memberAwakening[0]],memberLevelLimits:[m.memberLevelLimits[0]],snapLevels:[m.snapLevels[0]],snapRanks:[m.snapRanks[0]],bandItems:m.bandItems,bandItemLevels:[m.bandItemLevels[0]],skillTargets:m.skillTargets,bandItemEffects:[m.bandItemEffects[0]],members:m.members.map(c=>({...c,liveSkillLevels:[1],gekisouSkillLevels:[1]})),snaps:m.snaps};
+  for(const [table,values] of Object.entries(rows)){
+    await page.locator('#catalog-table').selectOption(table);
+    for(const value of values){
+      const row=typeof value==='number'?{value}:value as Record<string,unknown>;
+      for(const [key,v] of Object.entries(row)){
+        if(Array.isArray(v))await page.locator('#catalog-row-form [name="'+key+'"]').fill(v.join(','));
+        else if(typeof v==='object'&&v)for(const [ch,n] of Object.entries(v))await page.locator('#catalog-row-form [name="'+key+'.'+ch+'"]').fill(String(n));
+        else await page.locator('#catalog-row-form [name="'+key+'"]').fill(String(v));
+      }
+      await page.locator('#catalog-row-form button[type=submit]').click();
+    }
+  }
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await collection(page);await tab(page,'rating');
+  await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+});
+test('provisional selection notices remain available by hover and keyboard',async({page})=>{
+  const m=syntheticCatalog(),c=syntheticCollection(m);
+  m.members.push({...m.members[0]!,id:8302,title:'別の架空カード'});
+  m.snaps.push({...m.snaps[0]!,id:8504,title:'別の架空Snap'});
+  c.members.push({...c.members[0]!,cardId:8302});c.snaps.push({...c.snaps[0]!,supportCardId:8504});
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('ties.json',m));await page.locator('#catalog-apply').click();
+  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('ties-owned.json',c));await page.locator('#apply-import').click();
+  await tab(page,'rating');const tip=page.locator('.selection-tooltip').first();
+  await expect(tip).toBeHidden();await page.locator('.note-marker').first().hover();
+  await expect(tip).toBeVisible();await expect(tip).toContainText('ゲーム内の選出順は未確認');
+  await page.keyboard.press('Escape');await expect(tip).toBeHidden();
+  await page.locator('.note-marker').first().focus();await expect(tip).toBeVisible();
+});
+const file=(name:string,value:unknown)=>({name,mimeType:'application/json',buffer:Buffer.from(typeof value==='string'?value:JSON.stringify(value))});
+async function tab(page:Page,name:string):Promise<void>{await page.locator('nav [data-tab="'+name+'"]').click();}
+async function openRank(page:Page,id=8201):Promise<void>{
+  const row=page.locator(`[data-character-rank="${id}"]`);
+  if(await row.getAttribute('open')===null) await row.locator(':scope > summary').click();
+}
+async function openItems(page:Page):Promise<void>{
+  const items=page.locator('.band-items').first();
+  if(await items.getAttribute('open')===null) await items.locator('summary').click();
+}
+async function catalog(page:Page):Promise<void>{
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',syntheticCatalog()));
+  await page.locator('#catalog-apply').click();
+  await rules(page);await tab(page,'catalog');
+}
+async function rules(page:Page,m=syntheticCatalog()):Promise<void>{
+  await tab(page,'rules');await page.locator('#rank-rules-file').setInputFiles(file('fictional-rules.json',await fictionalRules(m)));await page.locator('#rank-rules-apply').click();
+}
+async function collection(page:Page):Promise<void>{
+  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('fictional-collection.json',syntheticCollection()));
+  await page.locator('#apply-import').click();
+}
+test.beforeEach(async({page})=>{
+  const errors:string[]=[];const external:string[]=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('request',req=>{if(!req.url().startsWith('http://127.0.0.1:4173/')&&!req.url().startsWith('data:'))external.push(req.url());});
+  await page.goto('./');
+  (page as Page & {audit?:()=>void}).audit=()=>{expect(errors).toEqual([]);expect(external).toEqual([]);};
+});
+test.afterEach(async({page})=>{(page as Page & {audit?:()=>void}).audit?.();});
+test('empty catalog boots and manual path computes fictional values',async({page})=>{
+  await expect(page.getByRole('heading',{name:'マスタ未登録',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>localStorage.length)).toBe(0);
+  await tab(page,'manual');await page.locator('#manual-example').click();await page.locator('#manual-form button[type=submit]').click();
+  await expect(page.locator('#manual-output strong')).toHaveText('1,082');
+  expect(await page.evaluate(()=>localStorage.length)).toBe(0);
+});
+test('manual catalog row creation, edit, delete, reload',async({page})=>{
+  await tab(page,'catalog');
+  await page.locator('#catalog-row-form [name=id]').fill('8199');
+  await page.locator('#catalog-row-form [name=name]').fill('架空の手動バンド');
+  await page.locator('#catalog-row-form button[type=submit]').click();
+  await expect(page.locator('#catalog-table option:checked')).toHaveText('バンド (1)');
+  await page.reload();await tab(page,'catalog');
+  await page.locator('#catalog-row').selectOption('0');
+  await page.locator('#catalog-row-form [name=name]').fill('架空の更新バンド');
+  await page.locator('#catalog-row-form button[type=submit]').click();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bands[0].name,CATALOG_STORAGE_KEY)).toBe('架空の更新バンド');
+  await page.locator('#catalog-row').selectOption('0');
+  page.once('dialog',d=>d.accept());await page.locator('#catalog-delete').click();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bands.length,CATALOG_STORAGE_KEY)).toBe(0);
+});
+test('manual draft displays missing fields and prevents calculation',async({page})=>{
+  await catalog(page);
+  await page.locator('#catalog-table').selectOption('memberLevels');await page.locator('#catalog-row').selectOption('1');
+  page.once('dialog',d=>d.accept());await page.locator('#catalog-delete').click();
+  await expect(page.getByRole('alert').filter({hasText:'不足・不整合'})).toContainText('上限Lvの率');
+  await tab(page,'rating');await expect(page.getByRole('heading',{name:'マスタに不足・不整合があります'})).toBeVisible();
+  await tab(page,'members');await expect(page.getByRole('heading',{name:'マスタに不足・不整合があります'})).toBeVisible();
+});
+test('catalog import, owned registration, growth, band total and display-only potential',async({page})=>{
+  await catalog(page);
+  await tab(page,'members');await page.locator('[data-member-card="8301"] [data-ownership-toggle]').click();
+  await tab(page,'snaps');await page.locator('[data-snap-card="8501"] [data-ownership-toggle]').click();
+  await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('3');await openItems(page);await page.locator('#item-8601').fill('1');
+  await page.locator('#progress-form button[type=submit]').click();
+  await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+  await page.locator('input[name=rating-mode][value=potential]').check();
+  await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,214');
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).members[0].level,STORAGE_KEY)).toBe(1);
+  await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+  await tab(page,'snaps');await page.locator('[data-snap-card="8501"] input[name=snapRank][value="2"]').check();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).snaps[0].level,STORAGE_KEY)).toBe(2);
+  await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('948');
+  await tab(page,'snaps');await page.locator('[data-snap-card="8501"] [data-ownership-toggle]').click();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).snaps,STORAGE_KEY)).toEqual([]);
+  await tab(page,'members');await page.locator('[data-member-card="8301"] input[name=trainingStage][value="2"]').check();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).members[0].level,STORAGE_KEY)).toBe(2);
+  await page.locator('[data-member-card="8301"] [data-ownership-toggle]').click();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).members,STORAGE_KEY)).toEqual([]);
+});
+test('catalog and collection JSON export/import round trips stay independent',async({page})=>{
+  await catalog(page);await collection(page);
+  const collectionBytes=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
+  const exported=await readFile((await download.path())!,'utf8');expect(JSON.parse(exported)).toEqual(syntheticCollection());
+  await tab(page,'catalog');
+  await page.locator('#catalog-meta [name=revision]').fill('test-2');await page.locator('#catalog-meta button').click();
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(collectionBytes);
+  const [md]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-export').click()]);
+  const masterText=await readFile((await md.path())!,'utf8');
+  await page.locator('#catalog-import').setInputFiles(file('roundtrip.json',masterText));await page.locator('#catalog-apply').click();
+  await collection(page);await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+});
+test('invalid JSON, missing data, invalid values and future schemas leave existing bytes intact',async({page})=>{
+  await catalog(page);await collection(page);
+  const before=await page.evaluate(()=>({...localStorage}));
+  await tab(page,'catalog');
+  const incomplete=syntheticCatalog();incomplete.memberTraining=[];
+  for(const value of ['{broken',incomplete,{...syntheticCatalog(),schemaVersion:2}]){
+    await page.locator('#catalog-import').setInputFiles(file('bad.json',value));
+    await expect(page.getByRole('alert')).toBeVisible();await expect(page.locator('#catalog-apply')).toHaveCount(0);
+  }
+  await tab(page,'exchange');
+  const bad=syntheticCollection();bad.members[0]!.level=99;
+  for(const value of ['{bad',bad,{...syntheticCollection(),schemaVersion:2}]){
+    await page.locator('#import-file').setInputFiles(file('bad-owned.json',value));
+    await expect(page.getByRole('alert')).toBeVisible();await expect(page.locator('#apply-import')).toHaveCount(0);
+  }
+  expect(await page.evaluate(()=>({...localStorage}))).toEqual(before);
+});
+test('catalog rejects deletion and namespace changes which invalidate owned references',async({page})=>{
+  await catalog(page);await collection(page);await tab(page,'catalog');
+  const raw=await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY);
+  await page.locator('#catalog-table').selectOption('members');await page.locator('#catalog-row').selectOption('0');
+  page.once('dialog',d=>d.accept());await page.locator('#catalog-delete').click();
+  await expect(page.getByRole('alert')).toContainText('cardId');
+  await page.locator('#catalog-meta [name=catalogId]').fill('different');
+  await page.locator('#catalog-meta button').click();await expect(page.getByRole('alert')).toContainText('catalogId');
+  expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe(raw);
+});
+test('corrupt catalog and intact collection recover without overwriting either on boot',async({page})=>{
+  const c=JSON.stringify(syntheticCollection());
+  await page.evaluate(({ck,sk,c})=>{localStorage.setItem(ck,'{broken-catalog');localStorage.setItem(sk,c);},{ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY,c});
+  await page.reload();await expect(page.locator('#autosave-warning')).toContainText('破損');
+  expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe('{broken-catalog');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(c);
+  await tab(page,'catalog');
+  const [original]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-original').click()]);
+  expect(await readFile((await original.path())!,'utf8')).toBe('{broken-catalog');
+  await page.locator('#catalog-import').setInputFiles(file('restore.json',syntheticCatalog()));await page.locator('#catalog-apply').click();
+  await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(c);
+});
+test('corrupt collection remains protected until explicit replacement',async({page})=>{
+  await catalog(page);await page.evaluate(k=>localStorage.setItem(k,'{broken-owned'),STORAGE_KEY);
+  await page.reload();await tab(page,'members');await page.locator('[data-member-card="8301"] [data-ownership-toggle]').click();
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe('{broken-owned');
+  await tab(page,'exchange');
+  const [original]=await Promise.all([page.waitForEvent('download'),page.locator('#damaged-backup').click()]);
+  expect(await readFile((await original.path())!,'utf8')).toBe('{broken-owned');
+  await collection(page);await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+});
+test('storage quota failure remains usable in memory and exportable',async({page})=>{
+  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new DOMException('quota','QuotaExceededError');};});
+  await catalog(page);await collection(page);
+  await expect(page.locator('.save-state')).toHaveText('保存未完了');
+  await expect(page.locator('#autosave-warning')).toContainText('保存');
+  const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
+  expect(JSON.parse(await readFile((await download.path())!,'utf8'))).toEqual(syntheticCollection());
+  await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+});
+test('imported strings render as text without active markup',async({page})=>{
+  const m=syntheticCatalog();m.members[0]!.title='<img src=x onerror=alert(1)>';
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('text.json',m));await page.locator('#catalog-apply').click();
+  await tab(page,'members');await expect(page.locator('.card-title')).toContainText('<img src=x onerror=alert(1)>');
+  await expect(page.locator('img')).toHaveCount(0);
+});
+test('static subpath serves assets, schemas and all license notices',async({page,request,baseURL})=>{
+  const basePath=new URL(baseURL!).pathname;expect(new URL(page.url()).pathname).toBe(basePath);
+  const script=await page.locator('script[type=module]').getAttribute('src');expect(script?.startsWith(basePath+'assets/')).toBe(true);
+  for(const path of ['schemas/catalog-v1.schema.json','schemas/collection-v1.schema.json','THIRD_PARTY_NOTICES.txt','VITE_LICENSE.txt']){
+    const response=await request.get(path);expect(response.ok()).toBeTruthy();
+    expect((await response.text()).length).toBeGreaterThan(200);
+  }
+  await expect(page.locator('footer')).toContainText('非公式');
+});
+test('mobile width supports data entry, results and notices without body overflow',async({page})=>{
+  await page.setViewportSize({width:390,height:844});await catalog(page);await collection(page);
+  for(const name of ['rating','members','progress','catalog','manual']){
+    await tab(page,name);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+  }
+});
+
+test('rank estimation, manual progress, overrides, reset, persistence and export use imported values',async({page})=>{
+  await catalog(page);await collection(page);await tab(page,'progress');
+  const summary=page.locator('[data-rank-summary]');
+  await expect(summary).toContainText(/推定 1.*EXP 3.*手動上書き中.*使用ランク 3/);
+  await openRank(page);await page.locator('#rank-8201').fill('');await page.locator('#progress-8201-stamps').fill('9');
+  await page.locator('#progress-form button[type=submit]').click();
+  await expect(summary).toContainText(/推定 2.*EXP 17.*自動推定.*使用ランク 2/);
+  await expect(page.locator('[data-total-character-rank]')).toContainText('総合キャラクターランク 2');
+  await tab(page,'rating');
+  // Imported rank2: per-channel floors124/235/393, then floor752*1.118=840.
+  await expect(page.locator('.band-result .rating-total strong')).toHaveText('840');
+  await page.locator('input[name=rating-mode][value=potential]').check();
+  await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,197');
+  await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('7');await page.locator('#progress-form button[type=submit]').click();
+  await page.reload();await tab(page,'progress');await expect(summary).toContainText('使用ランク 7');
+  await openRank(page);await expect(page.locator('#progress-8201-stamps')).toHaveValue('9');
+  await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
+  const json=await readFile((await d.path())!,'utf8');expect(JSON.parse(json).characterRanks).toEqual({'8201':7});expect(JSON.parse(json).characterProgress).toEqual({'8201':{stamps:9}});
+  await page.locator('#import-file').setInputFiles(file('roundtrip.json',json));await page.locator('#apply-import').click();
+  await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();await expect(summary).toContainText('使用ランク 2');
+});
+test('counts three skill contributions using fictional thresholds and preserves legacy progress',async({page})=>{
+  const m=syntheticCatalog(),c=syntheticCollection(m);c.characterRanks={};
+  m.memberAwakening.push({...m.memberAwakening[0]!,stage:5,leaderSkillLevel:5});m.members[0]!.liveSkillLevels.push(5);m.members[0]!.gekisouSkillLevels.push(5);
+  c.characterProgress={8201:{skillLevel2:83,skillLevel5:97}};
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('skills.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
+  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('owned.json',c));await page.locator('#apply-import').click();
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('EXP 3');await expect(page.locator('input[name*=skillLevel]')).toHaveCount(0);
+  await page.locator('#progress-form button[type=submit]').click();expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).characterProgress,STORAGE_KEY)).toEqual(c.characterProgress);
+  await tab(page,'members');for(const name of ['awakeningStage','liveSkillLevel','gekisouSkillLevel'])await page.locator('[data-member-card="8301"] input[name="'+name+'"][value="5"]').check();
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 7.*EXP 88.*自動推定.*使用ランク 7/);
+  await openRank(page);await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空スキル集計'})).toContainText('3 → 2件62 EXP');
+  await page.reload();await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('EXP 88');
+});
+test('manual progress uses imported nonuniform thresholds and survives JSON round trips',async({page})=>{
+  await catalog(page);await collection(page);await tab(page,'progress');await openRank(page);
+  await page.locator('#rank-8201').fill('');await page.locator('#progress-8201-songClears').fill('10');await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.locator('[data-rank-summary]')).toContainText(/推定 3.*EXP 25.*自動推定.*使用ランク 3/);
+  await page.reload();await tab(page,'progress');await openRank(page);await expect(page.locator('#progress-8201-songClears')).toHaveValue('10');
+  await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空進捗B'})).toContainText('10 → 2件22 EXP');
+  await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);const json=await readFile((await d.path())!,'utf8');
+  expect(JSON.parse(json).characterProgress).toEqual({'8201':{songClears:10}});await page.locator('#import-file').setInputFiles(file('progress.json',json));await page.locator('#apply-import').click();
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('EXP 25');
+});
+
+test('compact mobile rank rows prioritize effective ranks and expand editing on demand',async({page},testInfo)=>{
+  const m=syntheticCatalog();
+  for(let i=2;i<=5;i++)m.characters.push({id:8200+i,bandId:8101,name:`架空奏者${String.fromCharCode(64+i)}`});
+  m.bands.push({id:8102,name:'架空バンド・ラムダ'});
+  m.characters.push({id:8210,bandId:8102,name:'架空奏者・長い名前でも使用ランクを確認できる'});
+  await page.setViewportSize({width:390,height:844});
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('compact-catalog.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
+  await collection(page);await tab(page,'progress');
+  const rows=page.locator('.character-rank');
+  await expect(rows).toHaveCount(6);
+  await expect(page.locator('#progress-form input:visible')).toHaveCount(0);
+  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('3');
+  await expect(rows.first().locator('[data-rank-source]')).toHaveText('手動上書き中');
+  await expect(rows.nth(1).locator('[data-rank-source]')).toHaveText('自動推定');
+  for(let i=0;i<5;i++)expect((await rows.nth(i).boundingBox())!.height).toBeLessThanOrEqual(80);
+  const first=await rows.first().boundingBox(),fifth=await rows.nth(4).boundingBox();
+  expect(fifth!.y+fifth!.height-first!.y).toBeLessThanOrEqual(400);
+  expect(await page.locator('.progress-actions').evaluate(el=>getComputedStyle(el).position)).toBe('static');
+  await page.screenshot({path:testInfo.outputPath('ranks-mobile-390.png'),fullPage:true});
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await rows.first().locator('summary').focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#rank-8201')).toBeVisible();
+  await page.locator('#rank-8201').fill('7');
+  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('7');
+  await expect(rows.first().locator('[data-rank-reason]')).toContainText('自動推定は 1');
+  await expect(page.locator('[data-progress-state]')).toHaveText('未保存の変更あり');
+  await expect(page.locator('.save-state')).toHaveText('未保存の入力あり');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.locator('[data-reset-rank="8201"]').click();
+  await expect(page.locator('#rank-8201')).toHaveValue('');
+  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('1');
+  await expect(rows.first().locator('[data-rank-source]')).toHaveText('自動推定');
+  await page.locator('#progress-8201-stamps').fill('4');
+  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('2');
+  await expect(rows.first().locator('[data-rank-exp]')).toHaveText('10');
+  await expect(rows.first().locator('[data-rank-breakdown]')).toContainText('架空進捗A');
+  for(const width of [320,375,390]){
+    await page.setViewportSize({width,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+    expect((await page.locator('.progress-actions').boundingBox())!.height).toBeLessThanOrEqual(70);
+    expect(await page.locator('#rank-8201').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    expect((await page.locator('#rank-8201').boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('.progress-actions').scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath('rank-editor-mobile-390.png'),fullPage:true});
+  await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.locator('[data-progress-state]')).toHaveText('変更後は保存してください');
+  expect(JSON.parse((await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY))!).characterRanks).toEqual({});
+  await page.reload();await tab(page,'progress');
+  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('2');
+  await expect(page.locator('#progress-form input:visible')).toHaveCount(0);
+});
+
+test('collapsed invalid rank opens for correction and failed explicit save stays visible',async({page})=>{
+  await catalog(page);await collection(page);await tab(page,'progress');await openRank(page);
+  const row=page.locator('[data-character-rank="8201"]');
+  await page.locator('#rank-8201').fill('0');await row.locator('summary').click();
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.locator('#rank-8201')).toBeVisible();
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.locator('#rank-8201').fill('7');
+  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new DOMException('quota','QuotaExceededError');};});
+  await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.locator('[data-progress-state]')).toHaveText('ブラウザ保存未完了');
+  await expect(page.locator('.save-state')).toHaveText('保存未完了');
+  await expect(page.locator('#autosave-warning')).toContainText('保存');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+});

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.cache/
+playwright-report/
+test-results/
+.env
+.env.*
+*.log
+*.zip
+*.har
+*.local.json
+imports/
+backups/
+.DS_Store
+.vscode/
+.idea/

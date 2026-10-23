@@ -1,0 +1,82 @@
+import {fictionalRules} from '../helpers/rank-rules';
+import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
+import { fictionalProfile } from '../helpers/conversion';
+import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
+import { PROFILE_STORAGE_KEY } from '../../src/ui/conversion-export';
+
+const file=(v:unknown)=>({name:'fictional.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(v))});
+const master=()=>{const m=syntheticCatalog();m.members[0]!.liveSkillLevels=[1,2,3,4,5];m.members[0]!.gekisouSkillLevels=[1,2,3,4,5];return m;};
+test.beforeEach(async({page})=>{
+  await page.goto('./');await page.locator('nav [data-tab=catalog]').click();
+  await page.locator('#catalog-import').setInputFiles(file(master()));await page.locator('#catalog-apply').click();
+  await page.locator('nav [data-tab=rules]').click();await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules(master())));await page.locator('#rank-rules-apply').click();
+  await page.locator('nav [data-tab=exchange]').click();
+  const owned=syntheticCollection(master());owned.characterRanks={};
+  await page.locator('#import-file').setInputFiles(file(owned));await page.locator('#apply-import').click();
+});
+test('profile confirmation, both options, preview/download and reload leave saved ownership unchanged',async({page})=>{
+  await page.setViewportSize({width:375,height:812});
+  const external:string[]=[],errors:string[]=[];page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:'))external.push(r.url());});page.on('pageerror',e=>errors.push(e.message));
+  const before=await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY]);
+  await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile(master())));
+  expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).toBeNull();
+  await page.locator('#conversion-profile-apply').click();
+  await expect(page.locator('.conversion-panel h2')).toHaveText('プロファイルでJSON出力');
+  await expect(page.locator('#conversion-live4')).not.toBeChecked();await expect(page.locator('#conversion-gekisou4')).not.toBeChecked();
+  await expect(page.locator('.conversion-panel')).toContainText('推定ランク 1人（進捗不足 1人）');
+  await page.locator('#conversion-preview').click();await expect(page.locator('.conversion-panel')).toContainText('完全性');
+  await page.locator('#conversion-complete').check();await page.locator('#conversion-live4').check();await page.locator('#conversion-gekisou4').check();
+  await page.locator('#conversion-preview').click();await expect(page.locator('#conversion-download')).toBeVisible();
+  const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#conversion-download').click()]);
+  expect(d.suggestedFilename()).toBe('atsudori-converted.json');
+  const result=JSON.parse(await readFile((await d.path())!,'utf8'));
+  expect(result.roster).toEqual([{id:8301,outLive:4,outGeki:4}]);expect(result.ranks).toEqual({8201:1});
+  expect(await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY])).toEqual(before);
+  await page.locator('#conversion-live4').uncheck();await expect(page.locator('#conversion-download')).toHaveCount(0);
+  for(const width of [320,375,390]) {await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  expect(await page.locator('#conversion-live4').evaluate(e=>e.getBoundingClientRect().height)).toBeGreaterThan(0);
+  await page.screenshot({path:'test-results/conversion-mobile.png',fullPage:true});
+  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await expect(page.locator('.conversion-panel')).toContainText('プロファイル登録済み');
+  await expect(page.locator('#conversion-live4')).not.toBeChecked();await expect(page.locator('#conversion-gekisou4')).not.toBeChecked();await expect(page.locator('#conversion-complete')).not.toBeChecked();
+  expect(external).toEqual([]);expect(errors).toEqual([]);
+});
+test('catalog drift blocks a saved profile and an incompatible replacement never overwrites it',async({page})=>{
+  const p=await fictionalProfile(master());await page.locator('#conversion-profile-file').setInputFiles(file(p));await page.locator('#conversion-profile-apply').click();
+  const before=await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY);
+  await page.locator('nav [data-tab=catalog]').click();const changed=master();changed.revision='changed';
+  await page.locator('#catalog-import').setInputFiles(file(changed));await page.locator('#catalog-apply').click();
+  await page.locator('nav [data-tab=exchange]').click();await page.locator('#conversion-complete').check();await expect(page.locator('#conversion-preview')).toBeDisabled();
+  await expect(page.locator('.conversion-panel')).toContainText('一致しません');await expect(page.locator('#conversion-download')).toHaveCount(0);
+  await page.locator('.conversion-panel details').first().locator('summary').click();
+  await page.locator('#conversion-profile-file').setInputFiles(file(p));await expect(page.locator('#conversion-profile-apply')).toHaveCount(0);
+  expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).toBe(before);
+});
+test('corrupt saved profiles remain recoverable until an explicit replacement',async({page})=>{
+  const raw='{"format":"unknown","keep":"original"}';await page.evaluate(([k,v])=>localStorage.setItem(k!,v!),[PROFILE_STORAGE_KEY,raw]);
+  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await expect(page.locator('.conversion-panel')).toContainText('元JSONを保護');
+  await page.locator('#conversion-profile-file').setInputFiles(file({unknown:true}));await expect(page.locator('#conversion-profile-apply')).toHaveCount(0);
+  expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).toBe(raw);
+  const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#conversion-profile-original').click()]);expect(await readFile((await d.path())!,'utf8')).toBe(raw);
+  await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile(master())));
+  expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).toBe(raw);
+  await page.locator('#conversion-profile-apply').click();await expect(page.locator('.conversion-panel')).toContainText('登録済み');
+  expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).not.toBe(raw);
+});
+test('failed profile persistence keeps previous bytes and allows an in-memory export',async({page})=>{
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});
+  await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile(master())));await page.locator('#conversion-profile-apply').click();
+  await expect(page.locator('.conversion-panel')).toContainText('ブラウザに未保存');
+  expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).toBeNull();expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.locator('#conversion-complete').check();await page.locator('#conversion-preview').click();await expect(page.locator('#conversion-download')).toBeVisible();
+});
+test('missing item facts and damaged ownership prevent export',async({page})=>{
+  const owned=syntheticCollection(master());owned.bandItems={};await page.locator('#import-file').setInputFiles(file(owned));await page.locator('#apply-import').click();
+  await expect(page.locator('.conversion-panel')).toContainText('所持状態が未入力');await expect(page.locator('#conversion-preview')).toBeDisabled();
+  const raw='{"invalid":"original"}';await page.evaluate(([k,v])=>localStorage.setItem(k!,v!),[STORAGE_KEY,raw]);await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await expect(page.locator('.conversion-panel')).toContainText('保護中');await expect(page.locator('#conversion-preview')).toBeDisabled();expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(raw);
+});

@@ -1,0 +1,60 @@
+#event-planner { scroll-margin-top: 16px; }
+#event-planner button:disabled { cursor: default; opacity: .5; }
+#event-planner .event-common .field { margin-bottom: 8px; }
+.event-best { border-color: #c6b9e8; background: linear-gradient(135deg, #fff, #f8f5ff); }
+.event-best .panel-heading { align-items: center; }
+.event-run-total { flex-shrink: 0; text-align: right; color: var(--accent-dark); }
+.event-run-total strong { display: block; font-size: clamp(38px, 5vw, 54px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.event-run-total span { display: block; font-size: 11px; margin-top: 6px; }
+.event-route-names { display: grid; gap: 5px; font-size: 13px; overflow-wrap: anywhere; }
+.event-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+.event-metrics div { min-width: 0; }
+.event-metrics dt { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.event-metrics dd { margin: 0; font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.event-route { padding-left: 22px; font-size: 13px; line-height: 1.9; }
+.event-search-scope { border-top: 1px solid var(--line); padding-top: 12px; margin: 12px 0 0; font-size: 11px; }
+.event-candidate-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.event-candidates .panel-heading { flex-wrap: wrap; gap: 10px; }
+.event-card-list { display: grid; gap: 16px; }
+.event-card { min-width: 0; border: 1px solid var(--line); border-radius: 10px; margin: 0; padding: 0 14px 14px; }
+.event-card legend { color: var(--accent-dark); font-size: 12px; padding: 0 6px; }
+.event-card.is-disabled { background: #f8f8fb; border-style: dashed; }
+.event-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.event-card .check { margin: 10px 0 14px; }
+.event-card .field { margin-bottom: 12px; gap: 6px; }
+.event-card .preview-line { margin: 0; }
+.event-two-fields { display: grid; grid-template-columns: minmax(70px, .7fr) minmax(0, 1.3fr); gap: 12px; }
+.event-settings > summary { color: var(--accent-dark); font-size: 14px; }
+.event-settings > p:first-of-type { margin-top: 16px; }
+.event-base-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.event-base-list fieldset { border: 1px solid var(--line); border-radius: 8px; min-width: 0; padding: 12px; margin: 0; }
+.event-base-list legend { color: var(--accent-dark); font-size: 12px; }
+.event-base-list .field { margin-bottom: 0; }
+.event-base-list .event-two-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.event-ranking { list-style: none; padding: 0; margin: 0; }
+.event-ranking > li { border-top: 1px solid var(--line); padding: 12px 0; }
+.event-ranking summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #25263a; font-size: 12px; }
+.event-ranking summary > span { overflow-wrap: anywhere; }
+.event-ranking summary > strong { flex-shrink: 0; font-size: 24px; font-variant-numeric: tabular-nums; color: var(--accent-dark); }
+.event-ranking summary small { font-weight: 400; margin-left: 4px; }
+.event-ranking summary > span::after { content: ' 詳細'; color: var(--accent); white-space: nowrap; font-size: 10px; }
+.event-all-pairs { margin-top: 16px; }
+.event-all-pairs > summary { color: var(--accent-dark); }
+.event-backup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.event-backup [data-action-message] { font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
+@media (max-width: 1000px) {
+  .event-candidate-columns { grid-template-columns: 1fr; gap: 0; }
+  .event-card-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  #event-planner input, #event-planner select { font-size: 16px; min-height: 44px; }
+  #event-planner button { min-height: 44px; }
+  .event-card-list { grid-template-columns: 1fr; }
+  .event-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+  .event-metrics dd { font-size: 18px; }
+  .event-best .panel-heading { gap: 8px; }
+  .event-best .panel-heading h2 { font-size: 14px; }
+  .event-base-list { grid-template-columns: 1fr; }
+  .event-route { padding-left: 18px; font-size: 12px; }
+  .event-route-names { font-size: 12px; }
+}
