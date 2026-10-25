@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://morimori36.github.io/atsudori-tools/schemas/character-rank-rules-v1.schema.json",
-  "title": "Character rank rules v1",
+  "title": "Legacy character rank rules v1 (catalog migration)",
   "description": "Structural schema; ascending thresholds, uniqueness, arithmetic bounds and exact catalog binding are also validated by the application.",
   "type": "object",
   "additionalProperties": false,

@@ -7,9 +7,9 @@
 公開URL: https://morimori36.github.io/atsudori-tools/ （mainへのマージ後、検証成功時に自動デプロイ）
 
 使い方:
-1. 「マスタ管理」でバンド・キャラクター・育成テーブル・カードを手動登録、またはcatalog JSONをImportします。不足は明示され、計算を保留します。
+1. 「マスタ管理」でバンド・キャラクター・育成テーブル・カードを手動登録、またはcatalog JSONをImportします。ランク定義と総合ランクボーナス表もcatalogに含めます。不足は明示され、計算を保留します。
 2. 「メンバー」「Snap」で所持を切り替え、育成段階を設定します。編集時のLvは段階ごとの上限に連動します。Importした任意の合法Lvは読込だけでは変えません。
-3. 「ランク・アイテム」で進捗・アイテムを登録します。ランクは対応する定義JSONのImport後に所持・育成から推定し、任意の手入力で上書きできます。総合ランクボーナスは対応する外部ボーナス表から算出するか、画面の加算値を手入力します。旧定義に表がなければボーナスを設定するまで評価値は保留します。未入力進捗は加算せず、未設定アイテムは未知として扱います。
+3. 「ランク・アイテム」で進捗・アイテムを登録します。ランクはランク定義を含むcatalogのImport後に所持・育成から推定し、任意の手入力で上書きできます。総合ランクボーナスは対応する外部ボーナス表から算出するか、画面の加算値を手入力します。旧定義に表がなければボーナスを設定するまで評価値は保留します。未入力進捗は加算せず、未設定アイテムは未知として扱います。
 4. 「評価値」でバンド→色→メンバーの内訳を確認します。「現在／育成最大」は表示用の切替で、所持を変更しません。
 5. マスタと所持JSONはそれぞれExportしてバックアップできます。保存先はこのブラウザ内です。破損データは明示的な復旧操作まで上書きしません。
 6. 「所持 Import / Export」で変換プロファイルを登録すると、その定義に沿ったJSONを生成できます。Export時だけ2スキルの最低Lv4補正を選べます。[変換プロファイルの仕様](docs/profile-export.md)を参照してください。
@@ -35,7 +35,7 @@ npm run audit:public
 
 - [JSONインポート仕様](docs/import-format.md) / [catalog Schema](public/schemas/catalog-v1.schema.json) / [collection Schema](public/schemas/collection-v1.schema.json)
 - [計算・選出と検証の限界](docs/calculation.md) / [架空データの期待値とテスト](docs/testing.md)
-- [キャラクターランク定義JSONのImport・推定と未算出時の扱い](docs/character-rank.md)
+- [catalog内のランク定義・推定と未算出時の扱い](docs/character-rank.md)
 - [変換プロファイルによるJSON出力](docs/profile-export.md)
 - [イベント周回プランナー](docs/event-planner.md) / [周回プランJSON Schema](public/schemas/event-planner-v1.schema.json)
 - [公開手順](docs/deployment.md) / [公開データの範囲](docs/separation.md) / [非公開回帰の実行](docs/private-regression.md)
@@ -45,4 +45,4 @@ npm run audit:public
 
 自作コードは当面、オープンソースライセンスを付与しない方針です（All rights reserved）。MIT等のLICENSEファイルは追加せず、再利用許諾は設定していません。第三者ライブラリ・素材のライセンスと権利表示は引き続き遵守します。詳細は権利表示を参照してください。
 
-ランクの自動推定には、マスタと独立した定義JSONのImportが必要です。定義未登録でも、所持編集・保存・バックアップ・手入力ランクは利用できます。移行時は定義JSONもバックアップしてください。実際のミッション定義・ランクEXPは初期状態や配信物に含めません。
+静的なカード・育成・ランク・ボーナス表はcatalog、動的な所持・進捗・手入力上書きはcollectionで管理します。旧ランク定義JSONや旧保存定義は「マスタ管理」で確認してcatalogへ統合できます。以後はマスタと所持の2ファイルで移行できます。実際の定義・表は初期状態や配信物に含めません。

@@ -22,11 +22,10 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'catalog' | 'rating' | 'members' | 'snaps' | 'progress' | 'exchange' | 'manual' | 'event' | 'rules';
+type Tab = 'catalog' | 'rating' | 'members' | 'snaps' | 'progress' | 'exchange' | 'manual' | 'event';
 const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
-  ['progress', 'ランク・アイテム'], ['rules','ランク定義'], ['catalog', 'マスタ管理'], ['exchange', '所持 Import / Export'], ['manual', '表示値で計算']];
+  ['progress', 'ランク・アイテム'], ['catalog', 'マスタ管理'], ['exchange', '所持 Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
-  rules: ['キャラクターランク定義','推定用の定義を独立してImport・更新・バックアップできます。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
   catalog: ['マスタ管理', '共通データを登録・編集・Importします。所持情報とは別に保存します。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
@@ -77,7 +76,7 @@ export function mountApp(root: HTMLElement): void {
     : loaded.status === 'unavailable' ? loaded.error : '';
   let active: Tab = 'rating';
   const eventPlanner = createEventPlanner(storage, syncSaveState);
-  const rankRules = createRankRules(storage,()=>master,render,download);
+  const rankRules = createRankRules(storage,()=>master,render,download,next=>{replaceCatalog(next);return catalogSaved;});
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(manualProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download);
   let ratingMode: 'current' | 'potential' = 'current';
@@ -260,7 +259,7 @@ export function mountApp(root: HTMLElement): void {
   function progressPage(): string {
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
-    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。ランク定義でImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="rules">ランク定義を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span></div>
+    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。マスタ管理で定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">マスタ管理を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span></div>
       <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
       <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${collection.totalRankBonus??''}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
       <div class="progress-grid">${master.bands.map(band => `<section class="panel progress-band"><header class="rank-band-heading"><h2>${escape(band.name)}</h2><span>使用ランク</span></header>
@@ -290,7 +289,7 @@ export function mountApp(root: HTMLElement): void {
       <label class="check"><input type="checkbox" id="preserve-import-progress" ${preserveImportProgress ? 'checked' : ''}>ファイルにないキャラクター進捗は現在の値を保持</label>
       <p class="muted">手入力の進捗が対象です。ファイルに記載された値は反映します。チェックを外すと、進捗もファイルの内容で置き換えます。</p>
       <button class="primary" id="apply-import">確認して置き換える</button></div>` : ''}</section></div>
-      <section class="panel"><h2>ランク定義のバックアップ</h2><p>マスタ・所持・周回プラン・変換プロファイルとあわせ、登録した定義JSONも保存してください。</p><button class="secondary" data-tab="rules">ランク定義のImport / Export</button></section>
+      <section class="panel"><h2>マスタのバックアップ</h2><p>カード・育成・ランク定義・総合ランクボーナス表はマスタJSONに含まれます。所持JSONとあわせて保存してください。</p><button class="secondary" data-tab="catalog">マスタのImport / Export</button></section>
       <div id="conversion-export"></div>
       <section class="panel reset-panel"><h2>新しく登録を始める</h2><p>現在の登録内容を空にします。必要なデータは先にExportしてください。</p><button class="secondary danger" id="reset-button">登録内容を初期化</button></section>`;
   }
@@ -307,9 +306,8 @@ export function mountApp(root: HTMLElement): void {
       <output id="manual-output" class="manual-output" aria-live="polite"></output><p class="muted">この計算は所持データの登録内容を変更しません。評価値式は観測範囲で検証した推定式です。</p></section>`;
   }
   function pageBody(): string {
-    if (active === 'rules') return '<div id="rank-rules"></div>';
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return active === 'catalog' ? catalogEditorMarkup(master, editorState) : catalogIssues(master).length && ['members','snaps','progress'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return active === 'catalog' ? catalogEditorMarkup(master, editorState)+'<div id="rank-rules"></div>' : catalogIssues(master).length && ['members','snaps','progress'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -322,6 +320,7 @@ export function mountApp(root: HTMLElement): void {
       <main class="${active === 'rating' ? 'rating-page' : active === 'progress' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
+      ${!master.rankDefinition&&rankRules.hasLegacy()?'<p class="alert">旧ランク定義が保存されています。マスタ管理で確認してcatalogへ統合してください。</p><button class="secondary" data-tab="catalog">マスタ管理で統合</button>':''}
       ${pageBody()}
       <footer><p>非公式ツールです。ゲームの運営・開発元とは関係ありません。計算結果は推定式によるもので、ゲーム内の結果を保証しません。</p>
         <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
@@ -341,7 +340,7 @@ export function mountApp(root: HTMLElement): void {
     }));
     if (active === 'catalog') bindCatalogEditor(root, master, editorState, { replace: replaceCatalog, render, report: run, download, damaged: damagedCatalog });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
-    if (active === 'rules') rankRules.mount(root.querySelector<HTMLElement>('#rank-rules')!);
+    if (active === 'catalog') rankRules.mount(root.querySelector<HTMLElement>('#rank-rules')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
   }

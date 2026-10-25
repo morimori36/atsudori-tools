@@ -30,6 +30,6 @@ artifactのアップロードとdeployジョブには同じ条件を設定して
 
 GitHub Flowで機能ブランチ→PR→Squash Mergeを使用します。mainのruleset/branch protectionは利用可能な範囲でPR必須・verify成功必須・force-push禁止にします。Actionsの既定権限はcontents:read、deployジョブだけpages:write/id-token:writeです。Private資料を公開CIへ持ち込まず、実データを同梱しません。
 
-移行前にはマスタ・所持・周回プラン・変換プロファイル・ランク定義をExportしてください。サイト更新で保存内容を送信・上書きする処理はありません。
+移行前にはマスタ（ランク定義を含む）・所持・周回プラン・変換プロファイルをExportしてください。サイト更新で保存内容を送信・上書きする処理はありません。
 
 GitHubの公式手順：[custom workflows](https://github.com/actions/deploy-pages)。

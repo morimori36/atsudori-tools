@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import type {Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
-import {fictionalRules} from '../helpers/rank-rules';
+import {fictionalCatalog} from '../helpers/rank-rules';
 import {CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
 test('all catalog tables can be registered manually without a preloaded master',async({page})=>{
   const m=syntheticCatalog();
@@ -55,7 +55,7 @@ async function catalog(page:Page):Promise<void>{
   await rules(page);await tab(page,'catalog');
 }
 async function rules(page:Page,m=syntheticCatalog()):Promise<void>{
-  await tab(page,'rules');await page.locator('#rank-rules-file').setInputFiles(file('fictional-rules.json',await fictionalRules(m)));await page.locator('#rank-rules-apply').click();
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',await fictionalCatalog(m)));await page.locator('#catalog-apply').click();
 }
 async function collection(page:Page):Promise<void>{
   await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('fictional-collection.json',syntheticCollection()));

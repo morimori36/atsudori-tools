@@ -14,3 +14,15 @@ export interface AchievementDefinition {
   thresholds: number[];
   exp: number;
 }
+
+/** Static data embedded in catalog; no second catalog binding or dynamic progress. */
+export interface RankDefinition {
+  engine: 'achievement-thresholds/1';
+  id: string;
+  version: string;
+  provenance: {sources:{id:string;revision:string;sha256:string}[]};
+  manualProgress: {key:ManualProgressKey;label:string}[];
+  achievements: AchievementDefinition[];
+  rankThresholds: {rank:number;exp:number}[];
+  totalRankBonuses?: {rank:number;bonus:number}[];
+}

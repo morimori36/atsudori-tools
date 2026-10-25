@@ -3,21 +3,10 @@ import { tableFields, tableKeys } from './fields';
 import type { CatalogTable, FieldKind } from './fields';
 
 export const CATALOG_LIMIT = 10 * 1024 * 1024;
-export function jsonValue(text: string, limit: number): unknown {
-  if (new TextEncoder().encode(text).length > limit) throw new Error('JSONが大きすぎます');
-  try { return JSON.parse(text, (key, value: unknown) => {
-    if (['__proto__', 'prototype', 'constructor'].includes(key)) throw new Error('危険なキー');
-    return value;
-  }); } catch { throw new Error('JSONとして読み込めません（構文または危険なキー）'); }
-}
+import { jsonValue, strictObject } from '../json';
+export { jsonValue, strictObject } from '../json';
+import { validateRankDefinition, assertRankDefinitionCatalog } from '../../domain/character-rank/definition';
 function fail(path: string, reason: string): never { throw new Error(path + ': ' + reason); }
-export function strictObject(value: unknown, path: string, keys: readonly string[], required: readonly string[] = keys): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) fail(path, 'オブジェクトが必要です');
-  const row = value as Record<string, unknown>;
-  for (const key of Object.keys(row)) if (!keys.includes(key)) fail(path + '.' + key, '未対応の項目です');
-  for (const key of required) if (!Object.hasOwn(row, key)) fail(path + '.' + key, '必須項目がありません');
-  return row;
-}
 function integer(v: unknown, p: string, min: number): number {
   if (typeof v !== 'number' || !Number.isSafeInteger(v) || v < min) fail(p, '安全な整数（' + min + '以上）が必要です');
   return v;
@@ -44,7 +33,7 @@ const identity = (v: unknown, path: string): string => {
 /** Structure validation permits an explicit draft. Missing relationships are never filled in. */
 export function validateCatalog(value: unknown): Masterdata {
   const keys = ['format','schemaVersion','catalogId','revision', ...Object.keys(tableFields)];
-  const root = strictObject(value, '$', keys);
+  const root = strictObject(value, '$', [...keys,'rankDefinition'],keys);
   if (root.format !== 'atsudori-tools/catalog') fail('$.format', 'catalog形式ではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の形式です。明示的な変換が必要です');
   identity(root.catalogId, '$.catalogId'); identity(root.revision, '$.revision');
@@ -64,6 +53,7 @@ export function validateCatalog(value: unknown): Masterdata {
       return table === 'characterRankLevels' ? row.value : row;
     });
   }
+  if(root.rankDefinition !== undefined) result.rankDefinition=validateRankDefinition(root.rankDefinition);
   return result as unknown as Masterdata;
 }
 export function emptyCatalog(): Masterdata {
@@ -128,6 +118,10 @@ export function catalogIssues(m: Masterdata): string[] {
     need(e.valueBp % 10 === 0,p,'0.1%単位で表現できない効果率です');
   }
   for (const t of m.skillTargets) need(exists(m.bands,t.bandId),'skillTargets/' + t.id,'参照バンドがありません');
+  if(m.rankDefinition) {
+    try { assertRankDefinitionCatalog(m.rankDefinition,m); }
+    catch(e) { need(false,'rankDefinition',e instanceof Error?e.message:'ランク定義が不正です'); }
+  }
   return issues;
 }
 export function importCatalog(text: string): Masterdata {
@@ -136,4 +130,14 @@ export function importCatalog(text: string): Masterdata {
   if (issues.length) throw new Error('catalogの不足・不整合:\n' + issues.join('\n'));
   return m;
 }
-export function exportCatalog(m: Masterdata): string { return JSON.stringify(validateCatalog(m),null,2) + '\n'; }
+export function exportCatalog(m: Masterdata): string {
+  const text=JSON.stringify(validateCatalog(m),null,2)+'\n';
+  if(new TextEncoder().encode(text).length>CATALOG_LIMIT)throw new Error('マスタJSONの上限は10MiBです');
+  return text;
+}
+
+/** Legacy hashes covered only the original catalog tables. Used solely for migration/compatibility. */
+export function catalogBase(master: Masterdata): Omit<Masterdata,'rankDefinition'> {
+  const {rankDefinition,...base}=validateCatalog(master);
+  return base;
+}

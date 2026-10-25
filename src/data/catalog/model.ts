@@ -1,3 +1,4 @@
+import type { RankDefinition } from '../../domain/character-rank/definitions';
 import type { Stats } from '../../domain/rating/calculate';
 
 export interface MemberMaster {
@@ -50,6 +51,8 @@ export interface SkillTarget {
   tagId: number;
 }
 export interface Masterdata {
+  /** Static progression definitions and total-rank bonus table, supplied with this catalog. */
+  rankDefinition?: RankDefinition;
   schemaVersion: 1;
   format: 'atsudori-tools/catalog';
   catalogId: string;

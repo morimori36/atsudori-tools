@@ -25,7 +25,8 @@ test('imported bonus thresholds drive the rating and maximum training uses curre
   const rules=await fictionalRules(m);rules.totalRankBonuses=[{rank:0,bonus:13},{rank:4,bonus:29}];
   await page.goto('./');await page.locator('nav [data-tab=catalog]').click();await page.locator('#catalog-import').setInputFiles(file(m));await page.locator('#catalog-apply').click();
   await page.locator('nav [data-tab=exchange]').click();await page.locator('#import-file').setInputFiles(file(c));await page.locator('#apply-import').click();
-  await page.locator('nav [data-tab=rules]').click();await page.locator('#rank-rules-file').setInputFiles(file(rules));await page.locator('#rank-rules-apply').click();
+  const {format,schemaVersion,catalog,...rankDefinition}=rules;
+  await page.locator('nav [data-tab=catalog]').click();await page.locator('#catalog-import').setInputFiles(file({...m,rankDefinition}));await page.locator('#catalog-apply').click();
   await page.locator('nav [data-tab=progress]').click();await expect(page.locator('[data-total-rank-bonus]')).toContainText('+13（ランク定義から算出）');
   await page.locator('nav [data-tab=rating]').click();await expect(page.locator('.band-result .rating-total strong')).toHaveText('732');
   await page.locator('input[name=rating-mode][value=potential]').check();
