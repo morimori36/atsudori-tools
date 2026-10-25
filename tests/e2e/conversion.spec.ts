@@ -1,4 +1,4 @@
-import {fictionalRules} from '../helpers/rank-rules';
+import {fictionalCatalog} from '../helpers/rank-rules';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
@@ -11,7 +11,7 @@ const master=()=>{const m=syntheticCatalog();m.members[0]!.liveSkillLevels=[1,2,
 test.beforeEach(async({page})=>{
   await page.goto('./');await page.locator('nav [data-tab=catalog]').click();
   await page.locator('#catalog-import').setInputFiles(file(master()));await page.locator('#catalog-apply').click();
-  await page.locator('nav [data-tab=rules]').click();await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules(master())));await page.locator('#rank-rules-apply').click();
+  await page.locator('nav [data-tab=catalog]').click();await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master())));await page.locator('#catalog-apply').click();
   await page.locator('nav [data-tab=exchange]').click();
   const owned=syntheticCollection(master());owned.characterRanks={};
   await page.locator('#import-file').setInputFiles(file(owned));await page.locator('#apply-import').click();

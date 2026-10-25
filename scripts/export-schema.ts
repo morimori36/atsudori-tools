@@ -1,4 +1,4 @@
-import { characterRankRulesSchema } from '../src/domain/character-rank/schema.ts';
+import { characterRankRulesSchema, rankDefinitionSchema } from '../src/domain/character-rank/schema.ts';
 import { storedProgressFields } from '../src/domain/character-rank/definitions.ts';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { tableFields } from '../src/data/catalog/fields.ts';
@@ -17,8 +17,8 @@ const catalog = {
   $id:'https://morimori36.github.io/atsudori-tools/schemas/catalog-v1.schema.json',
   title:'atsudori-tools catalog v1',
   description:'Structural schema only. See docs/import-format.md for references, completeness, units and arithmetic constraints.',
-  ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,
-    ...Object.fromEntries(Object.entries(tableFields).map(([table,fields]) => [table,array(table==='characterRankLevels'?int:object(Object.fromEntries(Object.entries(fields).map(([key,kind])=>[key,kinds[kind]]))))]))})
+  ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,rankDefinition:rankDefinitionSchema,
+    ...Object.fromEntries(Object.entries(tableFields).map(([table,fields]) => [table,array(table==='characterRankLevels'?int:object(Object.fromEntries(Object.entries(fields).map(([key,kind])=>[key,kinds[kind]]))))]))},['format','schemaVersion','catalogId','revision',...Object.keys(tableFields)])
 };
 const member=object({cardId:int,level:int,trainingStage:int,awakeningStage:int,liveSkillLevel:int,gekisouSkillLevel:int,displayedStatsOverride:stats},['cardId','level','trainingStage','awakeningStage','liveSkillLevel','gekisouSkillLevel']);
 const record=(value:unknown)=>({type:'object',propertyNames:{pattern:'^[1-9][0-9]*$'},additionalProperties:value});

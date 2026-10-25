@@ -1,4 +1,4 @@
-import { catalogIssues, validateCatalog } from '../data/catalog/validate';
+import { catalogIssues, validateCatalog, catalogBase } from '../data/catalog/validate';
 import type { Masterdata } from '../data/catalog/model';
 import { validateCollection } from '../storage/collection';
 import type { Collection } from '../storage/collection';
@@ -14,7 +14,7 @@ export function prepareExport(master: Masterdata, value: Collection, options: Ex
   const collection = validateCollection(value,catalog);
   if (collection.members.length + collection.snaps.length > 10000) throw new Error('出力できるカードは合計10000枚までです');
   const ranks = estimateCharacterRanks(catalog,collection,rules);
-  if(ranks.some(r=>r.effectiveRank===null))throw new Error('ランクを出力できません。対応するランク定義をImportするか、手入力ランク・マスタを確認してください');
+  if(ranks.some(r=>r.effectiveRank===null))throw new Error('ランクを出力できません。対応するランク定義を含むマスタをImportするか、手入力ランク・マスタを確認してください');
   if(ranks.some(r=>!catalog.characterRankLevels.includes(r.effectiveRank!))) throw new Error('出力するキャラクターランクが対応マスタの合法範囲にありません。マスタ・手入力ランクを確認してください');
   if(!Number.isSafeInteger(ranks.reduce((sum,r)=>sum+r.effectiveRank!,0)))throw new Error('総合ランクが大きすぎます');
   const missingItems = catalog.bandItems.filter(item=>!Object.hasOwn(collection.bandItems,item.id));
@@ -42,7 +42,7 @@ export function prepareExport(master: Masterdata, value: Collection, options: Ex
     ranks,adjustments,skipped,totalRank:ranks.reduce((sum,r)=>sum+r.effectiveRank!,0) };
 }
 export async function assertProfileCatalog(profile: ConversionProfile, master: Masterdata): Promise<void> {
-  if (profile.catalog.catalogId !== master.catalogId || profile.catalog.revision !== master.revision || profile.catalog.sha256 !== await digest(validateCatalog(master))) {
+  if (profile.catalog.catalogId !== master.catalogId || profile.catalog.revision !== master.revision || (profile.catalog.sha256 !== await digest(validateCatalog(master)) && profile.catalog.sha256 !== await digest(catalogBase(master)))) {
     throw new Error('マスタと変換プロファイルの版・内容が一致しません。対応するプロファイルをImportしてください');
   }
 }

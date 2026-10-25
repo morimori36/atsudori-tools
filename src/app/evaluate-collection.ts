@@ -1,3 +1,4 @@
+import { catalogRankRules } from '../domain/character-rank/rules';
 import { estimateCharacterRanks } from '../domain/character-rank/estimate';
 import { resolveTotalRankBonus } from '../domain/character-rank/bonus';
 import { calculateRating, requireInteger } from '../domain/rating/calculate';
@@ -45,6 +46,7 @@ export function summarizeBands(colors: readonly EvaluatedColor[]): EvaluatedBand
   });
 }
 export function evaluateCollection(master: Masterdata, collection: Collection, rankSource: Collection = collection, rules?: BoundRankRules): EvaluatedColor[] {
+  rules ??= catalogRankRules(master);
   const ranks=estimateCharacterRanks(master,rankSource,rules);
   const totalRankBonus=resolveTotalRankBonus(ranks,rankSource,rules);
   const members = collection.members.map(owned => {

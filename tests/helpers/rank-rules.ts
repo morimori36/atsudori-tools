@@ -22,3 +22,8 @@ export async function fictionalRules(master:Masterdata=syntheticCatalog()):Promi
     totalRankBonuses:[{rank:0,bonus:50},{rank:11,bonus:83}],
     rankThresholds:[{rank:1,exp:0},{rank:2,exp:7},{rank:3,exp:19},{rank:7,exp:41}]};
 }
+/** The normal single-file static catalog fixture. No legacy envelope is embedded. */
+export async function fictionalCatalog(master:Masterdata=syntheticCatalog()):Promise<Masterdata> {
+  const {format,schemaVersion,catalog,...rankDefinition}=await fictionalRules(master);
+  return {...master,rankDefinition};
+}

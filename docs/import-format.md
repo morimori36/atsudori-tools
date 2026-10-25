@@ -138,6 +138,12 @@ catalogIdは対応するcatalogと一致する必要があります。追加進�
 
 localStorageは同一origin内で共有されます。キーは他アプリと分離していますが、同じGitHub Pagesホストの別アプリをセキュリティ境界として隔離するものではありません。Importするデータは自分で管理し、端末・ブラウザも信頼できる環境を使ってください。
 
-推定用のキャラクターランク定義JSONは所持とは独立してImport・Exportします。[定義形式](character-rank.md)を参照してください。
+推定用のランク定義と総合ランクボーナス表はcatalogの任意項目rankDefinitionへ統合します。catalogとcollectionの2種類で管理し、旧定義ファイルは確認付きで移行できます。[定義形式](character-rank.md)を参照してください。
 
-総合ランクボーナス対応はv1への任意項目の追加です。既存のcatalog・collection・ランク定義は変換せず読み込めます。必須項目の削除や意味の置換はありません。新項目は古いアプリでは拒否されるため、旧版への逆方向の読込は対応しません。ボーナス未設定の旧所持は保持したまま評価値を保留します。[ランク定義の拡張](character-rank.md#総合ランクボーナス)を参照してください。
+総合ランクボーナス対応はv1への任意項目の追加です。既存のcatalog・collectionはそのまま読み込めます。別ファイルの旧ランク定義はcatalogへの確認付き統合に対応します。必須項目の削除や意味の置換はありません。新項目は古いアプリでは拒否されるため、旧版への逆方向の読込は対応しません。ボーナス未設定の旧所持は保持したまま評価値を保留します。[ランク定義の拡張](character-rank.md#総合ランクボーナス)を参照してください。
+
+## catalog.rankDefinition（任意）
+
+カード・育成テーブルと同じcatalog JSONに、ランク推定と総合ランクボーナスの静的定義を追加します。engine、id、version、provenance、manualProgress、achievements、rankThresholdsと任意のtotalRankBonusesを持ちます。旧ファイルのformat・schemaVersion・catalog参照は内包しません。詳細は[ランク定義](character-rank.md)とcatalog Schemaを参照してください。
+
+これは既存v1への任意項目追加です。未登録のcatalogも有効であり、collection v1の形式・保存キー・所持データは変更しません。既存catalogには、旧ランク定義を確認して統合できます。統合後はcatalog JSONのExportに定義も含まれます。

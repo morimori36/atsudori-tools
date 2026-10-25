@@ -15,5 +15,5 @@ export function resolveTotalRankBonus(
   if(total === null) return {bonus:null,source:'unknown',reason:'総合ランクが未算出です。各キャラのランクか総合ランクボーナスを設定してください'};
   const row = rules?.document.totalRankBonuses?.slice().reverse().find(row=>row.rank<=total);
   return row ? {bonus:row.bonus,source:'rules',reason:null}
-    : {bonus:null,source:'unknown',reason:'総合ランクボーナスを手入力するか、対応するボーナス表を含むランク定義をImportしてください'};
+    : {bonus:null,source:'unknown',reason:'総合ランクボーナスを手入力するか、対応するボーナス表を含むマスタをImportしてください'};
 }

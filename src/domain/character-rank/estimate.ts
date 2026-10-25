@@ -1,7 +1,7 @@
 import type { Masterdata } from '../../data/catalog/model';
 import type { Collection } from '../../storage/collection';
 import type { AchievementDefinition, ManualProgressKey } from './definitions';
-import { assertRankRulesCatalog } from './rules';
+import { assertRankRulesCatalog, catalogRankRules } from './rules';
 import type { BoundRankRules } from './rules';
 export function rankFromExp(exp:number,rules:BoundRankRules):number {
   if(!Number.isSafeInteger(exp)||exp<0)throw new Error('EXPは0以上の安全な整数が必要です');
@@ -34,14 +34,16 @@ function estimate(master:Masterdata,collection:Collection,characterId:number,rul
   const chosen=overrideRank??estimatedRank;
   const effectiveRank=chosen!==null&&master.characterRankLevels.includes(chosen)?chosen:null;
   return {exp,estimatedRank,overrideRank,effectiveRank,details,
-    reason:effectiveRank===null?(chosen===null?'ランク定義をImportするか手入力ランクを設定してください':'マスタに対応するランク行がありません'):null,
+    reason:effectiveRank===null?(chosen===null?'ランク定義を含むマスタをImportするか手入力ランクを設定してください':'マスタに対応するランク行がありません'):null,
     missingProgress:(rules?.document.manualProgress.map(p=>p.key)??[] as ManualProgressKey[]).filter(key=>manual?.[key]===undefined)};
 }
 export function estimateCharacterRank(master:Masterdata,collection:Collection,characterId:number,rules?:BoundRankRules) {
+  rules ??= catalogRankRules(master);
   if(rules)assertRankRulesCatalog(rules,master);
   return estimate(master,collection,characterId,rules);
 }
 export function estimateCharacterRanks(master:Masterdata,collection:Collection,rules?:BoundRankRules) {
+  rules ??= catalogRankRules(master);
   if(rules)assertRankRulesCatalog(rules,master);
   return master.characters.map(c=>({id:c.id,...estimate(master,collection,c.id,rules)}));
 }

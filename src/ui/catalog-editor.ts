@@ -37,10 +37,10 @@ export function catalogEditorMarkup(m: Masterdata, state: EditorState): string {
       return input(key, key + (kind === 'ids' || kind === 'pair' ? '（カンマ区切りの整数）' : ''), Array.isArray(v) ? v.join(',') : v, kind);
     }).join('') + '</div><button class="primary" type="submit">' + (state.index < 0 ? '行を登録' : '行を更新') + '</button> ' +
     (state.index >= 0 ? '<button class="secondary danger" type="button" id="catalog-delete">この行を削除</button>' : '') + '</form></section>' +
-    '<section class="panel"><h2>マスタのImport / Export</h2><p>catalog形式・schemaVersion 1。Importは不足や不正な参照がある場合に拒否します。所持登録と矛盾する更新も拒否します。</p>' +
+    '<section class="panel"><h2>マスタのImport / Export</h2><p>カード・育成・ランク定義・総合ランクボーナス表を1つのcatalog JSONで管理します（schemaVersion 1）。Importは不足や不正な参照がある場合に拒否します。所持登録と矛盾する更新も拒否します。</p>' +
     '<button class="secondary" id="catalog-export">マスタJSONをExport</button> <button class="secondary" id="catalog-original" hidden>元の保存マスタをExport</button>' +
     '<label class="file-label" for="catalog-import">マスタJSONを選択<input id="catalog-import" type="file" accept=".json,application/json"></label>' +
-    (state.preview ? '<p>検証済み: メンバー ' + state.preview.members.length + ' / Snap ' + state.preview.snaps.length + ' / 版 ' + esc(state.preview.revision) + '</p><button class="primary" id="catalog-apply">確認してマスタを置き換える</button>' : '') +
+    (state.preview ? '<p>検証済み: メンバー ' + state.preview.members.length + ' / Snap ' + state.preview.snaps.length + ' / 版 ' + esc(state.preview.revision) + ' / ランク定義 ' + (state.preview.rankDefinition ? 'あり' : 'なし（現在の定義も置換）') + '</p><button class="primary" id="catalog-apply">確認してマスタを置き換える</button>' : '') +
     '<p>作成途中のExportはバックアップ用です。不足を解消してからImportしてください。</p><button class="secondary danger" id="catalog-clear">マスタを空にする</button></section>';
 }
 export function bindCatalogEditor(root: HTMLElement, m: Masterdata, state: EditorState, actions: EditorActions): void {

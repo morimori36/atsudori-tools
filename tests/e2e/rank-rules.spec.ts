@@ -2,7 +2,7 @@ import { test,expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { syntheticCatalog,syntheticCollection } from '../helpers/synthetic';
-import { fictionalRules } from '../helpers/rank-rules';
+import { fictionalRules, fictionalCatalog } from '../helpers/rank-rules';
 import { fictionalProfile } from '../helpers/conversion';
 import { CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
 import { RANK_RULES_STORAGE_KEY } from '../../src/ui/rank-rules';
@@ -27,42 +27,75 @@ test('missing rules retain manual ranks, ownership editing, backup and manual-on
   await tab(page,'exchange');await expect(page.locator('#conversion-preview')).toBeDisabled();await expect(page.locator('.conversion-panel')).toContainText('ランク定義');
   await tab(page,'members');await page.locator('[data-member-card="8301"] input[name=liveSkillLevel][value="2"]').check();await tab(page,'exchange');expect(JSON.parse(await download(page,'#export-button')).members[0].liveSkillLevel).toBe(2);
 });
-test('imports rules independently, estimates only after confirmation, and backs up/restores definitions',async({page})=>{
-  await page.setViewportSize({width:375,height:812});const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await tab(page,'rules');await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules()));
-  expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBeNull();await page.locator('#rank-rules-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('test-9');await expect(page.locator('#rank-rules')).toContainText('一致');
-  const backup=await download(page,'#rank-rules-export');expect(JSON.parse(backup)).toEqual(await fictionalRules());
+test('imports, backs up and restores all static definitions with catalog alone',async({page})=>{
+  await page.setViewportSize({width:375,height:812});
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await expect(page.locator('nav [data-tab=rules]')).toHaveCount(0);
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog()));await page.locator('#catalog-apply').click();
+  await expect(page.locator('#rank-rules')).toContainText('test-9');
+  const backup=await download(page,'#catalog-export');expect(JSON.parse(backup).rankDefinition.rankThresholds).toEqual((await fictionalRules()).rankThresholds);
+  expect(JSON.parse(backup).rankDefinition.totalRankBonuses).toEqual((await fictionalRules()).totalRankBonuses);
+  expect(JSON.parse(backup).rankDefinition).not.toHaveProperty('catalog');
+  expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBeNull();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 2.*EXP 17.*使用ランク 3/);
-  await page.locator('[data-rank-summary]').click();await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
+  await tab(page,'progress');await page.locator('[data-rank-summary]').click();await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
-  const saved=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await page.evaluate(k=>localStorage.removeItem(k),RANK_RULES_STORAGE_KEY);await page.reload();await tab(page,'rules');await page.locator('#rank-rules-file').setInputFiles(file(backup));await page.locator('#rank-rules-apply').click();
-  await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(saved);
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await page.locator('#catalog-apply').click();
+  await expect(page.locator('#rank-rules')).toContainText('未登録');
+  await page.locator('#catalog-import').setInputFiles(file(backup));await page.locator('#catalog-apply').click();
+  await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
-test('rejects invalid JSON, duplicate thresholds, incompatible versions and master bytes without writes',async({page})=>{
-  const rules=await fictionalRules();await tab(page,'rules');await page.locator('#rank-rules-file').setInputFiles(file(rules));await page.locator('#rank-rules-apply').click();
-  const before=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,RANK_RULES_STORAGE_KEY]);
+test('offers saved legacy definitions for verified migration without changing legacy or ownership bytes',async({page})=>{
+  const rules=await fictionalRules();const raw=JSON.stringify(rules,null,1);
+  await page.evaluate(({k,raw})=>localStorage.setItem(k,raw),{k:RANK_RULES_STORAGE_KEY,raw});await page.reload();
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await expect(page.getByText('旧ランク定義が保存されています。', {exact:false})).toBeVisible();
+  await tab(page,'catalog');await expect(page.locator('#rank-rules-apply')).toBeVisible();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).rankDefinition,CATALOG_STORAGE_KEY)).toBeUndefined();
+  await page.locator('#rank-rules-apply').click();
+  await expect(page.locator('#rank-rules')).toContainText('catalogへ統合しました');
+  expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe(raw);
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.reload();await tab(page,'catalog');await expect(page.locator('#rank-rules-apply')).toHaveCount(0);
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 2.*EXP 17/);
+});
+test('rejects invalid legacy definitions without changing catalog, collection or original source',async({page})=>{
+  const rules=await fictionalRules();await tab(page,'catalog');
+  const before=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[CATALOG_STORAGE_KEY,STORAGE_KEY,RANK_RULES_STORAGE_KEY]);
   const duplicate=structuredClone(rules);duplicate.achievements[0]!.thresholds=[3,3];
   for(const bad of ['{',duplicate,{...rules,schemaVersion:83},{...rules,catalog:{...rules.catalog,revision:'future'}},{...rules,catalog:{...rules.catalog,sha256:'a'.repeat(64)}}]){
     await page.locator('#rank-rules-file').setInputFiles(file(bad));await expect(page.locator('#rank-rules-apply')).toHaveCount(0);await expect(page.locator('#rank-rules [role=status]')).toBeVisible();
-    expect(await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,RANK_RULES_STORAGE_KEY])).toEqual(before);
+    expect(await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[CATALOG_STORAGE_KEY,STORAGE_KEY,RANK_RULES_STORAGE_KEY])).toEqual(before);
   }
 });
-test('preserves damaged rules until explicit recovery and preserves previous bytes after quota failure',async({page})=>{
-  await page.evaluate(k=>localStorage.setItem(k,'{damaged'),RANK_RULES_STORAGE_KEY);await page.reload();await tab(page,'rules');
+test('preserves damaged legacy source and exports the combined catalog after failed persistence',async({page})=>{
+  await page.evaluate(k=>localStorage.setItem(k,'{damaged'),RANK_RULES_STORAGE_KEY);await page.reload();await tab(page,'catalog');
   await expect(page.locator('#rank-rules')).toContainText('元JSONを保護');expect(await download(page,'#rank-rules-original')).toBe('{damaged');
-  const rules=await fictionalRules();await page.locator('#rank-rules-file').setInputFiles(file(rules));await page.locator('#rank-rules-apply').click();const before=await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY);
-  const next={...rules,version:'test-10'};await page.locator('#rank-rules-file').setInputFiles(file(next));await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});await page.locator('#rank-rules-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('ブラウザ保存未完了');expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe(before);expect(JSON.parse(await download(page,'#rank-rules-export')).version).toBe('test-10');
+  await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules()));
+  const before=await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY);
+  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});await page.locator('#rank-rules-apply').click();
+  await expect(page.locator('#rank-rules')).toContainText('ブラウザ保存未完了');
+  expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe(before);
+  expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe('{damaged');
+  expect(JSON.parse(await download(page,'#catalog-export')).rankDefinition.version).toBe('test-9');
 });
-test('catalog replacement disables stale rules while preserving overrides, progress and original definition bytes',async({page})=>{
-  await tab(page,'rules');await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules()));await page.locator('#rank-rules-apply').click();
-  const before=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,RANK_RULES_STORAGE_KEY]);
-  const changed=syntheticCatalog();changed.revision='test-10';await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(changed));await page.locator('#catalog-apply').click();
-  await tab(page,'rules');await expect(page.locator('#rank-rules')).toContainText('推定を停止');
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 —.*手動上書き中.*使用ランク 3/);
-  expect(await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,RANK_RULES_STORAGE_KEY])).toEqual(before);
+test('a native catalog wins over an incompatible saved legacy definition',async({page})=>{
+  const old=await fictionalRules();old.catalog.revision='old';const raw=JSON.stringify(old);
+  await page.evaluate(({k,raw})=>localStorage.setItem(k,raw),{k:RANK_RULES_STORAGE_KEY,raw});await page.reload();
+  const catalog=await fictionalCatalog();catalog.rankDefinition!.version='native-10';
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(catalog));await page.locator('#catalog-apply').click();
+  await expect(page.locator('#rank-rules')).toContainText('native-10');await expect(page.locator('#rank-rules-apply')).toHaveCount(0);
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 2.*EXP 17/);
+  expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe(raw);
+});
+test('editing a table that invalidates embedded ranks reports issues without crashing backup/export',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog()));await page.locator('#catalog-apply').click();
+  await page.locator('#catalog-table').selectOption('characterRankLevels');await page.locator('#catalog-row').selectOption('3');
+  page.once('dialog',d=>d.accept());await page.locator('#catalog-delete').click();
+  await expect(page.locator('#rank-rules')).toContainText('推定を停止');
+  expect(JSON.parse(await download(page,'#catalog-export')).rankDefinition.rankThresholds).toHaveLength(4);
+  await tab(page,'exchange');await expect(page.locator('#export-button')).toBeVisible();
+  expect(errors).toEqual([]);
 });
