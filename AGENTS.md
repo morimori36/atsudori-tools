@@ -1,6 +1,7 @@
 # 開発ルール
 
 最初にREADME.md、docs/import-format.md、docs/calculation.md、docs/separation.mdを読む。
+公開境界の判断と作業順は[docs/public-boundary-review.md](docs/public-boundary-review.md)に従う。通常の改修・自動検査・内容レビュー・修正・再検査はこのリポジトリ内で完結させる。他リポジトリへのアクセスや外部の監査設定を前提にせず、別の監査依頼を利用者へ求めない。
 
 - このリポジトリをWebアプリ実装の正本とする。実マスタ・原本・実測fixture・個人の所持情報や他のGit履歴を追加しない。架空データも実データを改名して作らない。
 - catalogはサービス非依存。出典サービス名・上流形式の必須化、自動取得、再取得してbuildへ同梱する機能を入れない。インポートや保存内容を送信・ログ出力しない。
