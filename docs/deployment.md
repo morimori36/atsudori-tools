@@ -1,39 +1,35 @@
-# 公開準備とGitHub Pages
+# GitHub Pagesの自動デプロイ
 
-予定URLは https://morimori36.github.io/atsudori-tools/ です。Vite、ブラウザテスト、CIはいずれも/atsudori-tools/を基準にしています。マスタも所持も配信ファイルへ入りません。
+公開URLは https://morimori36.github.io/atsudori-tools/ です。Vite、ブラウザテスト、CIはいずれも`/atsudori-tools/`を基準にしています。マスタ・所持・実ランク定義は配信ファイルへ入りません。
 
-現在はPrivateで検証のみを行います。Public化と本番デプロイの両方に所有者の明示的な承認が必要です。Private期間は承認変数や手動入力があってもdeployを実行しません。Publicへ変えるだけでもdeployしません。
+所有者の指示により、Publicリポジトリのmainへのpush後、すべての検証が成功した場合にPagesへ自動デプロイします。PRをmainへSquash Mergeした場合も同じです。PRブランチでは検証だけを行います。
 
-workflowのdeploy条件:
-- repository.private=false
-- main
-- pull_request以外
-- repository variable PAGES_PUBLICATION_APPROVED=true
-- deploy=trueの手動実行（既定false）
+## 実行条件
 
-Pages用artifactのアップロードにも同じ条件を適用します。通常のPrivate/PR検証はbuild・ブラウザテスト・監査だけです。Privateの実データ回帰をActionsへ持ち込まないでください。
+artifactのアップロードとdeployジョブには同じ条件を設定しています。
 
-## 所有者が承認後に行う操作
+- リポジトリがPublic（`repository.private == false`）
+- 対象が`refs/heads/main`
+- `push`イベント、または`deploy=true`を指定した`workflow_dispatch`
 
-1. 自作コードは当面、ライセンスなし（All rights reserved）とし、MIT等のLICENSEファイルを追加しません。GitHubでのPublic化にLICENSEの設定は必須ではありません。第三者ライブラリ・素材のライセンスと権利表示は引き続き遵守し、必要な権利・商標・利用条件を確認します。公開する現在ファイル・全Git履歴・配信artifactの監査と指定テスト・E2Eがすべて成功するまでは、Public化もPagesデプロイも行いません。
-2. Public化への明示的な承認後に、[Settings → General](https://github.com/morimori36/atsudori-tools/settings)のDanger Zoneで公開範囲を変更します。この操作を本番配信の承認と兼用しません。
-3. mainのCIが成功したことを確認します。GitHub Pagesの契約・利用可否も設定画面で確認してください。
-4. [Settings → Pages](https://github.com/morimori36/atsudori-tools/settings/pages)でBuild and deploymentのSourceをGitHub Actionsにします。workflowによる管理APIの強制有効化や追加管理tokenは使いません。
-5. Settings → Environmentsのgithub-pagesをmainだけに制限し、利用可能ならrequired reviewersに所有者を設定します。
-6. 本番公開への明示的な承認後にだけ、[Actions variables](https://github.com/morimori36/atsudori-tools/settings/variables/actions)へPAGES_PUBLICATION_APPROVED=trueを設定します。
-7. mainで[Verify and gated Pages](https://github.com/morimori36/atsudori-tools/actions)をRun workflowし、deploy=trueを明示します。成功したenvironment URLを確認します。
-8. 公開した/atsudori-tools/で空起動、JSON操作、静的アセット、権利表示を確認します。実マスタや個人所持をテストのために公開しないでください。
+型検査・単体・Schema再生成一致・Chromium/WebKitのブラウザ検証・公開境界監査の後にartifactをアップロードし、`needs: verify`のdeployジョブで配信します。検証に失敗した場合はデプロイしません。
 
-mainへのpushでは検証だけを実行します。本番配信は毎回deploy=trueの手動実行を必要とします。配信後は承認変数をfalseへ戻し、意図しない手動配信も防いでください。
+従来の`PAGES_PUBLICATION_APPROVED`変数は配信条件に使いません。初回公開時の毎回の手動承認から、検証済みmainの自動配信へ移行したためです。PrivateリポジトリやPRからの配信は実行しません。
 
-## 開発運用
+## 手動実行と確認
 
-初期構築以降はGitHub Flowで機能ブランチ→PR→Squash Mergeを使用します。Settings → GeneralでSquash Mergeを選び、他のmerge方式は不要なら無効にします。PRでは検証だけを実行します。
+[Actions](https://github.com/morimori36/atsudori-tools/actions)の「Verify and Pages」をmainでRun workflowすると再検証できます。`deploy`の既定値はfalseで、チェックすると検証成功後に再デプロイします。通常のマージでは手動実行は不要です。
 
-mainのruleset/branch protectionは、契約で利用できる範囲でPR必須・verify成功必須・force-push禁止にします。初期構築では不要なbotや追加管理secretを導入しません。
+実行結果のverifyとdeployがともにsuccessであることを確認します。Settings → Environments → github-pagesの履歴でも配信commitを確認できます。配信を止める場合はActionsのワークフローを無効にするかPages設定を変更してください。旧承認変数をfalseへ戻しても停止しません。
 
-Actionsの既定権限はcontents:readです。deploy jobだけpages:write/id-token:writeを持ちます。依存の取得は公開npmと検証用Chromium・WebKitに限り、ゲームデータを取得するstepはありません。CI成果物を手動で追加する場合にも、所持ファイル・Private回帰資料・テストtraceを同梱しないでください。
+## 設定と公開境界
 
-GitHubの公式手順: [custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。利用プランで使える機能が異なるため、管理権限不足や利用不可があれば迂回せず所有者が設定します。
+[Settings → Pages](https://github.com/morimori36/atsudori-tools/settings/pages)のSourceはGitHub Actionsを使用します。github-pages環境の配信ブランチはmainに制限します。環境にrequired reviewersを追加すると、GitHub側の手動承認待ちが発生します。
 
-移行時はキャラクターランク定義JSONもExportし、移行先へ独立してImportしてください。実定義をリポジトリやCI・配信artifactへ追加しません。
+初回のPublic化・本番公開、公開範囲や権利・ライセンス方針の変更、履歴書換え・force-pushには所有者の明示的な承認が必要です。検証済みmainの継続的な自動配信は承認済みです。自作コードは当面All rights reservedとし、必要な第三者の権利表示を保持します。
+
+GitHub Flowで機能ブランチ→PR→Squash Mergeを使用します。mainのruleset/branch protectionは利用可能な範囲でPR必須・verify成功必須・force-push禁止にします。Actionsの既定権限はcontents:read、deployジョブだけpages:write/id-token:writeです。Private資料を公開CIへ持ち込まず、実データを同梱しません。
+
+移行前にはマスタ・所持・周回プラン・変換プロファイル・ランク定義をExportしてください。サイト更新で保存内容を送信・上書きする処理はありません。
+
+GitHubの公式手順：[custom workflows](https://github.com/actions/deploy-pages)。
