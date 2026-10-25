@@ -26,8 +26,8 @@ export function createRankRules(storage:StoragePort|undefined,read:()=>Masterdat
   function render():void {
     if(!host?.isConnected)return;
     current();
-    host.innerHTML=`<section class="panel"><h2>キャラクターランク定義</h2><p>推定用の定義JSONを、マスタ・所持とは別にImportします。</p>
-      ${document?`<dl class="conversion-meta"><dt>定義</dt><dd>${escape(document.id)} / ${escape(document.version)}</dd><dt>対応マスタ</dt><dd>${escape(document.catalog.catalogId)} / ${escape(document.catalog.revision)}</dd><dt>対応範囲</dt><dd>判定 ${document.achievements.length}件 / ランク ${document.rankThresholds[0]!.rank}〜${document.rankThresholds.at(-1)!.rank}</dd><dt>照合</dt><dd>${pending?'検証中':bound?'一致':'不一致'}</dd></dl><button class="secondary" id="rank-rules-export">定義JSONをExport</button>`:'<p>ランク定義未登録：自動推定には定義JSONのImportが必要です。手入力ランク・所持編集・バックアップは利用できます。</p>'}
+    host.innerHTML=`<section class="panel"><h2>キャラクターランク定義</h2><p>推定と総合ランクボーナスの定義JSONを、マスタ・所持とは別にImportします。</p>
+      ${document?`<dl class="conversion-meta"><dt>定義</dt><dd>${escape(document.id)} / ${escape(document.version)}</dd><dt>対応マスタ</dt><dd>${escape(document.catalog.catalogId)} / ${escape(document.catalog.revision)}</dd><dt>対応範囲</dt><dd>判定 ${document.achievements.length}件 / ランク ${document.rankThresholds[0]!.rank}〜${document.rankThresholds.at(-1)!.rank}</dd><dt>総合ランクボーナス表</dt><dd>${document.totalRankBonuses?document.totalRankBonuses.length+'件':'未登録（ボーナスは手入力が必要）'}</dd><dt>照合</dt><dd>${pending?'検証中':bound?'一致':'不一致'}</dd></dl><button class="secondary" id="rank-rules-export">定義JSONをExport</button>`:'<p>ランク定義未登録：自動推定には定義JSONのImportが必要です。手入力ランク・所持編集・バックアップは利用できます。</p>'}
       ${bindingError?`<p role="alert" class="alert error">${escape(bindingError)} 推定を停止しています。手入力値は保持します。</p>`:''}
       <label class="file-label" for="rank-rules-file">定義JSONを選択<input type="file" id="rank-rules-file" accept=".json,application/json"></label>
       ${draft?`<div class="import-preview"><p>${escape(draft.document.id)} / ${escape(draft.document.version)} · 対応マスタ ${escape(draft.document.catalog.revision)}</p><button class="primary" id="rank-rules-apply">確認して定義を更新</button></div>`:''}

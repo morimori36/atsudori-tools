@@ -24,7 +24,7 @@ export function syntheticCatalog(): Masterdata {
   };
 }
 export function syntheticCollection(m = syntheticCatalog()): Collection {
-  return {...emptyCollection(m),
+  return {...emptyCollection(m),totalRankBonus:50,
     members:[{cardId:8301,level:1,trainingStage:1,awakeningStage:1,liveSkillLevel:1,gekisouSkillLevel:1}],
     snaps:[{supportCardId:8501,level:1,rank:1}],characterRanks:{8201:3},bandItems:{8601:1}};
 }

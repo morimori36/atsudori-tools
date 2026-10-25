@@ -1,3 +1,4 @@
+import { resolveTotalRankBonus } from '../domain/character-rank/bonus';
 import { estimateCharacterRank, estimateCharacterRanks, sumCharacterRanks } from '../domain/character-rank/estimate';
 import { manualProgressKeys } from '../domain/character-rank/definitions';
 import type { CharacterProgress } from '../domain/character-rank/definitions';
@@ -258,7 +259,10 @@ export function mountApp(root: HTMLElement): void {
   }
   function progressPage(): string {
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
+    const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
     return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。ランク定義でImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="rules">ランク定義を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span></div>
+      <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
+      <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${collection.totalRankBonus??''}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
       <div class="progress-grid">${master.bands.map(band => `<section class="panel progress-band"><header class="rank-band-heading"><h2>${escape(band.name)}</h2><span>使用ランク</span></header>
       ${master.characters.filter(c => c.bandId === band.id).map(c => {
         const rank = ranks.find(r=>r.id===c.id)!;
@@ -293,7 +297,7 @@ export function mountApp(root: HTMLElement): void {
   function manualPage(): string {
     return `<section class="panel"><div class="panel-heading"><h2>表示値を入力</h2><button class="secondary small" id="manual-example">架空の例をセット</button></div>
       <form id="manual-form"><div class="form-grid">${field('manualP', 'Performance', '', 0)}${field('manualT', 'Technic', '', 0)}${field('manualV', 'Visual', '', 0)}
-      ${field('manualA', '式の覚醒 A', 1)}${field('manualL', 'Live Lv', 1)}${field('manualG', '撃奏 Lv', 1)}${field('manualR', 'キャラクターランク', 1)}
+      ${field('manualA', '式の覚醒 A', 1)}${field('manualL', 'Live Lv', 1)}${field('manualG', '撃奏 Lv', 1)}${field('manualR', 'キャラクターランク', 1)}${field('manualTotalRankBonus', '総合ランクボーナス（各パラメータへの加算値）', '', 0)}
       <label class="field" for="manualItem"><span>バンドアイテム補正（%）</span><input type="number" id="manualItem" name="manualItem" min="0" step="0.1" value="0" required></label></div>
       <label class="check"><input type="checkbox" name="noSnap" id="noSnap" checked>Snapなし</label>
       <div class="form-grid manual-snap"><label class="field" for="snapP"><span>Snap Performance（%）</span><input id="snapP" name="snapP" type="number" min="0" step="0.01" value="0"></label>
@@ -505,7 +509,9 @@ export function mountApp(root: HTMLElement): void {
         }
         if (Object.keys(progress).length) characterProgress[c.id] = progress;
       });
-      return { ...collection, characterRanks, characterProgress, bandItems };
+      const {totalRankBonus:previousBonus,...base}=collection;
+      const bonus=String(data.get('totalRankBonus')??'').trim();
+      return { ...base, characterRanks, characterProgress, bandItems, ...(bonus===''?{}:{totalRankBonus:Number(bonus)}) };
     };
     const initial = JSON.stringify(readValues());
     const update = (): void => {
@@ -530,7 +536,11 @@ export function mountApp(root: HTMLElement): void {
         row.querySelector('[data-missing-progress]')!.textContent = rank.missingProgress.length ? '進捗に未入力あり' : '';
         row.querySelector('[data-rank-breakdown]')!.innerHTML = rankBreakdown(rank);
       }
-      if (Array.from(form.querySelectorAll<HTMLInputElement>('input')).every(i => i.validity.valid)) form.querySelector('[data-total-character-rank] strong')!.textContent = sumCharacterRanks(previewRanks)?.toLocaleString('ja-JP')??'未算出';
+      if (Array.from(form.querySelectorAll<HTMLInputElement>('input')).every(i => i.validity.valid)) {
+        form.querySelector('[data-total-character-rank] strong')!.textContent = sumCharacterRanks(previewRanks)?.toLocaleString('ja-JP')??'未算出';
+        const bonus=resolveTotalRankBonus(previewRanks,next,rankRules.current());
+        form.querySelector('[data-total-rank-bonus]')!.textContent = `使用する加算値：${bonus.bonus===null?'未設定':'+'+bonus.bonus}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）`;
+      }
     };
     form.addEventListener('input', update);
     form.querySelectorAll<HTMLButtonElement>('[data-reset-rank]').forEach(button => button.addEventListener('click', () => {
@@ -543,10 +553,10 @@ export function mountApp(root: HTMLElement): void {
     }, true);
     form.addEventListener('submit', event => {
       event.preventDefault();
-      const expanded = Array.from(form.querySelectorAll<HTMLDetailsElement>('details[open]')).map(d => d.dataset.characterRank ?? 'items-' + Array.from(form.querySelectorAll('.band-items')).indexOf(d));
+      const expanded = Array.from(form.querySelectorAll<HTMLDetailsElement>('details[open]')).map(d => d.dataset.progressSection ?? d.dataset.characterRank ?? 'items-' + Array.from(form.querySelectorAll('.band-items')).indexOf(d));
       run(() => persist(readValues()), 'ランク・アイテムを反映しました');
       root.querySelectorAll<HTMLDetailsElement>('#progress-form details').forEach(d => {
-        d.open = expanded.includes(d.dataset.characterRank ?? 'items-' + Array.from(root.querySelectorAll('.band-items')).indexOf(d));
+        d.open = expanded.includes(d.dataset.progressSection ?? d.dataset.characterRank ?? 'items-' + Array.from(root.querySelectorAll('.band-items')).indexOf(d));
       });
     });
   }
@@ -582,14 +592,14 @@ export function mountApp(root: HTMLElement): void {
     noSnap.addEventListener('change', toggle); toggle();
     root.querySelector('#manual-example')!.addEventListener('click', () => {
       const example: Record<string, number> = { manualP: 101, manualT: 202, manualV: 303, manualA: 2, manualL: 3, manualG: 1, manualR: 7,
-        manualItem: 1.3, snapP: 3.21, snapT: 4.56, snapV: 7.89, manualU: 2 };
+        manualTotalRankBonus: 50, manualItem: 1.3, snapP: 3.21, snapT: 4.56, snapV: 7.89, manualU: 2 };
       Object.entries(example).forEach(([key, value]) => { form.querySelector<HTMLInputElement>(`#${key}`)!.value = String(value); }); noSnap.checked = false; toggle();
     });
     form.addEventListener('submit', event => { event.preventDefault(); const data = new FormData(form); const value = (key: string): number => Number(data.get(key));
       try {
         const stats: Stats = { performance: value('manualP'), technic: value('manualT'), visual: value('manualV') };
         const input: RatingInput = { memberDisplayedStats: stats, awakeLevel: value('manualA'), liveSkillLevel: value('manualL'), gekisouSkillLevel: value('manualG'),
-          characterRank: value('manualR'), bandItemTenthPercent: fixed(data.get('manualItem'), 1, 'item補正'), snapLimitBreak: noSnap.checked ? 0 : value('manualU'),
+          characterRank: value('manualR'), totalRankBonus: value('manualTotalRankBonus'), bandItemTenthPercent: fixed(data.get('manualItem'), 1, 'item補正'), snapLimitBreak: noSnap.checked ? 0 : value('manualU'),
           snapPercentBp: noSnap.checked ? { performance: 0, technic: 0, visual: 0 } : { performance: fixed(data.get('snapP'), 2, 'Snap P'), technic: fixed(data.get('snapT'), 2, 'Snap T'), visual: fixed(data.get('snapV'), 2, 'Snap V') } };
         const result = calculateRating(input);
         root.querySelector('#manual-output')!.innerHTML = `<span>個別バンド評価値</span><strong>${number(result.bandRating)}</strong><p>B ${number(result.memberBase)} · K ${(result.snapMultiplierBp / 10000).toFixed(4)}</p>`;

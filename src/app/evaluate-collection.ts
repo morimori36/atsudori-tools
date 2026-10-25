@@ -1,4 +1,5 @@
 import { estimateCharacterRanks } from '../domain/character-rank/estimate';
+import { resolveTotalRankBonus } from '../domain/character-rank/bonus';
 import { calculateRating, requireInteger } from '../domain/rating/calculate';
 import type { RatingBreakdown, RatingInput } from '../domain/rating/calculate';
 import { selectByColor } from '../domain/selection/select';
@@ -45,6 +46,7 @@ export function summarizeBands(colors: readonly EvaluatedColor[]): EvaluatedBand
 }
 export function evaluateCollection(master: Masterdata, collection: Collection, rankSource: Collection = collection, rules?: BoundRankRules): EvaluatedColor[] {
   const ranks=estimateCharacterRanks(master,rankSource,rules);
+  const totalRankBonus=resolveTotalRankBonus(ranks,rankSource,rules);
   const members = collection.members.map(owned => {
     const row = master.members.find(m => m.id === owned.cardId);
     if (!row) throw new Error(`unknown member ${owned.cardId}`);
@@ -73,9 +75,10 @@ export function evaluateCollection(master: Masterdata, collection: Collection, r
       const resolvedRank = ranks.find(r=>r.id===character.id)!;
       const rank=resolvedRank.effectiveRank;
       if(rank===null)reasons.push(resolvedRank.reason!);
+      if(totalRankBonus.bonus===null)reasons.push(totalRankBonus.reason!);
       const item = deriveBandItemRate(master, character.bandId, collection.bandItems);
       if (item.status === 'unresolved') reasons.push('対象バンドのアイテムに未設定があります');
-      if (reasons.length || item.status !== 'resolved' || rank===null) return { selection, status: 'pending', reasons };
+      if (reasons.length || item.status !== 'resolved' || rank===null || totalRankBonus.bonus===null) return { selection, status: 'pending', reasons };
       const member = deriveMemberDisplay(master, owned);
       const selectedSnap = selection.snap.status === 'selected' ? selection.snap.candidate.id : undefined;
       const snapDisplay = selectedSnap === undefined ? undefined
@@ -84,6 +87,7 @@ export function evaluateCollection(master: Masterdata, collection: Collection, r
         memberDisplayedStats: member.displayedStats,
         awakeLevel: member.awakeLevel, liveSkillLevel: owned.liveSkillLevel,
         gekisouSkillLevel: owned.gekisouSkillLevel, characterRank: rank,
+        totalRankBonus: totalRankBonus.bonus,
         bandItemTenthPercent: item.tenthPercent,
         snapPercentBp: snapDisplay?.percentBp ?? { performance: 0, technic: 0, visual: 0 },
         snapLimitBreak: snapDisplay?.snapLimitBreak ?? 0,
