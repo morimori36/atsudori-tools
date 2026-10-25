@@ -1,4 +1,4 @@
-name: Verify and gated Pages
+name: Verify and Pages
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: Deploy only after explicit publication approval and public visibility
+        description: Deploy verified main manually (main pushes deploy automatically)
         type: boolean
         default: false
 
@@ -54,15 +54,15 @@ jobs:
       - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e:webkit
       - run: npm run audit:public
-      - name: Upload verified static app only after publication approval
-        if: github.event.repository.private == false && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_PUBLICATION_APPROVED == 'true' && github.event_name == 'workflow_dispatch' && inputs.deploy
+      - name: Upload verified static app for Pages
+        if: github.event.repository.private == false && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: dist
 
   deploy:
     needs: verify
-    if: github.event.repository.private == false && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_PUBLICATION_APPROVED == 'true' && github.event_name == 'workflow_dispatch' && inputs.deploy
+    if: github.event.repository.private == false && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

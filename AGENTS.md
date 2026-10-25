@@ -15,7 +15,7 @@
 - テストは完全な架空データ。期待値は式を独立に検算してdocs/testing.mdへ根拠を書く。実装の出力で期待値を作らない。非公開回帰は外部のPrivate資料をローカルで読む。
 - npm run check、npm run test:e2e、npm run audit:publicを実行する。schema変更はnpm run schema:writeと文書も同期。npmキャッシュは.cache/npm。
 - GitHub Flow / Conventional Commits / PR / Squash Merge。コミットの作者・committerには確認済みGitHub noreplyだけを使う。
-- 自作コードは当面ライセンスなし（All rights reserved）。MIT等のLICENSEファイルを追加しない。第三者ライブラリ・素材のライセンスと権利表示は遵守する。この方針の変更、Public化、本番公開、履歴書換え、force-pushは所有者の明示的承認が必要。現在ファイル・全Git履歴・配信artifactの監査と指定テスト・E2Eがすべて成功するまではPublic化・Pagesデプロイを行わない。
+- 自作コードは当面ライセンスなし（All rights reserved）。MIT等のLICENSEファイルを追加しない。第三者ライブラリ・素材のライセンスと権利表示は遵守する。この方針の変更、Public化、初回の本番公開、履歴書換え、force-pushは所有者の明示的承認が必要。所有者の指示により、検証済みmainへのpush後のPages自動デプロイは承認済み。現在ファイル・全Git履歴・配信artifactの監査と指定テスト・E2Eがすべて成功するまではPublic化・Pagesデプロイを行わない。
 
 - 変換プロファイル機能はサービス非依存とする。特定の外部サービス名・URL・固有形式・マスタ供給元・運用手順を、UI・コード・Schema・fixture・文書・ブランチ名・コミット・PRへ追加しない。出力先固有の生成・検証・運用は非公開の外部ツールが担当する。第三者の必須権利表示は保持する。
 
