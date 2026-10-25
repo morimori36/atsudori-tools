@@ -19,5 +19,6 @@ export async function fictionalRules(master:Masterdata=syntheticCatalog()):Promi
       {id:'awake',kind:'awakening',label:'架空段階B',stage:2,thresholds:[1,5],exp:23},
       {id:'limit',kind:'snapRank',label:'架空段階C',stage:2,thresholds:[1,4],exp:29},
       {id:'skills',kind:'skills',label:'架空スキル集計',stage:2,thresholds:[1,2,5],exp:31}],
+    totalRankBonuses:[{rank:0,bonus:50},{rank:11,bonus:83}],
     rankThresholds:[{rank:1,exp:0},{rank:2,exp:7},{rank:3,exp:19},{rank:7,exp:41}]};
 }

@@ -27,7 +27,7 @@ const collection={
   $id:'https://morimori36.github.io/atsudori-tools/schemas/collection-v1.schema.json',
   title:'atsudori-tools collection v1',
   ...object({format:{const:'atsudori-tools/collection'},schemaVersion:{const:1},catalogId:identity,members:array(member),
-    snaps:array(object({supportCardId:int,level:int,rank:int})),characterRanks:record(int),characterProgress:record(object(Object.fromEntries(Object.keys(storedProgressFields).map(key=>[key,zero])),[])),bandItems:record({anyOf:[int,{type:'null'}]})},['format','schemaVersion','catalogId','members','snaps','characterRanks','bandItems'])
+    snaps:array(object({supportCardId:int,level:int,rank:int})),characterRanks:record(int),totalRankBonus:zero,characterProgress:record(object(Object.fromEntries(Object.keys(storedProgressFields).map(key=>[key,zero])),[])),bandItems:record({anyOf:[int,{type:'null'}]})},['format','schemaVersion','catalogId','members','snaps','characterRanks','bandItems'])
 };
 writeFileSync('public/schemas/character-rank-rules-v1.schema.json',JSON.stringify(characterRankRulesSchema,null,2)+'\n');
 mkdirSync('public/schemas',{recursive:true});

@@ -12,6 +12,8 @@ export interface RatingInput {
   readonly liveSkillLevel: number;
   readonly gekisouSkillLevel: number;
   readonly characterRank: number;
+  /** Flat points per parameter from the total character rank; required, never inferred here. */
+  readonly totalRankBonus: number;
   /** Formula U; no Snap is represented by U=0 and all percentages=0. */
   readonly snapLimitBreak: number;
   /** 31.00% => 3100; fraction denominator 10000. */
@@ -52,12 +54,13 @@ export function calculateRating(input: RatingInput): RatingBreakdown {
   requireInteger(input.liveSkillLevel, 'liveSkillLevel', 1);
   requireInteger(input.gekisouSkillLevel, 'gekisouSkillLevel', 1);
   requireInteger(input.characterRank, 'characterRank', 1);
+  requireInteger(input.totalRankBonus, 'totalRankBonus');
   requireInteger(input.snapLimitBreak, 'snapLimitBreak');
   requireInteger(input.bandItemTenthPercent, 'bandItemTenthPercent');
 
   const h100 = 100n + 2n * BigInt(input.awakeLevel)
     + BigInt(input.liveSkillLevel) + BigInt(input.gekisouSkillLevel);
-  const c = 5n * BigInt(input.characterRank) + 45n;
+  const c = 5n * (BigInt(input.characterRank) - 1n) + BigInt(input.totalRankBonus);
   const item1000 = 1000n + BigInt(input.bandItemTenthPercent);
   const component = (stat: number): bigint =>
     ((BigInt(stat) * h100 + 100n * c) * item1000) / 100000n;

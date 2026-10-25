@@ -12,6 +12,8 @@ export interface RankRules {
   manualProgress: {key:ManualProgressKey;label:string}[];
   achievements: AchievementDefinition[];
   rankThresholds: {rank:number;exp:number}[];
+  /** Optional extension: threshold table for flat parameter bonuses, supplied externally. */
+  totalRankBonuses?: {rank:number;bonus:number}[];
 }
 /** A validated definition bound to the exact catalog bytes; never serialized with the collection. */
 export interface BoundRankRules {readonly document:RankRules; readonly catalogKey:string}
@@ -23,7 +25,8 @@ function rows(v:unknown,p:string,max=20000):unknown[] {if(!Array.isArray(v)||!v.
 function hash(v:unknown,p:string):string {if(typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))fail(p,'SHA-256が必要です');return v;}
 function unique(values:unknown[],p:string) {if(new Set(values).size!==values.length)fail(p,'重複しています');}
 export function validateRankRules(value:unknown):RankRules {
-  const r=obj(value,'$', ['format','schemaVersion','engine','id','version','catalog','provenance','manualProgress','achievements','rankThresholds']);
+  const required=['format','schemaVersion','engine','id','version','catalog','provenance','manualProgress','achievements','rankThresholds'];
+  const r=strictObject(value,'$', [...required,'totalRankBonuses'],required);
   if(r.format!=='atsudori-tools/character-rank-rules'||r.schemaVersion!==1||r.engine!=='achievement-thresholds/1')fail('$','未対応の形式・版・エンジンです');
   const c=obj(r.catalog,'catalog',['catalogId','revision','sha256']);
   const p=obj(r.provenance,'provenance',['sources']);
@@ -51,7 +54,12 @@ export function validateRankRules(value:unknown):RankRules {
   if(manualProgress.some(p=>!achievements.some(a=>a.kind===p.key)))fail('manualProgress','対応する判定がありません');
   const rankThresholds=rows(r.rankThresholds,'rankThresholds',20000).map((v,i)=>{const s=obj(v,`rankThresholds[${i}]`,['rank','exp']);return {rank:integer(s.rank,'rank',1),exp:integer(s.exp,'exp')};});
   if(rankThresholds[0]!.exp!==0||rankThresholds.some((s,i)=>i>0&&(s.rank<=rankThresholds[i-1]!.rank||s.exp<=rankThresholds[i-1]!.exp)))fail('rankThresholds','最初のEXPは0、以後ランク・EXPとも重複なく昇順が必要です');
-  return {format:'atsudori-tools/character-rank-rules',schemaVersion:1,engine:'achievement-thresholds/1',id:text(r.id,'id'),version:text(r.version,'version'),catalog:{catalogId:text(c.catalogId,'catalogId'),revision:text(c.revision,'revision'),sha256:hash(c.sha256,'catalog.sha256')},provenance:{sources},manualProgress,achievements,rankThresholds};
+  const totalRankBonuses = r.totalRankBonuses === undefined ? undefined : rows(r.totalRankBonuses,'totalRankBonuses').map((v,i) => {
+    const s=obj(v,`totalRankBonuses[${i}]`,['rank','bonus']);
+    return {rank:integer(s.rank,'totalRankBonuses.rank'),bonus:integer(s.bonus,'totalRankBonuses.bonus')};
+  });
+  if(totalRankBonuses?.some((s,i)=>i>0&&(s.rank<=totalRankBonuses[i-1]!.rank||s.bonus<totalRankBonuses[i-1]!.bonus)))fail('totalRankBonuses','総合ランクは重複なく昇順、ボーナスは非減少が必要です');
+  return {format:'atsudori-tools/character-rank-rules',schemaVersion:1,engine:'achievement-thresholds/1',id:text(r.id,'id'),version:text(r.version,'version'),catalog:{catalogId:text(c.catalogId,'catalogId'),revision:text(c.revision,'revision'),sha256:hash(c.sha256,'catalog.sha256')},provenance:{sources},manualProgress,achievements,rankThresholds,...(totalRankBonuses===undefined?{}:{totalRankBonuses})};
 }
 export function parseRankRules(raw:string):RankRules {return validateRankRules(jsonValue(raw,RULES_LIMIT));}
 export async function bindRankRules(value:RankRules,master:Masterdata):Promise<BoundRankRules> {

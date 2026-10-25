@@ -31,3 +31,9 @@ private-tests/regression.test.tsは外部ファイルの構造だけを知る薄
 資料の値・名前・入力・期待値はテスト名、失敗メッセージ、報告ファイルへ出しません。.cache/には検証した公開コミット・区分・件数だけを保存します。ネットワーク取得、外部送信、Privateファイルへの書込みはありません。通常CIからは呼びません。
 
 Privateで検証手順や結果を記録するときは、公開コミットSHA・Private masterdata参照版・fixtureのSHA-256・strictと仮定付きの件数を分けて残してください。上流データを更新する変換機能はPrivate側で今後実装します。元の検証fixtureや観測期待値は移植のために書き換えません。
+
+## 総合ランク項の補足入力
+
+現行モデルの回帰には外部`tests/fixtures/rating-model-inputs.json`も必要です。`historical`の各行は`caseId`、`totalRankBonus`、`provenance: estimated-for-historical-validation`、任意の`acceptedCharacterRank`を持ちます。原fixtureの全IDと一対一に対応し、欠落や重複時は停止します。推定ボーナスは外部ファイルに明示し、アダプターで既定値を入れません。採用ランクの訂正もこの補足入力で追跡し、原入力を保持します。
+
+`observations`は新たに確認したボーナス付きの`input`、`expectedBandRating`、`bonusProvenance: observed-on-bonus-screen`、重複しないIDを持ちます。通常実行で歴史的cohortとは別のテストとして検証します。歴史的なstrict/assumption-dependent区分は原資料の区分として残し、新モデルでは両方とも総合ランク項に推定入力を含むことを集計に記録します。完全観測の新ケースと混ぜて観測件数を報告しません。Gitコミットに加え作業ツリーの変更有無も集計へ残します。

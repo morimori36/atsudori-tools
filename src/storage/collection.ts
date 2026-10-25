@@ -21,6 +21,8 @@ export interface Collection {
   /** Explicit manual overrides only. Estimates are derived, never saved here. */
   characterRanks: Record<string, number>;
   characterProgress?: Record<string, CharacterProgress>;
+  /** Explicit total-rank parameter bonus override; missing uses imported rules, never a default. */
+  totalRankBonus?: number;
   /** Missing = unknown; null = explicitly unowned; positive integer = owned level. */
   bandItems: Record<string, number | null>;
 }
@@ -64,7 +66,7 @@ function unique(rows: readonly number[], path: string): void {
 
 /** Validates both the versioned shape and legal progression against the registered catalog. */
 export function validateCollection(value: unknown, master: Masterdata): Collection {
-  const root = object(value, '$', ['format', 'schemaVersion', 'catalogId', 'members', 'snaps', 'characterRanks', 'characterProgress', 'bandItems']);
+  const root = object(value, '$', ['format', 'schemaVersion', 'catalogId', 'members', 'snaps', 'characterRanks', 'characterProgress', 'bandItems', 'totalRankBonus']);
   if (root.format !== 'atsudori-tools/collection') fail('$.format', 'このツールの所持データではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の保存形式です。変換が必要です');
   const characterProgress = root.characterProgress === undefined ? undefined : record(root.characterProgress, '$.characterProgress', (id, value, path) => {
@@ -73,7 +75,7 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     return Object.fromEntries(Object.entries(values).map(([key, value]) =>
       [key as keyof CharacterProgress, integer(value, `${path}.${key}`, 0)])) as CharacterProgress;
   });
-  if (root.catalogId !== master.catalogId && (array(root.members, '$.members').length || array(root.snaps, '$.snaps').length || Object.keys(object(root.characterRanks, '$.characterRanks')).length || Object.keys(object(root.bandItems, '$.bandItems')).length || Object.keys(characterProgress ?? {}).length)) fail('$.catalogId', 'catalogIdが異なります。対応するcatalogを登録してください');
+  if (root.catalogId !== master.catalogId && (root.totalRankBonus !== undefined || array(root.members, '$.members').length || array(root.snaps, '$.snaps').length || Object.keys(object(root.characterRanks, '$.characterRanks')).length || Object.keys(object(root.bandItems, '$.bandItems')).length || Object.keys(characterProgress ?? {}).length)) fail('$.catalogId', 'catalogIdが異なります。対応するcatalogを登録してください');
   if (typeof root.catalogId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(root.catalogId)) fail('$.catalogId', '識別子が必要です');
   const members = array(root.members, '$.members').map((value, i): OwnedMember => {
     const path = `$.members[${i}]`;
@@ -116,7 +118,8 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     if (!master.bandItemLevels.some(row => row.itemId === id && row.level === level)) fail(path, '合法な所持Lv行がありません');
     return level;
   });
-  return { ...emptyCollection(master), members, snaps, characterRanks, ...(characterProgress === undefined ? {} : {characterProgress}), bandItems };
+  return { ...emptyCollection(master), members, snaps, characterRanks, ...(characterProgress === undefined ? {} : {characterProgress}), bandItems,
+    ...(root.totalRankBonus === undefined ? {} : {totalRankBonus:integer(root.totalRankBonus,'$.totalRankBonus',0)}) };
 }
 
 export function importCollection(text: string, master: Masterdata): Collection {
