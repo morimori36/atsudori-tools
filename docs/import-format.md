@@ -80,7 +80,7 @@ skillTargetsのcharacterId/cardType/tagIdは0を許可します。その他のID
 - Lv・覚醒・Snapで使うmax×rateの積は2147483647以下かつ安全な整数。binary32を用いる既存実装の対応範囲を超える入力は拒否します。
 - catalogのrevision更新は所持JSONを書き換えません。同じID体系でcatalogIdを固定し、revisionを更新してください。所持を不正にする変更は削除や補完をせず拒否します。
 
-cardTypeは正整数の色IDとして比較・表示します。ゲーム由来の色名対応表は含まず「色 7」のように表示します。rarityは選出規則上2=R、3=SR、4=SSR、10=EX、20=BDの比較に対応します。10/20の順位は暫定方針です。未知コードを既知レアリティへ変換しません。育成では元コードを保持します。
+cardTypeは正整数のツール独自の色IDとして比較・表示します。1=紅赤、2=紺碧、3=翡翠、4=山吹、5=紫苑とし、未知のIDは「色 7」のように表示します。rarityは選出規則上2=R、3=SR、4=SSR、10=EX、20=BDの比較に対応します。10/20の順位は暫定方針です。未知コードを既知レアリティへ変換しません。育成では元コードを保持します。
 
 ## 単位と育成変換
 
@@ -147,3 +147,4 @@ localStorageは同一origin内で共有されます。キーは他アプリと�
 カード・育成テーブルと同じcatalog JSONに、ランク推定と総合ランクボーナスの静的定義を追加します。engine、id、version、provenance、manualProgress、achievements、rankThresholdsと任意のtotalRankBonusesを持ちます。旧ファイルのformat・schemaVersion・catalog参照は内包しません。詳細は[ランク定義](character-rank.md)とcatalog Schemaを参照してください。
 
 これは既存v1への任意項目追加です。未登録のcatalogも有効であり、collection v1の形式・保存キー・所持データは変更しません。既存catalogには、旧ランク定義を確認して統合できます。統合後はcatalog JSONのExportに定義も含まれます。
+
