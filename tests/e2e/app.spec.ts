@@ -298,3 +298,30 @@ test('collapsed invalid rank opens for correction and failed explicit save stays
   await expect(page.locator('#autosave-warning')).toContainText('保存');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
 });
+
+for (const replacement of ['import', 'reset'] as const) test(`${replacement} discards progress drafts before subsequent save and reload`,async({page})=>{
+  await catalog(page);await collection(page);await tab(page,'progress');
+  await page.locator('#rank-8201').fill('7');
+  await page.locator('#progress-8201-stamps').fill('9');
+  await page.locator('[data-progress-section="total-rank"] summary').click();
+  await page.locator('#totalRankBonus').fill('99');
+  await openItems(page);await page.locator('#item-8601').fill('2');
+  await tab(page,'exchange');
+  if(replacement==='import') {
+    const imported={...syntheticCollection(),characterProgress:{8201:{stamps:4}}};
+    await page.locator('#import-file').setInputFiles(file('replacement.json',imported));
+    await page.locator('#apply-import').click();
+  } else {
+    page.once('dialog',d=>d.accept());await page.locator('#reset-button').click();
+  }
+  const replacementData=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),STORAGE_KEY);
+  await tab(page,'progress');await openRank(page);
+  await expect(page.locator('#rank-8201')).toHaveValue(replacement==='import'?'3':'');
+  await expect(page.locator('#progress-8201-stamps')).toHaveValue(replacement==='import'?'4':'');
+  await page.locator('[data-progress-section="total-rank"] summary').click();
+  await expect(page.locator('#totalRankBonus')).toHaveValue(replacement==='import'?'50':'');
+  await openItems(page);await expect(page.locator('#item-8601')).toHaveValue(replacement==='import'?'1':'0');
+  await page.locator('#progress-form button[type=submit]').click();
+  await page.reload();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),STORAGE_KEY)).toEqual({...replacementData,characterProgress:replacementData.characterProgress??{}});
+});

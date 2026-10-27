@@ -614,10 +614,10 @@ export function mountApp(root: HTMLElement): void {
     });
     root.querySelector('#apply-import')?.addEventListener('click', () => run(() => { if (!importDraft) return;
       const next = prepareCollectionImport(importDraft, collection, master, preserveImportProgress);
-      cancelAutosaves(); allowWrites = true; persist(next); importDraft = undefined; drafts.clear();
+      cancelAutosaves(); allowWrites = true; persist(next); importDraft = undefined; drafts.clear(); progressDraft.clear();
     }, 'Importしました'));
     root.querySelector('#reset-button')?.addEventListener('click', () => { if (!window.confirm('登録内容を空にします。必要なJSONをExport済みですか？')) return;
-      run(() => { cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); importDraft = undefined; drafts.clear(); }, '登録内容を初期化しました'); });
+      run(() => { cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); importDraft = undefined; drafts.clear(); progressDraft.clear(); }, '登録内容を初期化しました'); });
   }
   function bindManual(): void {
     const form = root.querySelector<HTMLFormElement>('#manual-form'); if (!form) return;
