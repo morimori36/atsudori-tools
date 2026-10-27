@@ -368,3 +368,9 @@ footer { overflow-wrap: anywhere; }
 .primary, .brand-mark { background: light-dark(#6550bd, #6550bd); }
 .primary:hover { background: light-dark(#4e3b9d, #7864cd); }
 @media (max-width: 480px) { .site-header { height: auto; min-height: 80px; flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; } }
+
+.progress-selector { display: grid; gap: .75rem; margin: 1rem 0; }
+.progress-targets { display: flex; overflow-x: auto; gap: .4rem; }
+.progress-targets button { flex: 0 0 auto; min-height: 44px; padding: .45rem .75rem; }
+.progress-targets button[aria-pressed="true"] { background: var(--accent, #3156a0); color: white; }
+.progress-editor { min-width: 0; }

@@ -48,7 +48,7 @@ const headings: Record<Tab, [string, string]> = {
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
   snaps: ['所持Snap', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
-  progress: ['ランク・アイテム', '評価値に使用するランクを表示しています。各行を開くと進捗や上書きを編集できます。'],
+  progress: ['ランク・アイテム', '評価値に使用するランクを表示しています。バンドと編集対象を選んで進捗や上書きを編集できます。'],
   exchange: ['Import / Export', 'JSONを使ってバックアップや別ブラウザへの移動ができます。'],
   manual: ['表示値で個別計算', 'ゲーム画面のP/T/Vと補正値を直接入力して、1枠の評価値を確認します。'],
 };
@@ -132,6 +132,13 @@ export function mountApp(root: HTMLElement): void {
     if (explicitRecovery) allowCatalogWrites = true;
     const result = saveCatalog(storage, candidate);
     master = candidate; collection = nextCollection;
+    // Keep edits for surviving targets, but never reinsert IDs removed by a catalog update.
+    for (const name of progressDraft.keys()) {
+      const character = /^(?:rank|progress)-(\d+)(?:-|$)/.exec(name);
+      const item = /^item-(\d+)$/.exec(name);
+      if ((character && !master.characters.some(c => c.id === Number(character[1]))) ||
+          (item && !master.bandItems.some(i => i.id === Number(item[1])))) progressDraft.delete(name);
+    }
     catalogSaved = result.status === 'saved';
     catalogStorageMessage = result.status === 'failed' ? 'マスタを保存できません。Exportしてください。' + result.error : '';
     // Restoring the catalog can make an intact, previously unmatched collection readable again.
@@ -273,26 +280,32 @@ export function mountApp(root: HTMLElement): void {
     return rank.reason??(rank.overrideRank === undefined ? '所持・育成と入力済みの進捗から自動推定しています。'
       : `手動上書きのランク ${rank.overrideRank} を使用します（自動推定は ${rank.estimatedRank??'—'}）。`);
   }
+  let progressBand: number | undefined;
+  let progressTarget = '';
+  const progressDraft = new Map<string, string>();
   function progressPage(): string {
+    const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
+    if (band) progressBand = band.id;
+    const characters = master.characters.filter(c => c.bandId === band?.id);
+    if (progressTarget !== 'items' && !characters.some(c => String(c.id) === progressTarget)) progressTarget = String(characters[0]?.id ?? 'items');
+    const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
     return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。マスタ管理で定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">マスタ管理を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span></div>
       <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
-      <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${collection.totalRankBonus??''}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
-      <div class="progress-grid">${master.bands.map(band => `<section class="panel progress-band"><header class="rank-band-heading"><h2>${escape(band.name)}</h2><span>使用ランク</span></header>
-      ${master.characters.filter(c => c.bandId === band.id).map(c => {
+      <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${draftValue('totalRankBonus', collection.totalRankBonus)}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
+      <div class="progress-selector"><label class="field" for="progress-band">バンド<select id="progress-band">${master.bands.map(b => `<option value="${b.id}" ${b.id===band?.id?'selected':''}>${escape(b.name)}</option>`).join('')}</select></label>
+      <div class="progress-targets" aria-label="編集対象">${characters.map(c => `<button type="button" data-target="${c.id}" aria-pressed="${progressTarget===String(c.id)}">${escape(c.name)}</button>`).join('')}<button type="button" data-target="items" aria-pressed="${progressTarget==='items'}">バンドアイテム</button></div></div>
+      <section class="panel progress-band progress-editor">${progressTarget === 'items' ? `<h2>バンドアイテム</h2><div class="rank-list">${master.bandItems.filter(item => item.bandId === band?.id).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div>` : characters.filter(c => String(c.id) === progressTarget).map(c => {
         const rank = ranks.find(r=>r.id===c.id)!;
-        return `<details class="character-rank" data-character-rank="${c.id}"><summary data-rank-summary><span class="rank-identity"><strong class="rank-name">${escape(c.name)}</strong>${rankSummary(rank)}</span><span class="rank-value"><span class="sr-only">使用ランク </span><strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span><span class="rank-chevron" aria-hidden="true">⌄</span></summary>
-          <div class="rank-editor"><section class="rank-override"><h3>ランク上書き</h3><p class="muted" data-rank-reason>${rankReason(rank)}</p>
-          <label class="inline-field" for="rank-${c.id}"><span>手動で使用するランク</span><input name="rank-${c.id}" id="rank-${c.id}" type="number" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="自動" value="${rank.overrideRank ?? ''}"></label>
-          <button class="secondary" type="button" data-reset-rank="${c.id}" ${rank.overrideRank === undefined ? 'disabled' : ''}>自動推定に戻す</button></section>
-          <section><h3>手入力進捗</h3><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。</p>
-          <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress] ?? ''}"></label>`).join('')}</div></section>
-          <section><h3>EXP内訳 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></h3><p class="muted">定義に指定された項目を所持データから自動集計します。</p>
-          <ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></section></div></details>`;
-      }).join('')}
-      <details class="band-items"><summary>バンドアイテム <span>編集</span></summary><div class="rank-list">${master.bandItems.filter(item => item.bandId === band.id).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${collection.bandItems[item.id] ?? 0}"></label>`).join('')}</div></details>
-      </section>`).join('')}</div>
+        return `<div class="character-rank" data-character-rank="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary>${rankSummary(rank)} <span>使用ランク <strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span></div>
+          <div class="rank-editor"><section><h3>手入力進捗</h3><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。</p>
+          <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue(`progress-${c.id}-${key}`, collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress])}"></label>`).join('')}</div></section>
+          <section class="rank-override"><h3>ランク上書き</h3><p class="muted" data-rank-reason>${rankReason(rank)}</p>
+          <label class="inline-field" for="rank-${c.id}"><span>手動で使用するランク</span><input name="rank-${c.id}" id="rank-${c.id}" type="number" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="自動" value="${draftValue(`rank-${c.id}`, rank.overrideRank)}"></label>
+          <button class="secondary" type="button" data-reset-rank="${c.id}">自動推定に戻す</button></section>
+          <details><summary>EXP内訳 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><p class="muted">定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></div>`;
+      }).join('')}</section>
       <div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">ランク・アイテムを保存</button></div></form>`;
   }
   function exchangePage(): string {
@@ -515,33 +528,34 @@ export function mountApp(root: HTMLElement): void {
   function bindProgress(): void {
     const form = root.querySelector<HTMLFormElement>('#progress-form'); if (!form) return;
     const readValues = (): Collection => {
-      const data = new FormData(form); const characterRanks: Collection['characterRanks'] = {}; const characterProgress: NonNullable<Collection['characterProgress']> = {}; const bandItems: Collection['bandItems'] = {};
-      master.characters.forEach(c => { const value = String(data.get(`rank-${c.id}`) ?? ''); if (value.trim()) characterRanks[c.id] = Number(value); });
-      master.bandItems.forEach(item => { const value = Number(data.get(`item-${item.id}`)); bandItems[item.id] = value === 0 ? null : value; });
-      master.characters.forEach(c => {
-        const progress: CharacterProgress = { ...collection.characterProgress?.[c.id] };
-        // Retain legacy skill fields in exports, while replacing only editable manual progress.
-        for (const key of manualProgressKeys) delete progress[key];
-        for (const key of manualProgressKeys) {
-          const value = String(data.get(`progress-${c.id}-${key}`) ?? '').trim();
-          if (value) progress[key] = Number(value);
+      const characterRanks = { ...collection.characterRanks };
+      const characterProgress = { ...collection.characterProgress };
+      const bandItems = { ...collection.bandItems };
+      for (const [name, value] of progressDraft) {
+        const rank = /^rank-(\d+)$/.exec(name), item = /^item-(\d+)$/.exec(name), progress = /^progress-(\d+)-(.+)$/.exec(name);
+        if (rank) { if (value.trim()) characterRanks[Number(rank[1])] = Number(value); else delete characterRanks[Number(rank[1])]; }
+        if (item) bandItems[Number(item[1])] = Number(value) || null;
+        if (progress) {
+          const id = Number(progress[1]), key = progress[2] as keyof CharacterProgress;
+          const entry = { ...characterProgress[id] };
+          if (value.trim()) entry[key] = Number(value); else delete entry[key];
+          if (Object.keys(entry).length) characterProgress[id] = entry; else delete characterProgress[id];
         }
-        if (Object.keys(progress).length) characterProgress[c.id] = progress;
-      });
-      const {totalRankBonus:previousBonus,...base}=collection;
-      const bonus=String(data.get('totalRankBonus')??'').trim();
-      return { ...base, characterRanks, characterProgress, bandItems, ...(bonus===''?{}:{totalRankBonus:Number(bonus)}) };
+      }
+      const { totalRankBonus: previousBonus, ...base } = collection;
+      const bonus = progressDraft.get('totalRankBonus');
+      return { ...base, characterRanks, characterProgress, bandItems, ...((bonus === undefined ? previousBonus : bonus.trim() === '' ? undefined : Number(bonus)) === undefined ? {} : { totalRankBonus: bonus === undefined ? previousBonus : Number(bonus) }) };
     };
-    const initial = JSON.stringify(readValues());
     const update = (): void => {
       const next = readValues();
-      const dirty = JSON.stringify(next) !== initial;
+      const dirty = progressDraft.size > 0;
       form.classList.toggle('is-dirty', dirty);
-      form.querySelector('[data-progress-state]')!.textContent = dirty ? '未保存の変更あり' : saved ? '変更後は保存してください' : 'ブラウザ保存未完了';
+      form.querySelector('[data-progress-state]')!.textContent = !saved ? 'ブラウザ保存未完了' : dirty ? '未保存の変更あり' : '変更後は保存してください';
       syncSaveState();
       const previewRanks=estimateCharacterRanks(master,next,rankRules.current());
       for (const c of master.characters) {
-        const row = form.querySelector<HTMLDetailsElement>(`[data-character-rank="${c.id}"]`)!;
+        const row = form.querySelector<HTMLElement>(`[data-character-rank="${c.id}"]`);
+        if (!row) continue;
         const input = form.elements.namedItem(`rank-${c.id}`) as HTMLInputElement;
         row.querySelector<HTMLButtonElement>('[data-reset-rank]')!.disabled = input.value === '';
         // Do not replace a partially typed or invalid value with a guessed rank.
@@ -561,10 +575,18 @@ export function mountApp(root: HTMLElement): void {
         form.querySelector('[data-total-rank-bonus]')!.textContent = `使用する加算値：${bonus.bonus===null?'未設定':'+'+bonus.bonus}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）`;
       }
     };
-    form.addEventListener('input', update);
+    form.addEventListener('input', event => {
+      const input = event.target as HTMLInputElement;
+      if (input.name) progressDraft.set(input.name, input.value);
+      update();
+    });
+    const switchTarget = (action: () => void) => { if (!form.reportValidity()) return; action(); render(); };
+    form.querySelector<HTMLSelectElement>('#progress-band')?.addEventListener('change', event => { const select = event.target as HTMLSelectElement; if (!form.reportValidity()) { select.value = String(progressBand); return; } switchTarget(() => { progressBand = Number(select.value); progressTarget = ''; }); });
+    form.querySelectorAll<HTMLButtonElement>('[data-target]').forEach(button => button.addEventListener('click', () => switchTarget(() => { progressTarget = button.dataset.target!; })));
+    update();
     form.querySelectorAll<HTMLButtonElement>('[data-reset-rank]').forEach(button => button.addEventListener('click', () => {
       const input = form.elements.namedItem(`rank-${button.dataset.resetRank}`) as HTMLInputElement;
-      input.value = ''; update(); input.focus();
+      input.value = ''; progressDraft.set(input.name, ''); update(); input.focus();
     }));
     form.addEventListener('invalid', event => {
       const target = event.target as HTMLElement;
@@ -573,7 +595,7 @@ export function mountApp(root: HTMLElement): void {
     form.addEventListener('submit', event => {
       event.preventDefault();
       const expanded = Array.from(form.querySelectorAll<HTMLDetailsElement>('details[open]')).map(d => d.dataset.progressSection ?? d.dataset.characterRank ?? 'items-' + Array.from(form.querySelectorAll('.band-items')).indexOf(d));
-      run(() => persist(readValues()), 'ランク・アイテムを反映しました');
+      run(() => { persist(readValues()); if (saved) progressDraft.clear(); }, 'ランク・アイテムを反映しました');
       root.querySelectorAll<HTMLDetailsElement>('#progress-form details').forEach(d => {
         d.open = expanded.includes(d.dataset.progressSection ?? d.dataset.characterRank ?? 'items-' + Array.from(root.querySelectorAll('.band-items')).indexOf(d));
       });
@@ -599,10 +621,10 @@ export function mountApp(root: HTMLElement): void {
     });
     root.querySelector('#apply-import')?.addEventListener('click', () => run(() => { if (!importDraft) return;
       const next = prepareCollectionImport(importDraft, collection, master, preserveImportProgress);
-      cancelAutosaves(); allowWrites = true; persist(next); importDraft = undefined; drafts.clear();
+      cancelAutosaves(); allowWrites = true; persist(next); importDraft = undefined; drafts.clear(); progressDraft.clear();
     }, 'Importしました'));
     root.querySelector('#reset-button')?.addEventListener('click', () => { if (!window.confirm('登録内容を空にします。必要なJSONをExport済みですか？')) return;
-      run(() => { cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); importDraft = undefined; drafts.clear(); }, '登録内容を初期化しました'); });
+      run(() => { cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); importDraft = undefined; drafts.clear(); progressDraft.clear(); }, '登録内容を初期化しました'); });
   }
   function bindManual(): void {
     const form = root.querySelector<HTMLFormElement>('#manual-form'); if (!form) return;
