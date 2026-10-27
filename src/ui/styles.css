@@ -250,7 +250,7 @@ footer p { margin-bottom: 4px; }
 }
 .band-result > .panel-heading { margin-bottom: 14px; }
 .color-result { border: 1px solid var(--line); border-inline-start: 3px solid var(--card-color); border-radius: 8px; margin-top: 10px; overflow: hidden; }
-.color-summary { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; list-style: none; background: color-mix(in srgb, var(--card-color) 5%, white); }
+.color-summary { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; list-style: none; background: color-mix(in srgb, var(--card-color) 5%, light-dark(white, #292735)); }
 .color-summary::-webkit-details-marker { display: none; }
 .color-summary::before { content: '›'; font-size: 22px; color: var(--card-color); transform: rotate(0deg); }
 .color-result[open] > .color-summary::before { transform: rotate(90deg); }
