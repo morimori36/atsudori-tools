@@ -325,3 +325,26 @@ for (const replacement of ['import', 'reset'] as const) test(`${replacement} dis
   await page.reload();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),STORAGE_KEY)).toEqual({...replacementData,characterProgress:replacementData.characterProgress??{}});
 });
+
+test('catalog replacement removes obsolete progress drafts and retains surviving edits',async({page})=>{
+  const m=syntheticCatalog();
+  m.characters.push({id:8202,bandId:8101,name:'架空奏者B'});
+  m.bandItems.push({id:8602,bandId:8101,name:'架空アイテムB'});
+  m.bandItemLevels.push({itemId:8602,level:1});
+  m.bandItemEffects.push({...m.bandItemEffects[0]!,itemId:8602});
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('expanded.json',m));await page.locator('#catalog-apply').click();
+  await tab(page,'progress');await page.locator('#rank-8201').fill('3');
+  await openRank(page,8202);await page.locator('#rank-8202').fill('7');await page.locator('#progress-8202-stamps').fill('9');
+  await openItems(page);await page.locator('#item-8601').fill('2');await page.locator('#item-8602').fill('1');
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('smaller.json',syntheticCatalog()));await page.locator('#catalog-apply').click();
+  await tab(page,'progress');await openRank(page);
+  await expect(page.locator('#rank-8201')).toHaveValue('3');
+  await expect(page.locator('[data-target="8202"]')).toHaveCount(0);
+  await openItems(page);await expect(page.locator('#item-8601')).toHaveValue('2');
+  await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.reload();await tab(page,'progress');
+  await expect(page.locator('#rank-8201')).toHaveValue('3');await openItems(page);await expect(page.locator('#item-8601')).toHaveValue('2');
+  const saved=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),STORAGE_KEY);
+  expect(saved.characterRanks).toEqual({8201:3});expect(saved.characterProgress).toEqual({});expect(saved.bandItems).toEqual({8601:2});
+});

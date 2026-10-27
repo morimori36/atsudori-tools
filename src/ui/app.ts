@@ -132,6 +132,13 @@ export function mountApp(root: HTMLElement): void {
     if (explicitRecovery) allowCatalogWrites = true;
     const result = saveCatalog(storage, candidate);
     master = candidate; collection = nextCollection;
+    // Keep edits for surviving targets, but never reinsert IDs removed by a catalog update.
+    for (const name of progressDraft.keys()) {
+      const character = /^(?:rank|progress)-(\d+)(?:-|$)/.exec(name);
+      const item = /^item-(\d+)$/.exec(name);
+      if ((character && !master.characters.some(c => c.id === Number(character[1]))) ||
+          (item && !master.bandItems.some(i => i.id === Number(item[1])))) progressDraft.delete(name);
+    }
     catalogSaved = result.status === 'saved';
     catalogStorageMessage = result.status === 'failed' ? 'マスタを保存できません。Exportしてください。' + result.error : '';
     // Restoring the catalog can make an intact, previously unmatched collection readable again.
