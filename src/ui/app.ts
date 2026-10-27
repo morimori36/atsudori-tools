@@ -1,3 +1,20 @@
+type Theme = 'light' | 'dark' | 'system';
+const themeKey = 'atsudori-theme';
+function getTheme(): Theme {
+  try {
+    const value = localStorage.getItem(themeKey);
+    return value === 'light' || value === 'dark' ? value : 'system';
+  } catch { return 'system'; }
+}
+function setTheme(value: string, persist = true): void {
+  const theme: Theme = value === 'light' || value === 'dark' ? value : 'system';
+  document.documentElement.style.colorScheme = theme === 'system' ? 'light dark' : theme;
+  if (persist) {
+    try { localStorage.setItem(themeKey, theme); } catch { /* Theme still applies for this session. */ }
+  }
+}
+setTheme(getTheme(), false);
+
 import { resolveTotalRankBonus } from '../domain/character-rank/bonus';
 import { estimateCharacterRank, estimateCharacterRanks, sumCharacterRanks } from '../domain/character-rank/estimate';
 import { manualProgressKeys } from '../domain/character-rank/definitions';
@@ -315,7 +332,7 @@ export function mountApp(root: HTMLElement): void {
     flushAutosaves();
     const [title, description] = headings[active];
     root.innerHTML = `<header class="site-header"><div class="brand"><span class="brand-mark" aria-hidden="true">ON</span><div><strong>atsudori-tools</strong><small>${active === 'event' ? 'イベント周回プランナー' : 'バンド評価値'}</small></div></div>
-      <div class="header-meta"><span class="save-state ${saved ? '' : 'unsaved'}" role="status">${saved ? 'ブラウザ内に保存' : '保存未完了'}</span></div></header>
+      <div class="header-meta"><label class="theme-setting">表示 <select data-theme aria-label="表示テーマ"><option value="system">システム</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label><span class="save-state ${saved ? '' : 'unsaved'}" role="status">${saved ? 'ブラウザ内に保存' : '保存未完了'}</span></div></header>
       <div class="layout"><nav class="navigation" aria-label="メインメニュー">${tabs.map(([id, label]) => `<button data-tab="${id}" ${active === id ? 'class="active" aria-current="page"' : ''}>${label}${id === 'members' || id === 'snaps' ? `<span>${id === 'members' ? collection.members.length : collection.snaps.length}</span>` : ''}</button>`).join('')}</nav>
       <main class="${active === 'rating' ? 'rating-page' : active === 'progress' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
@@ -324,6 +341,9 @@ export function mountApp(root: HTMLElement): void {
       ${pageBody()}
       <footer><p>非公式ツールです。ゲームの運営・開発元とは関係ありません。計算結果は推定式によるもので、ゲーム内の結果を保証しません。</p>
         <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
+    const themeSelect = root.querySelector<HTMLSelectElement>('[data-theme]')!;
+    themeSelect.value = getTheme();
+    themeSelect.addEventListener('change', () => setTheme(themeSelect.value));
     root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach(button => button.addEventListener('click', () => {
       active = button.dataset.tab as Tab; notice = undefined; render();
       root.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true }); root.querySelector('h1')?.scrollIntoView({ block: 'start' });

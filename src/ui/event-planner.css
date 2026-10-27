@@ -1,7 +1,7 @@
 #event-planner { scroll-margin-top: 16px; }
 #event-planner button:disabled { cursor: default; opacity: .5; }
 #event-planner .event-common .field { margin-bottom: 8px; }
-.event-best { border-color: #c6b9e8; background: linear-gradient(135deg, #fff, #f8f5ff); }
+.event-best { border-color: light-dark(#c6b9e8, #31274b); background: linear-gradient(135deg, light-dark(#fff, #292929), light-dark(#f8f5ff, #251d38)); }
 .event-best .panel-heading { align-items: center; }
 .event-run-total { flex-shrink: 0; text-align: right; color: var(--accent-dark); }
 .event-run-total strong { display: block; font-size: clamp(38px, 5vw, 54px); line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -18,7 +18,7 @@
 .event-card-list { display: grid; gap: 16px; }
 .event-card { min-width: 0; border: 1px solid var(--line); border-radius: 10px; margin: 0; padding: 0 14px 14px; }
 .event-card legend { color: var(--accent-dark); font-size: 12px; padding: 0 6px; }
-.event-card.is-disabled { background: #f8f8fb; border-style: dashed; }
+.event-card.is-disabled { background: light-dark(#f8f8fb, #1f1f36); border-style: dashed; }
 .event-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .event-card .check { margin: 10px 0 14px; }
 .event-card .field { margin-bottom: 12px; gap: 6px; }
@@ -33,7 +33,7 @@
 .event-base-list .event-two-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .event-ranking { list-style: none; padding: 0; margin: 0; }
 .event-ranking > li { border-top: 1px solid var(--line); padding: 12px 0; }
-.event-ranking summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #25263a; font-size: 12px; }
+.event-ranking summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: light-dark(#25263a, #babcd3); font-size: 12px; }
 .event-ranking summary > span { overflow-wrap: anywhere; }
 .event-ranking summary > strong { flex-shrink: 0; font-size: 24px; font-variant-numeric: tabular-nums; color: var(--accent-dark); }
 .event-ranking summary small { font-weight: 400; margin-left: 4px; }
