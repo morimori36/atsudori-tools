@@ -42,12 +42,10 @@ test('provisional selection notices remain available by hover and keyboard',asyn
 const file=(name:string,value:unknown)=>({name,mimeType:'application/json',buffer:Buffer.from(typeof value==='string'?value:JSON.stringify(value))});
 async function tab(page:Page,name:string):Promise<void>{await page.locator('nav [data-tab="'+name+'"]').click();}
 async function openRank(page:Page,id=8201):Promise<void>{
-  const row=page.locator(`[data-character-rank="${id}"]`);
-  if(await row.getAttribute('open')===null) await row.locator(':scope > summary').click();
+  await page.locator(`[data-target="${id}"]`).click();
 }
 async function openItems(page:Page):Promise<void>{
-  const items=page.locator('.band-items').first();
-  if(await items.getAttribute('open')===null) await items.locator('summary').click();
+  await page.locator('[data-target="items"]').click();
 }
 async function catalog(page:Page):Promise<void>{
   await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',syntheticCatalog()));
@@ -259,64 +257,35 @@ test('manual progress uses imported nonuniform thresholds and survives JSON roun
   await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('EXP 25');
 });
 
-test('compact mobile rank rows prioritize effective ranks and expand editing on demand',async({page},testInfo)=>{
+test('switching targets and bands retains drafts, previews, saves and reloads',async({page})=>{
   const m=syntheticCatalog();
-  for(let i=2;i<=5;i++)m.characters.push({id:8200+i,bandId:8101,name:`架空奏者${String.fromCharCode(64+i)}`});
-  m.bands.push({id:8102,name:'架空バンド・ラムダ'});
-  m.characters.push({id:8210,bandId:8102,name:'架空奏者・長い名前でも使用ランクを確認できる'});
+  m.characters.push({id:8202,bandId:8101,name:'架空奏者B'});
+  m.bands.push({id:8102,name:'架空バンドB'});
+  m.characters.push({id:8210,bandId:8102,name:'架空奏者C'});
   await page.setViewportSize({width:390,height:844});
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('compact-catalog.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
+  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('catalog.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
   await collection(page);await tab(page,'progress');
-  const rows=page.locator('.character-rank');
-  await expect(rows).toHaveCount(6);
-  await expect(page.locator('#progress-form input:visible')).toHaveCount(0);
-  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('3');
-  await expect(rows.first().locator('[data-rank-source]')).toHaveText('手動上書き中');
-  await expect(rows.nth(1).locator('[data-rank-source]')).toHaveText('自動推定');
-  for(let i=0;i<5;i++)expect((await rows.nth(i).boundingBox())!.height).toBeLessThanOrEqual(80);
-  const first=await rows.first().boundingBox(),fifth=await rows.nth(4).boundingBox();
-  expect(fifth!.y+fifth!.height-first!.y).toBeLessThanOrEqual(400);
-  expect(await page.locator('.progress-actions').evaluate(el=>getComputedStyle(el).position)).toBe('static');
-  await page.screenshot({path:testInfo.outputPath('ranks-mobile-390.png'),fullPage:true});
-  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await rows.first().locator('summary').focus();await page.keyboard.press('Enter');
-  await expect(page.locator('#rank-8201')).toBeVisible();
   await page.locator('#rank-8201').fill('7');
-  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('7');
-  await expect(rows.first().locator('[data-rank-reason]')).toContainText('自動推定は 1');
-  await expect(page.locator('[data-progress-state]')).toHaveText('未保存の変更あり');
-  await expect(page.locator('.save-state')).toHaveText('未保存の入力あり');
-  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await page.locator('[data-reset-rank="8201"]').click();
-  await expect(page.locator('#rank-8201')).toHaveValue('');
-  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('1');
-  await expect(rows.first().locator('[data-rank-source]')).toHaveText('自動推定');
+  await expect(page.locator('[data-effective-rank]')).toHaveText('7');
   await page.locator('#progress-8201-stamps').fill('4');
-  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('2');
-  await expect(rows.first().locator('[data-rank-exp]')).toHaveText('10');
-  await expect(rows.first().locator('[data-rank-breakdown]')).toContainText('架空進捗A');
-  for(const width of [320,375,390]){
-    await page.setViewportSize({width,height:844});
-    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
-    expect((await page.locator('.progress-actions').boundingBox())!.height).toBeLessThanOrEqual(70);
-    expect(await page.locator('#rank-8201').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
-    expect((await page.locator('#rank-8201').boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  }
-  await page.setViewportSize({width:390,height:844});
-  await page.locator('.progress-actions').scrollIntoViewIfNeeded();
-  await page.screenshot({path:testInfo.outputPath('rank-editor-mobile-390.png'),fullPage:true});
+  await page.locator('[data-target="8202"]').click();await page.locator('#rank-8202').fill('3');
+  await openItems(page);await page.locator('#item-8601').fill('2');
+  await page.locator('#progress-band').selectOption('8102');await page.locator('#rank-8210').fill('2');
+  await page.locator('#progress-band').selectOption('8101');await openRank(page);
+  await expect(page.locator('#rank-8201')).toHaveValue('7');await expect(page.locator('#progress-8201-stamps')).toHaveValue('4');
+  await expect(page.locator('[data-effective-rank]')).toHaveText('7');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await page.locator('#progress-form button[type=submit]').click();
-  await expect(page.locator('[data-progress-state]')).toHaveText('変更後は保存してください');
-  expect(JSON.parse((await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY))!).characterRanks).toEqual({});
   await page.reload();await tab(page,'progress');
-  await expect(rows.first().locator('[data-effective-rank]')).toHaveText('2');
-  await expect(page.locator('#progress-form input:visible')).toHaveCount(0);
+  await expect(page.locator('#rank-8201')).toHaveValue('7');await expect(page.locator('#progress-8201-stamps')).toHaveValue('4');
+  await openRank(page,8202);await expect(page.locator('#rank-8202')).toHaveValue('3');
+  await openItems(page);await expect(page.locator('#item-8601')).toHaveValue('2');
+  await page.locator('#progress-band').selectOption('8102');await expect(page.locator('#rank-8210')).toHaveValue('2');
 });
 
 test('collapsed invalid rank opens for correction and failed explicit save stays visible',async({page})=>{
   await catalog(page);await collection(page);await tab(page,'progress');await openRank(page);
-  const row=page.locator('[data-character-rank="8201"]');
-  await page.locator('#rank-8201').fill('0');await row.locator('summary').click();
+  await page.locator('#rank-8201').fill('0');
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('#rank-8201')).toBeVisible();

@@ -21,7 +21,7 @@ test('missing rules retain manual ranks, ownership editing, backup and manual-on
   await tab(page,'exchange');expect(await download(page,'#export-button')).toContain('skillLevel5');
   await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile()));await page.locator('#conversion-profile-apply').click();await page.locator('#conversion-complete').check();await page.locator('#conversion-preview').click();await expect(page.locator('#conversion-download')).toBeVisible();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await tab(page,'progress');await page.locator('[data-rank-summary]').click();await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
+  await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('[data-effective-rank]')).toHaveText('—');await expect(page.locator('[data-total-character-rank]')).toContainText('未算出');
   await tab(page,'rating');await expect(page.locator('.band-result')).toContainText('ランク定義');
   await tab(page,'exchange');await expect(page.locator('#conversion-preview')).toBeDisabled();await expect(page.locator('.conversion-panel')).toContainText('ランク定義');
@@ -38,7 +38,7 @@ test('imports, backs up and restores all static definitions with catalog alone',
   expect(JSON.parse(backup).rankDefinition).not.toHaveProperty('catalog');
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBeNull();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await tab(page,'progress');await page.locator('[data-rank-summary]').click();await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
+  await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
   await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await page.locator('#catalog-apply').click();
   await expect(page.locator('#rank-rules')).toContainText('未登録');
