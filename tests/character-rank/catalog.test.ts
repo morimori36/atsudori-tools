@@ -4,7 +4,6 @@ import {readFileSync} from 'node:fs';
 import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
 import {fictionalRules,fictionalCatalog} from '../helpers/rank-rules';
 import {fictionalProfile} from '../helpers/conversion';
-import {mergeRankRules} from '../../src/domain/character-rank/rules';
 import {estimateCharacterRank} from '../../src/domain/character-rank/estimate';
 import {evaluateCollection} from '../../src/app/evaluate-collection';
 import {importCatalog,exportCatalog,validateCatalog,catalogIssues} from '../../src/data/catalog/validate';
@@ -14,7 +13,7 @@ import {assertProfileCatalog} from '../../src/app/export-conversion';
 it('round trips one catalog containing ranks, progression and total-rank bonuses without the legacy envelope',async()=>{
   const m=syntheticCatalog(),c=syntheticCollection(m);c.characterRanks={};c.characterProgress={8201:{stamps:9}};
   const raw=exportCollection(c,m),legacy=await fictionalRules(m),before=JSON.stringify({m,c,legacy});
-  const unified=await mergeRankRules(m,legacy),restored=importCatalog(exportCatalog(unified));
+  const unified=await fictionalCatalog(m),restored=importCatalog(exportCatalog(unified));
   expect(restored.rankDefinition).not.toHaveProperty('catalog');expect(restored.rankDefinition).not.toHaveProperty('format');
   expect(restored.rankDefinition?.totalRankBonuses).toEqual(legacy.totalRankBonuses);
   expect(estimateCharacterRank(restored,c,8201)).toMatchObject({effectiveRank:2,exp:17});
@@ -35,10 +34,6 @@ it('rejects malformed embedded definitions and inconsistent catalog references',
   }
   m.characterRankLevels=[1];expect(catalogIssues(validateCatalog(m)).join(' ')).toContain('ランク');
   expect(()=>importCatalog(JSON.stringify(m))).toThrow();
-});
-it('does not accept a mismatched legacy catalog hash during migration',async()=>{
-  const m=syntheticCatalog(),old=await fictionalRules(m);m.members[0]!.maxStats={...m.members[0]!.maxStats,performance:m.members[0]!.maxStats.performance+1};
-  await expect(mergeRankRules(m,old)).rejects.toThrow('一致');
 });
 it('keeps legacy conversion profiles valid for unchanged base tables and pins new profiles to the full catalog',async()=>{
   const base=syntheticCatalog(),old=await fictionalProfile(base),unified=await fictionalCatalog(base);

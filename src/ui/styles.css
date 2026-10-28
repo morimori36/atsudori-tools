@@ -294,8 +294,6 @@ footer p { margin-bottom: 4px; }
 }
 
 select, input { max-width: 100%; }
-#catalog-row-form, #catalog-meta { margin-top: 22px; }
-#catalog-row-form .form-grid, #catalog-meta .form-grid { margin-bottom: 18px; }
 .alert { overflow-wrap: anywhere; white-space: pre-line; }
 footer { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .brand strong { font-size: 14px; } .header-meta { font-size: 11px; } }

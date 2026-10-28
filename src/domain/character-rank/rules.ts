@@ -1,4 +1,4 @@
-import { jsonValue, strictObject, validateCatalog, catalogBase, catalogIssues, exportCatalog } from '../../data/catalog/validate';
+import { jsonValue, strictObject, validateCatalog, catalogBase } from '../../data/catalog/validate';
 import type { Masterdata } from '../../data/catalog/model';
 import { digest } from '../conversion/profile';
 import { validateRankDefinition, assertRankDefinitionCatalog } from './definition';
@@ -33,14 +33,6 @@ export function catalogRankRules(master:Masterdata):BoundRankRules|undefined {
   const catalog=validateCatalog(master);
   assertRankDefinitionCatalog(catalog.rankDefinition!,catalog);
   return {document:catalog.rankDefinition!,catalogKey:JSON.stringify(catalog)};
-}
-export async function mergeRankRules(master:Masterdata,value:RankRules):Promise<Masterdata> {
-  const bound=await bindRankRules(value,master);
-  const {format,schemaVersion,catalog,...rankDefinition}=bound.document;
-  const next=validateCatalog({...master,rankDefinition});
-  if(catalogIssues(next).length)throw new Error('マスタに不足・不整合があります');
-  exportCatalog(next); // A merged catalog must remain reloadable under the catalog byte limit.
-  return next;
 }
 export function assertRankRulesCatalog(bound:BoundRankRules,master:Masterdata):void {
   if(bound.catalogKey!==JSON.stringify(validateCatalog(master)))throw new Error('マスタの版・内容が変わりました。対応するマスタをImportしてください');

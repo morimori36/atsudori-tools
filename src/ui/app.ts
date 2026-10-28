@@ -22,9 +22,7 @@ import { estimateCharacterRank, estimateCharacterRanks, sumCharacterRanks } from
 import { manualProgressKeys } from '../domain/character-rank/definitions';
 import type { CharacterProgress } from '../domain/character-rank/definitions';
 import type { Masterdata } from '../data/catalog/model';
-import { emptyCatalog, validateCatalog, catalogIssues } from '../data/catalog/validate';
-import { catalogEditorMarkup, bindCatalogEditor } from './catalog-editor';
-import type { EditorState } from './catalog-editor';
+import { emptyCatalog, validateCatalog, catalogIssues, importCatalog, exportCatalog, CATALOG_LIMIT } from '../data/catalog/validate';
 import { deriveMemberDisplay, deriveSnapDisplay } from '../data/catalog/growth';
 import { calculateRating } from '../domain/rating/calculate';
 import type { RatingInput, Stats } from '../domain/rating/calculate';
@@ -41,12 +39,11 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'catalog' | 'rating' | 'members' | 'snaps' | 'progress' | 'exchange' | 'manual' | 'event';
+type Tab = 'rating' | 'members' | 'snaps' | 'progress' | 'exchange' | 'manual' | 'event';
 const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
-  ['progress', 'ランク・アイテム'], ['exchange', 'JSON Import / Export'], ['catalog', '手動メンテナンス'], ['manual', '表示値で計算']];
+  ['progress', 'ランク・アイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
-  catalog: ['手動メンテナンス', 'マスタ・定義の手動編集と初期化を行います。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
   snaps: ['所持Snap', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
@@ -76,11 +73,10 @@ export function mountApp(root: HTMLElement): void {
   try { storage = window.localStorage; } catch { storage = undefined; }
   const loadedCatalog = loadCatalog(storage);
   let master: Masterdata = loadedCatalog.status === 'loaded' ? loadedCatalog.value : emptyCatalog();
-  const editorState: EditorState = { table: 'bands', index: -1, readId: 0 };
   let allowCatalogWrites = loadedCatalog.status !== 'invalid';
   let catalogSaved = loadedCatalog.status === 'loaded' || loadedCatalog.status === 'empty';
   const damagedCatalog = loadedCatalog.status === 'invalid' ? loadedCatalog.raw : undefined;
-  let catalogStorageMessage = loadedCatalog.status === 'invalid' ? '保存マスタが破損しています。元JSONを保護中です。手動メンテナンスでExport・Importまたは初期化してください。' : loadedCatalog.status === 'unavailable' ? loadedCatalog.error : '';
+  let catalogStorageMessage = loadedCatalog.status === 'invalid' ? '保存マスタが破損しています。元JSONを保護中です。JSON Import / ExportでExport・Importまたは初期化してください。' : loadedCatalog.status === 'unavailable' ? loadedCatalog.error : '';
   const memberName = (id: number): string => {
   const m = master.members.find(m => m.id === id)!;
   return `${m.name}［${m.title}］`;
@@ -95,7 +91,7 @@ export function mountApp(root: HTMLElement): void {
     : loaded.status === 'unavailable' ? loaded.error : '';
   let active: Tab = 'rating';
   const eventPlanner = createEventPlanner(storage, syncSaveState);
-  const rankRules = createRankRules(storage,()=>master,render,download,next=>{replaceCatalog(next,true);return catalogSaved;});
+  const rankRules = createRankRules(()=>master);
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(manualProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
@@ -114,6 +110,7 @@ export function mountApp(root: HTMLElement): void {
   const filters = { members: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' },
     snaps: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' } };
   let importReadId = 0;
+  let catalogReadId = 0;
 
   function persist(next: Collection): void {
     collection = validateCollection(next, master);
@@ -124,16 +121,15 @@ export function mountApp(root: HTMLElement): void {
       storageMessage = result.status === 'failed' ? `ブラウザ保存ができませんでした。JSONをExportしてください。${result.error}` : '';
     }
   }
-  function replaceCatalog(next: Masterdata, explicitRecovery = false): void {
+  function replaceCatalog(next: Masterdata): void {
     flushAutosaves();
     const candidate = validateCatalog(next);
     const nextCollection = validateCollection(collection, candidate);
-    if (!allowCatalogWrites && !explicitRecovery) throw new Error('元の保存マスタを保護中です。Export後にImportまたは初期化してください');
     const result = saveCatalog(storage, candidate);
-    if (result.status === 'failed' && explicitRecovery) throw new Error('マスタを保存できません。' + result.error);
+    if (result.status === 'failed') throw new Error('マスタを保存できません。' + result.error);
     cancelAutosaves(); drafts.clear(); importReadId++;
-    if (explicitRecovery) allowCatalogWrites = true;
-    editorState.readId++;
+    allowCatalogWrites = true;
+    catalogReadId++;
     master = candidate; collection = nextCollection;
     // Keep edits for surviving targets, but never reinsert IDs removed by a catalog update.
     for (const name of progressDraft.keys()) {
@@ -142,8 +138,7 @@ export function mountApp(root: HTMLElement): void {
       if ((character && !master.characters.some(c => c.id === Number(character[1]))) ||
           (item && !master.bandItems.some(i => i.id === Number(item[1])))) progressDraft.delete(name);
     }
-    catalogSaved = result.status === 'saved';
-    catalogStorageMessage = result.status === 'failed' ? 'マスタを保存できません。Exportしてください。' + result.error : '';
+    catalogSaved = true; catalogStorageMessage = '';
     // Restoring the catalog can make an intact, previously unmatched collection readable again.
     if (!allowWrites) {
       const restored = loadCollection(storage, master);
@@ -152,9 +147,9 @@ export function mountApp(root: HTMLElement): void {
   }
   function missingCatalog(): string {
     const issues = catalogIssues(master);
-    return '<section class="panel"><h2>' + (issues.length ? 'マスタに不足・不整合があります' : 'マスタ未登録') + '</h2><p>手動メンテナンスで登録・Importしてください。表示値での個別計算はマスタなしでも利用できます。</p>' +
+    return '<section class="panel"><h2>' + (issues.length ? 'マスタに不足・不整合があります' : 'マスタ未登録') + '</h2><p>JSON Import / Exportで適切なマスタJSONをImportしてください。表示値での個別計算はマスタなしでも利用できます。</p>' +
       (issues.length ? '<ul>' + issues.map(i => '<li>' + escape(i) + '</li>').join('') + '</ul>' : '') +
-      '<button class="primary" data-tab="catalog">手動メンテナンスを開く</button> <button class="secondary" data-tab="manual">表示値で計算</button></section>';
+      '<button class="primary" data-tab="exchange">JSON Import / Exportを開く</button> <button class="secondary" data-tab="manual">表示値で計算</button></section>';
   }
   function download(text: string, filename: string): void {
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json;charset=utf-8' }));
@@ -292,7 +287,7 @@ export function mountApp(root: HTMLElement): void {
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
-    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。手動メンテナンスで定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">手動メンテナンスを開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
+    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。JSON Import / Exportでランク定義を含むマスタJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="exchange">JSON Import / Exportを開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
       <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
       <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${draftValue('totalRankBonus', collection.totalRankBonus)}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
       <section class="progress-section" aria-labelledby="character-ranks-heading"><h2 id="character-ranks-heading">キャラクターランク</h2>
@@ -320,7 +315,11 @@ export function mountApp(root: HTMLElement): void {
       <div id="conversion-export"></div>
       <details><summary>詳細情報</summary><p>catalogId: ${escape(master.catalogId)} / revision: ${escape(master.revision)}</p><p>ファイルにないキャラクター進捗・TGWランクは現在の値を保持します。</p>
       ${damagedBackup !== undefined ? '<button class="secondary" id="damaged-backup">元の保存JSONをダウンロード</button>' : ''}
-      ${damagedCatalog !== undefined ? '<button class="secondary" id="catalog-original">元の保存マスタをExport</button>' : ''}</details></div>`;
+      ${damagedCatalog !== undefined ? '<button class="secondary" id="catalog-original">元の保存マスタをExport</button>' : ''}</details>
+      <details id="data-reset"><summary>データの初期化</summary>
+      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・Snap、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
+      <section class="exchange-section"><h2>マスタデータを初期化</h2><p>マスタと内包されるランク定義を削除します。所持・育成データが参照している場合は、先にそちらを初期化してください。</p><button class="secondary danger" id="catalog-clear">マスタデータを初期化</button></section>
+      </details></div>`;
   }
 
   function manualPage(): string {
@@ -337,7 +336,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return active === 'catalog' ? catalogEditorMarkup(master, editorState)+'<div id="rank-rules"></div><section class="panel"><h2>所持データの初期化</h2><button class="secondary danger" id="reset-button">登録内容を初期化</button></section>' : catalogIssues(master).length && ['members','snaps','progress'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return catalogIssues(master).length && ['members','snaps','progress'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -350,7 +349,6 @@ export function mountApp(root: HTMLElement): void {
       <main class="${active === 'rating' ? 'rating-page' : active === 'progress' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
-      ${!master.rankDefinition&&rankRules.hasLegacy()?'<p class="alert">旧ランク定義が保存されています。手動メンテナンスで確認してcatalogへ統合してください。</p><button class="secondary" data-tab="catalog">手動メンテナンスで統合</button>':''}
       ${pageBody()}
       <footer><p>非公式ツールです。ゲームの運営・開発元とは関係ありません。計算結果は推定式によるもので、ゲーム内の結果を保証しません。</p>
         <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
@@ -372,9 +370,7 @@ export function mountApp(root: HTMLElement): void {
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
     if (active === 'rating') bindTrainingSettings(root,trainingSettings);
-    if (active === 'catalog' || active === 'exchange') bindCatalogEditor(root, master, editorState, { replace: replaceCatalog, render, report: run, download, damaged: damagedCatalog });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
-    if (active === 'catalog') rankRules.mount(root.querySelector<HTMLElement>('#rank-rules')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
   }
@@ -617,6 +613,27 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function bindExchange(): void {
+    root.querySelector('#catalog-export')?.addEventListener('click', () => run(() => download(exportCatalog(master), 'atsudori-catalog.json'), 'マスタJSONをExportしました'));
+    root.querySelector('#catalog-original')?.addEventListener('click', () => download(damagedCatalog!, 'atsudori-original-catalog.json'));
+    root.querySelector<HTMLInputElement>('#catalog-import')?.addEventListener('change', async event => {
+      const input = event.target as HTMLInputElement, file = input.files?.[0]; if (!file) return;
+      input.value = ''; const readId = ++catalogReadId;
+      notice = { error: false, text: 'マスタを検証中…' }; render();
+      try {
+        if (file.size > CATALOG_LIMIT) throw new Error('マスタJSONの上限は10MiBです');
+        const text = await file.text(); if (readId !== catalogReadId) return;
+        const next = importCatalog(text);
+        run(() => replaceCatalog(next), 'マスタをImportしました');
+      } catch (error) { if (readId === catalogReadId) run(() => { throw error; }); }
+    });
+    root.querySelector('#catalog-clear')?.addEventListener('click', () => {
+      if (!window.confirm('マスタと内包するランク定義を空にします。必要なJSONをExport済みですか？ 所持参照が残っていれば拒否します。')) return;
+      run(() => {
+        try { if (!allowWrites) throw new Error('保存所持データを保護中です'); validateCollection(collection, emptyCatalog()); }
+        catch { throw new Error('所持・育成データがマスタを参照しています。必要なJSONをExportし、先に「所持・育成データを初期化」を実行してください。'); }
+        replaceCatalog(emptyCatalog());
+      }, 'マスタデータを初期化しました');
+    });
     root.querySelector('#export-button')?.addEventListener('click', () => run(() => download(exportCollection(collection, master), 'atsudori-collection.json'), '所持JSONをExportしました'));
     root.querySelector('#damaged-backup')?.addEventListener('click', () => download(damagedBackup!, 'atsudori-original-storage.json'));
     root.querySelector<HTMLInputElement>('#import-file')?.addEventListener('change', async event => {
@@ -637,7 +654,14 @@ export function mountApp(root: HTMLElement): void {
     });
     root.querySelectorAll<HTMLButtonElement>('[data-file]').forEach(button => button.addEventListener('click', () => root.querySelector<HTMLInputElement>('#' + button.dataset.file)?.click()));
     root.querySelector('#reset-button')?.addEventListener('click', () => { if (!window.confirm('登録内容を空にします。必要なJSONをExport済みですか？')) return;
-      run(() => { importReadId++; cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); drafts.clear(); progressDraft.clear(); }, '登録内容を初期化しました'); });
+      run(() => {
+        const next = emptyCollection(master), result = saveCollection(storage, next, master);
+        if (result.status === 'failed') throw new Error('所持データを保存できません。' + result.error);
+        importReadId++; catalogReadId++; cancelAutosaves();
+        allowWrites = true; collection = next; saved = true; storageMessage = '';
+        drafts.clear(); progressDraft.clear();
+      }, '登録内容を初期化しました');
+    });
   }
   function bindManual(): void {
     const form = root.querySelector<HTMLFormElement>('#manual-form'); if (!form) return;

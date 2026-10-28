@@ -6,7 +6,7 @@ const file=(value:unknown)=>({name:'fictional.json',mimeType:'application/json',
 
 test('legacy ownership stays readable; unknown bonus holds rating; explicit zero survives reload',async({page})=>{
   const m=syntheticCatalog(),c=syntheticCollection(m);delete c.totalRankBonus;
-  await page.goto('./');await page.locator('nav [data-tab=catalog]').click();
+  await page.goto('./');await page.locator('nav [data-tab=exchange]').click();
   await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await page.locator('nav [data-tab=exchange]').click();await page.locator('#import-file').setInputFiles(file(c));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await page.locator('nav [data-tab=rating]').click();await expect(page.locator('.band-result .rating-total strong')).toHaveText('—');
@@ -23,10 +23,10 @@ test('legacy ownership stays readable; unknown bonus holds rating; explicit zero
 test('imported bonus thresholds drive the rating and maximum training uses current ranks',async({page})=>{
   const m=syntheticCatalog(),c=syntheticCollection(m);delete c.totalRankBonus;
   const rules=await fictionalRules(m);rules.totalRankBonuses=[{rank:0,bonus:13},{rank:4,bonus:29}];
-  await page.goto('./');await page.locator('nav [data-tab=catalog]').click();await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await page.goto('./');await page.locator('nav [data-tab=exchange]').click();await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await page.locator('nav [data-tab=exchange]').click();await page.locator('#import-file').setInputFiles(file(c));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   const {format,schemaVersion,catalog,...rankDefinition}=rules;
-  await page.locator('nav [data-tab=catalog]').click();await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file({...m,rankDefinition}));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await page.locator('nav [data-tab=exchange]').click();await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file({...m,rankDefinition}));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await page.locator('nav [data-tab=progress]').click();await expect(page.locator('[data-total-rank-bonus]')).toContainText('+13（ランク定義から算出）');
   await page.locator('nav [data-tab=rating]').click();await expect(page.locator('.band-result .rating-total strong')).toHaveText('732');
   await page.locator('input[name=rating-mode][value=potential]').check();
