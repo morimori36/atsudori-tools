@@ -1,3 +1,5 @@
+import type { TrainingSettingsStore } from '../storage/training-settings';
+import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
 import { assertProfileCatalog, exportConversion, prepareExport } from '../app/export-conversion';
 import type { ExportOptions } from '../app/export-conversion';
 import { importProfile, PROFILE_LIMIT } from '../domain/conversion/profile';
@@ -12,14 +14,14 @@ const escape = (v: unknown) => String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<'
 const message = (e:unknown) => e instanceof Error ? e.message : '処理に失敗しました';
 import type { BoundRankRules } from '../domain/character-rank/rules';
 interface State { rules?:BoundRankRules; master: Masterdata; collection: Collection; protected: boolean }
-export function createConversionExport(storage: StoragePort | undefined, read:()=>State, download:(text:string,name:string)=>void) {
+export function createConversionExport(storage: StoragePort | undefined, read:()=>State, download:(text:string,name:string)=>void, trainingSettings:TrainingSettingsStore) {
   let host: HTMLElement | undefined;
   let profile: ConversionProfile | undefined, draft: ConversionProfile | undefined;
   let original: string | undefined, loadMessage = '', notice = '', saved = true, busy = false;
   let readId = 0, preview: Awaited<ReturnType<typeof exportConversion>> | undefined, previewStamp = '';
   let bindingKey='', bindingValid=false, bindingMessage='';
-  const options: ExportOptions = {liveSkill4:false,gekisouSkill4:false,complete:false};
-  const stamp = () => JSON.stringify([read(),options,profile?.checksum]);
+  const options: ExportOptions = {applyTraining:false,training:trainingSettings.current(),complete:false};
+  const stamp = () => JSON.stringify([read(),options,trainingSettings.current(),profile?.checksum]);
   const invalidate = () => { preview = undefined; previewStamp = ''; };
   const describe = (p:ConversionProfile) => `<dl class="conversion-meta"><dt>プロファイル</dt><dd>${escape(p.id)} / ${escape(p.version)}</dd>
     <dt>出力形式</dt><dd>${escape(p.target.format)} / ${escape(p.target.version)}</dd>
@@ -39,6 +41,8 @@ export function createConversionExport(storage: StoragePort | undefined, read:()
   })();
   function render():void {
     if(!host?.isConnected) return;
+    options.training=trainingSettings.current();
+    if(preview && previewStamp!==stamp()) invalidate();
     const state=read();
     const key=profile?JSON.stringify([profile.checksum,state.master]):'';
     if(key!==bindingKey) {
@@ -63,19 +67,18 @@ export function createConversionExport(storage: StoragePort | undefined, read:()
       ${original!==undefined?'<button class="secondary" id="conversion-profile-original">元のプロファイルJSONをダウンロード</button>':''}
       ${profile?`${describe(profile)}<p class="muted">${saved?'プロファイル登録済み':'プロファイルはブラウザに未保存です。再読込前にJSONを保管してください'}</p><button class="secondary small" id="conversion-profile-backup">プロファイルをダウンロード</button>`:'<p>プロファイル未登録です。先にImportしてください。</p>'}
       ${bindingMessage?`<p class="alert" role="status">${escape(bindingMessage)}</p>`:''}
-      <fieldset class="conversion-options"><legend>Export時だけ適用する仮育成</legend>
-        <label class="check"><input id="conversion-live4" type="checkbox" ${options.liveSkill4?'checked':''} ${busy?'disabled':''}>ライブスキルLvを最低4にする</label>
-        <label class="check"><input id="conversion-gekisou4" type="checkbox" ${options.gekisouSkill4?'checked':''} ${busy?'disabled':''}>撃奏スキルLvを最低4にする</label>
-        <p class="muted">Lv5以上は維持します。Lv4に対応しないカードは実値を維持して一覧に示します。</p>
+      <fieldset class="conversion-options"><legend>外部JSON出力の育成条件</legend>
+        <label class="check"><input id="conversion-training" type="checkbox" ${options.applyTraining?'checked':''} ${busy?'disabled':''}>仮育成設定を適用する</label>
       </fieldset>
+      ${trainingSettingsMarkup(trainingSettings)}
       ${summary?`<p>メンバー ${summary.data.members.length}枚 / Snap ${summary.data.snaps.length}枚 / キャラランク ${summary.ranks.length}人 / アイテム ${summary.data.items.length}件</p>
         <p>手入力ランク ${summary.ranks.length-estimated.length}人 / 推定ランク ${estimated.length}人（進捗不足 ${limited.length}人）</p>
         ${estimated.length?'<p class="alert">推定ランクは補正前の実所持から計算します。未入力のミッション進捗・過去の達成・報酬受取状況を再現できないため、実際のランクと異なる場合があります。</p>':''}
         <details><summary>出力するランク・育成値を確認</summary><ul>${summary.ranks.map(r=>`<li>${escape(state.master.characters.find(c=>c.id===r.id)!.name)}: ${r.effectiveRank}（${r.overrideRank===undefined?'推定':'手入力'}${r.overrideRank===undefined&&r.missingProgress.length?'・進捗不足':''}）</li>`).join('')}</ul>
         <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>Lv / 特訓 / 覚醒</th><th>ライブ / 撃奏</th></tr></thead><tbody>${summary.data.members.map(m=>`<tr><td>${escape(state.master.members.find(c=>c.id===m.cardId)!.name)} · ID ${m.cardId}</td><td>${m.level} / ${m.trainingStage} / ${m.awakeningStage}</td><td>${m.liveSkillLevel} / ${m.gekisouSkillLevel}</td></tr>`).join('')}</tbody></table></div>
         <ul>${summary.data.snaps.map(s=>`<li>Snap ID ${s.supportCardId}: Lv${s.level} / 上限解放${s.rank}</li>`).join('')}${summary.data.items.map(i=>`<li>${escape(state.master.bandItems.find(item=>item.id===i.id)!.name)}: ${i.level===null?'未解放':'Lv'+i.level}</li>`).join('')}</ul></details>
-        <p>仮育成の変更 ${summary.adjustments.length}件 / Lv4非対応 ${summary.skipped.length}件</p>
-        ${summary.adjustments.length||summary.skipped.length?`<ul>${summary.adjustments.map(a=>`<li>ID ${a.cardId} ${a.skill}: Lv${a.before} → Lv${a.after}</li>`).join('')}${summary.skipped.map(s=>`<li>ID ${s.cardId} ${s.skill}: Lv4非対応のため実値を維持</li>`).join('')}</ul>`:''}`:''}
+        <p>仮育成の変更 ${summary.adjustments.length}件</p>
+        ${summary.adjustments.length?`<ul>${summary.adjustments.map(a=>`<li>ID ${a.cardId} ${a.skill}: ${a.before} → ${a.after}</li>`).join('')}</ul>`:''}`:''}
       ${blocked?`<p role="alert" class="alert error">${escape(blocked)}</p>`:''}
       <label class="check"><input id="conversion-complete" type="checkbox" ${options.complete?'checked':''} ${busy?'disabled':''}>実際に所持するメンバー・Snapをすべて登録したことを確認しました</label>
       <p class="muted">このアプリで管理していない情報の扱いと、出力先で必要な操作は、プロファイルの提供元で確認してください。</p>
@@ -84,6 +87,7 @@ export function createConversionExport(storage: StoragePort | undefined, read:()
       ${notice?`<p class="alert" role="status">${escape(notice)}</p>`:''}
       <p>Exportしても登録中の所持・育成情報は変更しません。出力先への取り込みは、このアプリの外で行ってください。</p>
       <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/profile-export.md" target="_blank" rel="noreferrer">変換プロファイルの仕様と使い方</a></p></section>`;
+    bindTrainingSettings(host,trainingSettings);
     host.querySelector<HTMLInputElement>('#conversion-profile-file')?.addEventListener('change',async event=>{
       const file=(event.target as HTMLInputElement).files?.[0]; if(!file) return;
       const ticket=++readId; draft=undefined; invalidate(); notice='';
@@ -108,7 +112,7 @@ export function createConversionExport(storage: StoragePort | undefined, read:()
     });
     host.querySelector('#conversion-profile-original')?.addEventListener('click',()=>download(original!,'atsudori-original-profile.json'));
     host.querySelector('#conversion-profile-backup')?.addEventListener('click',()=>download(JSON.stringify(profile,null,2)+'\n','atsudori-conversion-profile.json'));
-    for(const [selector,key] of [['#conversion-live4','liveSkill4'],['#conversion-gekisou4','gekisouSkill4'],['#conversion-complete','complete']] as const) {
+    for(const [selector,key] of [['#conversion-training','applyTraining'],['#conversion-complete','complete']] as const) {
       host.querySelector<HTMLInputElement>(selector)?.addEventListener('change',e=>{options[key]=(e.target as HTMLInputElement).checked;invalidate();notice='';render();host?.querySelector<HTMLElement>(selector)?.focus();});
     }
     host.querySelector('#conversion-preview')?.addEventListener('click',async()=>{
@@ -127,5 +131,6 @@ export function createConversionExport(storage: StoragePort | undefined, read:()
       download(preview.text,'atsudori-converted.json');
     });
   }
+  trainingSettings.subscribe(()=>{invalidate();notice='';if(host?.isConnected)preserveTrainingView(host,render);});
   return {mount(element:HTMLElement) { host=element;invalidate();render(); }};
 }

@@ -1,3 +1,5 @@
+import { applyHypotheticalTraining } from './hypothetical-training';
+import type { TrainingSettings } from './hypothetical-training';
 import { catalogIssues, validateCatalog, catalogBase } from '../data/catalog/validate';
 import type { Masterdata } from '../data/catalog/model';
 import { validateCollection } from '../storage/collection';
@@ -7,7 +9,7 @@ import { digest, importProfile, renderTemplate } from '../domain/conversion/prof
 import type { BoundRankRules } from '../domain/character-rank/rules';
 import type { ConversionProfile } from '../domain/conversion/profile';
 
-export interface ExportOptions { liveSkill4: boolean; gekisouSkill4: boolean; complete: boolean }
+export interface ExportOptions { applyTraining: boolean; training: TrainingSettings; complete: boolean }
 export function prepareExport(master: Masterdata, value: Collection, options: ExportOptions, rules?:BoundRankRules) {
   const catalog = validateCatalog(master);
   if (catalogIssues(catalog).length || !catalog.characters.length) throw new Error('マスタに不足・不整合があります');
@@ -20,26 +22,19 @@ export function prepareExport(master: Masterdata, value: Collection, options: Ex
   const missingItems = catalog.bandItems.filter(item=>!Object.hasOwn(collection.bandItems,item.id));
   if (missingItems.length) throw new Error(`バンドアイテムの所持状態が未入力です（${missingItems.length}件）。ランク・アイテムで確認してください`);
   const adjustments: {cardId:number; skill:string; before:number; after:number}[] = [];
-  const skipped: {cardId:number; skill:string}[] = [];
-  const members = collection.members.map(member=>{
-    const card = catalog.members.find(c=>c.id === member.cardId)!;
-    const result = {...member};
-    for (const [enabled,key,levels,label] of [
-      [options.liveSkill4,'liveSkillLevel',card.liveSkillLevels,'ライブ'],
-      [options.gekisouSkill4,'gekisouSkillLevel',card.gekisouSkillLevels,'撃奏'],
-    ] as const) {
-      if (enabled && result[key] < 4) {
-        if (!levels.includes(4)) { skipped.push({cardId:card.id,skill:label}); continue; }
-        adjustments.push({cardId:card.id,skill:label,before:result[key],after:4}); result[key] = 4;
-      }
+  const projected = options.applyTraining ? applyHypotheticalTraining(catalog,collection,options.training) : collection;
+  const members = projected.members.map((result,index)=>{
+    const original=collection.members[index]!;
+    for(const [key,label] of [['level','メンバーLv'],['trainingStage','特訓'],['awakeningStage','覚醒'],['liveSkillLevel','ライブ'],['gekisouSkillLevel','撃奏']] as const) {
+      if(result[key]!==original[key]) adjustments.push({cardId:result.cardId,skill:label,before:original[key],after:result[key]});
     }
     const {cardId,level,trainingStage,awakeningStage,liveSkillLevel,gekisouSkillLevel} = result;
     return {cardId,level,trainingStage,awakeningStage,liveSkillLevel,gekisouSkillLevel};
   });
-  // Estimate from the real collection above, before applying export-only training.
+  // Estimate from the real collection above, before applying the shared training projection.
   return { data:{members,snaps:collection.snaps.map(s=>({...s})),ranks:ranks.map(r=>({id:r.id,value:r.effectiveRank!})),
     items:catalog.bandItems.map(i=>({id:i.id,level:collection.bandItems[i.id]!,owned:collection.bandItems[i.id] !== null}))},
-    ranks,adjustments,skipped,totalRank:ranks.reduce((sum,r)=>sum+r.effectiveRank!,0) };
+    ranks,adjustments,totalRank:ranks.reduce((sum,r)=>sum+r.effectiveRank!,0) };
 }
 export async function assertProfileCatalog(profile: ConversionProfile, master: Masterdata): Promise<void> {
   if (profile.catalog.catalogId !== master.catalogId || profile.catalog.revision !== master.revision || (profile.catalog.sha256 !== await digest(validateCatalog(master)) && profile.catalog.sha256 !== await digest(catalogBase(master)))) {
@@ -51,7 +46,7 @@ export async function exportConversion(master: Masterdata, collection: Collectio
   // Revalidate at the boundary, including callers other than the UI.
   const profile = await importProfile(JSON.stringify(supplied));
   await assertProfileCatalog(profile,master);
-  if (typeof options.liveSkill4 !== 'boolean' || typeof options.gekisouSkill4 !== 'boolean' || options.complete !== true) throw new Error('所持一覧を確認し、完全性のチェックを入れてください');
+  if (typeof options.applyTraining !== 'boolean' || options.complete !== true) throw new Error('所持一覧を確認し、完全性のチェックを入れてください');
   if (!/^[A-Za-z0-9-]{1,100}$/.test(context.exportId) || !Number.isSafeInteger(context.at) || context.at < 0) throw new Error('Exportの識別情報が不正です');
   const preview = prepareExport(master,collection,options,rules);
   const value = renderTemplate(profile,preview.data,{...context,totalRank:preview.totalRank});

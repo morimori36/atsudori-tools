@@ -1,3 +1,4 @@
+import { DEFAULT_TRAINING } from '../../src/app/hypothetical-training';
 import { expect,it } from 'vitest';
 import Ajv from 'ajv/dist/2020';
 import { fictionalRules } from '../helpers/rank-rules';
@@ -29,11 +30,11 @@ it('rejects malformed and dangerous JSON, master version/content/stage/rank drif
   bad.rankThresholds.pop();bad.achievements.find(a=>a.kind==='training')!.stage=83;await expect(bindRankRules(bad,n)).rejects.toThrow('段階');
 });
 it('blocks profile export with missing definitions, retains manual-only operation, and ignores hypothetical progress',async()=>{
-  const m=syntheticCatalog(),c=syntheticCollection(m),p=await fictionalProfile(m),options={complete:true,liveSkill4:false,gekisouSkill4:false},context={exportId:'fictional',at:1};
+  const m=syntheticCatalog(),c=syntheticCollection(m),p=await fictionalProfile(m),options={complete:true,applyTraining:false,training:{...DEFAULT_TRAINING}},context={exportId:'fictional',at:1};
   expect((await exportConversion(m,c,p,options,context)).preview.totalRank).toBe(3);
   c.characterRanks={};const before=JSON.stringify(c);
   await expect(exportConversion(m,c,p,options,context)).rejects.toThrow('ランク定義');
   const rules=await bindRankRules(await fictionalRules(m),m);
-  const a=await exportConversion(m,c,p,options,context,rules),b=await exportConversion(m,c,p,{...options,liveSkill4:true,gekisouSkill4:true},context,rules);
+  const a=await exportConversion(m,c,p,options,context,rules),b=await exportConversion(m,c,p,{...options,applyTraining:true,training:{...DEFAULT_TRAINING,trainingStage:null,liveSkillLevel:4,gekisouSkillLevel:4}},context,rules);
   expect(a.preview.totalRank).toBe(1);expect(b.preview.totalRank).toBe(1);expect(JSON.stringify(c)).toBe(before);
 });

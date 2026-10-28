@@ -24,23 +24,27 @@ test('profile confirmation, both options, preview/download and reload leave save
   expect(await page.evaluate(k=>localStorage.getItem(k),PROFILE_STORAGE_KEY)).toBeNull();
   await page.locator('#conversion-profile-apply').click();
   await expect(page.locator('.conversion-panel h2')).toHaveText('プロファイルでJSON出力');
-  await expect(page.locator('#conversion-live4')).not.toBeChecked();await expect(page.locator('#conversion-gekisou4')).not.toBeChecked();
+  await expect(page.locator('#conversion-training')).not.toBeChecked();
   await expect(page.locator('.conversion-panel')).toContainText('推定ランク 1人（進捗不足 1人）');
   await page.locator('#conversion-preview').click();await expect(page.locator('.conversion-panel')).toContainText('完全性');
-  await page.locator('#conversion-complete').check();await page.locator('#conversion-live4').check();await page.locator('#conversion-gekisou4').check();
+  await page.locator('#conversion-complete').check();
+  await page.locator('#conversion-preview').click();await expect(page.locator('#conversion-download')).toBeVisible();
+  const [real]=await Promise.all([page.waitForEvent('download'),page.locator('#conversion-download').click()]);
+  expect(JSON.parse(await readFile((await real.path())!,'utf8')).roster).toEqual([{id:8301,outLive:1,outGeki:1}]);
+  await page.locator('#conversion-training').check();await expect(page.locator('#conversion-download')).toHaveCount(0);await page.locator('[data-training=liveSkillLevel]').selectOption('4');await page.locator('[data-training=gekisouSkillLevel]').selectOption('4');
   await page.locator('#conversion-preview').click();await expect(page.locator('#conversion-download')).toBeVisible();
   const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#conversion-download').click()]);
   expect(d.suggestedFilename()).toBe('atsudori-converted.json');
   const result=JSON.parse(await readFile((await d.path())!,'utf8'));
   expect(result.roster).toEqual([{id:8301,outLive:4,outGeki:4}]);expect(result.ranks).toEqual({8201:1});
   expect(await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY])).toEqual(before);
-  await page.locator('#conversion-live4').uncheck();await expect(page.locator('#conversion-download')).toHaveCount(0);
+  await page.locator('[data-training=awakeningStage]').selectOption('2');await expect(page.locator('#conversion-download')).toHaveCount(0);
   for(const width of [320,375,390]) {await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
-  expect(await page.locator('#conversion-live4').evaluate(e=>e.getBoundingClientRect().height)).toBeGreaterThan(0);
+  expect(await page.locator('#conversion-training').evaluate(e=>e.getBoundingClientRect().height)).toBeGreaterThan(0);
   await page.screenshot({path:'test-results/conversion-mobile.png',fullPage:true});
   await page.reload();await page.locator('nav [data-tab=exchange]').click();
   await expect(page.locator('.conversion-panel')).toContainText('プロファイル登録済み');
-  await expect(page.locator('#conversion-live4')).not.toBeChecked();await expect(page.locator('#conversion-gekisou4')).not.toBeChecked();await expect(page.locator('#conversion-complete')).not.toBeChecked();
+  await expect(page.locator('#conversion-training')).not.toBeChecked();await expect(page.locator('#conversion-complete')).not.toBeChecked();
   expect(external).toEqual([]);expect(errors).toEqual([]);
 });
 test('catalog drift blocks a saved profile and an incompatible replacement never overwrites it',async({page})=>{
@@ -79,4 +83,33 @@ test('missing item facts and damaged ownership prevent export',async({page})=>{
   await expect(page.locator('.conversion-panel')).toContainText('所持状態が未入力');await expect(page.locator('#conversion-preview')).toBeDisabled();
   const raw='{"invalid":"original"}';await page.evaluate(([k,v])=>localStorage.setItem(k!,v!),[STORAGE_KEY,raw]);await page.reload();await page.locator('nav [data-tab=exchange]').click();
   await expect(page.locator('.conversion-panel')).toContainText('保護中');await expect(page.locator('#conversion-preview')).toBeDisabled();expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(raw);
+});
+
+test('shared settings recalculate ratings, retain focus and scroll, and survive navigation and reload',async({page})=>{
+  await page.setViewportSize({width:390,height:812});
+  const before=await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY]);
+  await page.locator('nav [data-tab=rating]').click();
+  await page.locator('input[name=rating-mode][value=potential]').check();
+  const rating=await page.locator('.rating-total strong').textContent();
+  await page.locator('[data-training=awakeningStage]').focus();
+  await page.locator('[data-training=awakeningStage]').selectOption('2');
+  await expect(page.locator('[data-training=awakeningStage]')).toBeFocused();
+  expect(await page.locator('.rating-total strong').textContent()).not.toBe(rating);
+  await page.locator('nav [data-tab=exchange]').click();
+  await expect(page.locator('[data-training=awakeningStage]')).toHaveValue('2');
+  await expect(page.locator('#conversion-training')).not.toBeChecked();
+  await page.locator('[data-training=trainingStage]').selectOption('');
+  await page.locator('[data-training=liveSkillLevel]').scrollIntoViewIfNeeded();
+  await page.locator('[data-training=liveSkillLevel]').focus();
+  const scroll=await page.evaluate(()=>scrollY);
+  await page.locator('[data-training=liveSkillLevel]').selectOption('3');
+  await expect(page.locator('[data-training=liveSkillLevel]')).toBeFocused();
+  expect(await page.evaluate(()=>scrollY)).toBe(scroll);
+  await page.locator('nav [data-tab=rating]').click();
+  await expect(page.locator('[data-training=trainingStage]')).toHaveValue('');
+  await expect(page.locator('[data-training=liveSkillLevel]')).toHaveValue('3');
+  await page.reload();
+  await expect(page.locator('[data-training=awakeningStage]')).toHaveValue('2');
+  await expect(page.locator('[data-training=liveSkillLevel]')).toHaveValue('3');
+  expect(await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY])).toEqual(before);
 });
