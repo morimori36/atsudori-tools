@@ -30,7 +30,7 @@ it('rejects malformed and dangerous JSON, master version/content/stage/rank drif
   bad.rankThresholds.pop();bad.achievements.find(a=>a.kind==='training')!.stage=83;await expect(bindRankRules(bad,n)).rejects.toThrow('段階');
 });
 it('blocks profile export with missing definitions, retains manual-only operation, and ignores hypothetical progress',async()=>{
-  const m=syntheticCatalog(),c=syntheticCollection(m),p=await fictionalProfile(m),options={complete:true,applyTraining:false,training:{...DEFAULT_TRAINING}},context={exportId:'fictional',at:1};
+  const m=syntheticCatalog(),c=syntheticCollection(m),p=await fictionalProfile(m),options={applyTraining:false,training:{...DEFAULT_TRAINING}},context={exportId:'fictional',at:1};
   expect((await exportConversion(m,c,p,options,context)).preview.totalRank).toBe(3);
   c.characterRanks={};const before=JSON.stringify(c);
   await expect(exportConversion(m,c,p,options,context)).rejects.toThrow('ランク定義');

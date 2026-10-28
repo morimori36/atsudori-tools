@@ -43,15 +43,15 @@ import { createConversionExport } from './conversion-export';
 
 type Tab = 'catalog' | 'rating' | 'members' | 'snaps' | 'progress' | 'exchange' | 'manual' | 'event';
 const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
-  ['progress', 'ランク・アイテム'], ['catalog', 'マスタ管理'], ['exchange', '所持 Import / Export'], ['manual', '表示値で計算']];
+  ['progress', 'ランク・アイテム'], ['exchange', 'JSON Import / Export'], ['catalog', '手動メンテナンス'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
-  catalog: ['マスタ管理', '共通データを登録・編集・Importします。所持情報とは別に保存します。'],
+  catalog: ['手動メンテナンス', 'マスタ・定義の手動編集と初期化を行います。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
   snaps: ['所持Snap', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
   progress: ['ランク・アイテム', 'バンドを選び、キャラクターの進捗やランク上書きをまとめて編集できます。バンドアイテムは全バンド分を下に表示します。'],
-  exchange: ['Import / Export', 'JSONを使ってバックアップや別ブラウザへの移動ができます。'],
+  exchange: ['JSON Import / Export', 'JSONファイルを取り込み・保存します。'],
   manual: ['表示値で個別計算', 'ゲーム画面のP/T/Vと補正値を直接入力して、1枠の評価値を確認します。'],
 };
 const escape = (value: unknown): string => String(value).replace(/[&<>"']/g, c =>
@@ -80,7 +80,7 @@ export function mountApp(root: HTMLElement): void {
   let allowCatalogWrites = loadedCatalog.status !== 'invalid';
   let catalogSaved = loadedCatalog.status === 'loaded' || loadedCatalog.status === 'empty';
   const damagedCatalog = loadedCatalog.status === 'invalid' ? loadedCatalog.raw : undefined;
-  let catalogStorageMessage = loadedCatalog.status === 'invalid' ? '保存マスタが破損しています。元JSONを保護中です。マスタ管理でExport・Importまたは初期化してください。' : loadedCatalog.status === 'unavailable' ? loadedCatalog.error : '';
+  let catalogStorageMessage = loadedCatalog.status === 'invalid' ? '保存マスタが破損しています。元JSONを保護中です。手動メンテナンスでExport・Importまたは初期化してください。' : loadedCatalog.status === 'unavailable' ? loadedCatalog.error : '';
   const memberName = (id: number): string => {
   const m = master.members.find(m => m.id === id)!;
   return `${m.name}［${m.title}］`;
@@ -95,7 +95,7 @@ export function mountApp(root: HTMLElement): void {
     : loaded.status === 'unavailable' ? loaded.error : '';
   let active: Tab = 'rating';
   const eventPlanner = createEventPlanner(storage, syncSaveState);
-  const rankRules = createRankRules(storage,()=>master,render,download,next=>{replaceCatalog(next);return catalogSaved;});
+  const rankRules = createRankRules(storage,()=>master,render,download,next=>{replaceCatalog(next,true);return catalogSaved;});
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(manualProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
@@ -113,8 +113,6 @@ export function mountApp(root: HTMLElement): void {
   }
   const filters = { members: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' },
     snaps: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' } };
-  let importDraft: Collection | undefined;
-  let preserveImportProgress = true;
   let importReadId = 0;
 
   function persist(next: Collection): void {
@@ -131,9 +129,11 @@ export function mountApp(root: HTMLElement): void {
     const candidate = validateCatalog(next);
     const nextCollection = validateCollection(collection, candidate);
     if (!allowCatalogWrites && !explicitRecovery) throw new Error('元の保存マスタを保護中です。Export後にImportまたは初期化してください');
-    cancelAutosaves(); drafts.clear(); importDraft = undefined; importReadId++;
-    if (explicitRecovery) allowCatalogWrites = true;
     const result = saveCatalog(storage, candidate);
+    if (result.status === 'failed' && explicitRecovery) throw new Error('マスタを保存できません。' + result.error);
+    cancelAutosaves(); drafts.clear(); importReadId++;
+    if (explicitRecovery) allowCatalogWrites = true;
+    editorState.readId++;
     master = candidate; collection = nextCollection;
     // Keep edits for surviving targets, but never reinsert IDs removed by a catalog update.
     for (const name of progressDraft.keys()) {
@@ -152,9 +152,9 @@ export function mountApp(root: HTMLElement): void {
   }
   function missingCatalog(): string {
     const issues = catalogIssues(master);
-    return '<section class="panel"><h2>' + (issues.length ? 'マスタに不足・不整合があります' : 'マスタ未登録') + '</h2><p>マスタ管理で登録・Importしてください。表示値での個別計算はマスタなしでも利用できます。</p>' +
+    return '<section class="panel"><h2>' + (issues.length ? 'マスタに不足・不整合があります' : 'マスタ未登録') + '</h2><p>手動メンテナンスで登録・Importしてください。表示値での個別計算はマスタなしでも利用できます。</p>' +
       (issues.length ? '<ul>' + issues.map(i => '<li>' + escape(i) + '</li>').join('') + '</ul>' : '') +
-      '<button class="primary" data-tab="catalog">マスタ管理を開く</button> <button class="secondary" data-tab="manual">表示値で計算</button></section>';
+      '<button class="primary" data-tab="catalog">手動メンテナンスを開く</button> <button class="secondary" data-tab="manual">表示値で計算</button></section>';
   }
   function download(text: string, filename: string): void {
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json;charset=utf-8' }));
@@ -292,7 +292,7 @@ export function mountApp(root: HTMLElement): void {
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
-    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。マスタ管理で定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">マスタ管理を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
+    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。手動メンテナンスで定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">手動メンテナンスを開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
       <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
       <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${draftValue('totalRankBonus', collection.totalRankBonus)}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
       <section class="progress-section" aria-labelledby="character-ranks-heading"><h2 id="character-ranks-heading">キャラクターランク</h2>
@@ -313,20 +313,16 @@ export function mountApp(root: HTMLElement): void {
       <div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">ランク・アイテムを保存</button></div></form>`;
   }
   function exchangePage(): string {
-    const candidate = importDraft ? prepareCollectionImport(importDraft, collection, master, preserveImportProgress) : undefined;
-    return `<div class="exchange-grid"><section class="panel"><h2>JSONをExport</h2><p>現在の登録内容をファイルへ保存します。</p><div class="backup-counts">メンバー ${collection.members.length}枚 · Snap ${collection.snaps.length}枚</div>
-      <button class="primary" id="export-button">JSONをダウンロード</button>${damagedBackup !== undefined ? '<p>読み込めなかった元データも取り出せます。</p><button class="secondary" id="damaged-backup">元の保存JSONをダウンロード</button>' : ''}
-      <p class="muted">保存はこのブラウザ内です。ブラウザのデータ消去に備えてバックアップしてください。</p></section>
-      <section class="panel"><h2>JSONをImport</h2><p>ファイルを検証し、内容を確認してから現在の登録内容を置き換えます。</p>
-      <label class="file-label" for="import-file">JSONファイルを選択<input type="file" id="import-file" accept=".json,application/json"></label>
-      ${candidate ? `<div class="import-preview"><strong>反映後の内容</strong><p>メンバー ${candidate.members.length}枚 / Snap ${candidate.snaps.length}枚<br>キャラランク ${Object.keys(candidate.characterRanks).length}件 / アイテム ${Object.keys(candidate.bandItems).length}件<br>キャラクター進捗 ${Object.keys(candidate.characterProgress ?? {}).length}人 / TGWランク ${candidate.tgwRank ?? '不明'}</p>
-      <label class="check"><input type="checkbox" id="preserve-import-progress" ${preserveImportProgress ? 'checked' : ''}>ファイルにないキャラクター進捗・TGWランクは現在の値を保持</label>
-      <p class="muted">手入力の進捗とTGWランクが対象です。ファイルに記載された値は反映します。チェックを外すと、未記載の値も削除します。</p>
-      <button class="primary" id="apply-import">確認して置き換える</button></div>` : ''}</section></div>
-      <section class="panel"><h2>マスタのバックアップ</h2><p>カード・育成・ランク定義・総合ランクボーナス表はマスタJSONに含まれます。所持JSONとあわせて保存してください。</p><button class="secondary" data-tab="catalog">マスタのImport / Export</button></section>
+    return `<div class="json-exchange"><section class="exchange-section"><h2>所持・育成データ</h2><span class="muted">${collection.members.length || collection.snaps.length ? '登録済み' : '未登録'}</span>
+      <div class="exchange-actions"><button class="primary" data-file="import-file">Import</button><input hidden type="file" id="import-file" accept=".json,application/json"><button class="secondary" id="export-button">Export</button></div></section>
+      <section class="exchange-section"><h2>マスタデータ</h2><span class="muted">${master.members.length ? '登録済み' : '未登録'}</span>
+      <div class="exchange-actions"><button class="primary" data-file="catalog-import">Import</button><input hidden type="file" id="catalog-import" accept=".json,application/json"><button class="secondary" id="catalog-export">Export</button></div></section>
       <div id="conversion-export"></div>
-      <section class="panel reset-panel"><h2>新しく登録を始める</h2><p>現在の登録内容を空にします。必要なデータは先にExportしてください。</p><button class="secondary danger" id="reset-button">登録内容を初期化</button></section>`;
+      <details><summary>詳細情報</summary><p>catalogId: ${escape(master.catalogId)} / revision: ${escape(master.revision)}</p><p>ファイルにないキャラクター進捗・TGWランクは現在の値を保持します。</p>
+      ${damagedBackup !== undefined ? '<button class="secondary" id="damaged-backup">元の保存JSONをダウンロード</button>' : ''}
+      ${damagedCatalog !== undefined ? '<button class="secondary" id="catalog-original">元の保存マスタをExport</button>' : ''}</details></div>`;
   }
+
   function manualPage(): string {
     return `<section class="panel"><div class="panel-heading"><h2>表示値を入力</h2><button class="secondary small" id="manual-example">架空の例をセット</button></div>
       <form id="manual-form"><div class="form-grid">${field('manualP', 'Performance', '', 0)}${field('manualT', 'Technic', '', 0)}${field('manualV', 'Visual', '', 0)}
@@ -341,7 +337,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return active === 'catalog' ? catalogEditorMarkup(master, editorState)+'<div id="rank-rules"></div>' : catalogIssues(master).length && ['members','snaps','progress'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return active === 'catalog' ? catalogEditorMarkup(master, editorState)+'<div id="rank-rules"></div><section class="panel"><h2>所持データの初期化</h2><button class="secondary danger" id="reset-button">登録内容を初期化</button></section>' : catalogIssues(master).length && ['members','snaps','progress'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -354,7 +350,7 @@ export function mountApp(root: HTMLElement): void {
       <main class="${active === 'rating' ? 'rating-page' : active === 'progress' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
-      ${!master.rankDefinition&&rankRules.hasLegacy()?'<p class="alert">旧ランク定義が保存されています。マスタ管理で確認してcatalogへ統合してください。</p><button class="secondary" data-tab="catalog">マスタ管理で統合</button>':''}
+      ${!master.rankDefinition&&rankRules.hasLegacy()?'<p class="alert">旧ランク定義が保存されています。手動メンテナンスで確認してcatalogへ統合してください。</p><button class="secondary" data-tab="catalog">手動メンテナンスで統合</button>':''}
       ${pageBody()}
       <footer><p>非公式ツールです。ゲームの運営・開発元とは関係ありません。計算結果は推定式によるもので、ゲーム内の結果を保証しません。</p>
         <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
@@ -376,7 +372,7 @@ export function mountApp(root: HTMLElement): void {
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
     if (active === 'rating') bindTrainingSettings(root,trainingSettings);
-    if (active === 'catalog') bindCatalogEditor(root, master, editorState, { replace: replaceCatalog, render, report: run, download, damaged: damagedCatalog });
+    if (active === 'catalog' || active === 'exchange') bindCatalogEditor(root, master, editorState, { replace: replaceCatalog, render, report: run, download, damaged: damagedCatalog });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'catalog') rankRules.mount(root.querySelector<HTMLElement>('#rank-rules')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
@@ -621,28 +617,27 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function bindExchange(): void {
-    root.querySelector('#export-button')?.addEventListener('click', () => run(() => download(exportCollection(collection, master), 'atsudori-collection.json')));
+    root.querySelector('#export-button')?.addEventListener('click', () => run(() => download(exportCollection(collection, master), 'atsudori-collection.json'), '所持JSONをExportしました'));
     root.querySelector('#damaged-backup')?.addEventListener('click', () => download(damagedBackup!, 'atsudori-original-storage.json'));
     root.querySelector<HTMLInputElement>('#import-file')?.addEventListener('change', async event => {
       const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;
+      (event.target as HTMLInputElement).value = '';
       const readId = ++importReadId;
-      importDraft = undefined;
-      preserveImportProgress = true;
+      notice = { error: false, text: '所持データを検証中…' }; render();
       try { if (file.size > 5 * 1024 * 1024) throw new Error('JSONが大きすぎます（上限5MB）');
         const text = await file.text(); if (readId !== importReadId) return;
-        importDraft = importCollection(text, master); notice = { error: false, text: 'JSONの検証が完了しました。置き換える前に内容を確認してください。' };
+        const next = prepareCollectionImport(importCollection(text, master), collection, master, true);
+        const result = saveCollection(storage, next, master);
+        if (result.status === 'failed') throw new Error('所持データを保存できません。' + result.error);
+        cancelAutosaves(); collection = next; allowWrites = true; saved = true; storageMessage = '';
+        drafts.clear(); progressDraft.clear();
+        notice = { error: false, text: '所持データをImportしました' };
       } catch (error) { if (readId !== importReadId) return; notice = { error: true, text: errorMessage(error) }; }
       render();
     });
-    root.querySelector<HTMLInputElement>('#preserve-import-progress')?.addEventListener('change', event => {
-      preserveImportProgress = (event.target as HTMLInputElement).checked; render();
-    });
-    root.querySelector('#apply-import')?.addEventListener('click', () => run(() => { if (!importDraft) return;
-      const next = prepareCollectionImport(importDraft, collection, master, preserveImportProgress);
-      cancelAutosaves(); allowWrites = true; persist(next); importDraft = undefined; drafts.clear(); progressDraft.clear();
-    }, 'Importしました'));
+    root.querySelectorAll<HTMLButtonElement>('[data-file]').forEach(button => button.addEventListener('click', () => root.querySelector<HTMLInputElement>('#' + button.dataset.file)?.click()));
     root.querySelector('#reset-button')?.addEventListener('click', () => { if (!window.confirm('登録内容を空にします。必要なJSONをExport済みですか？')) return;
-      run(() => { cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); importDraft = undefined; drafts.clear(); progressDraft.clear(); }, '登録内容を初期化しました'); });
+      run(() => { importReadId++; cancelAutosaves(); allowWrites = true; persist(emptyCollection(master)); drafts.clear(); progressDraft.clear(); }, '登録内容を初期化しました'); });
   }
   function bindManual(): void {
     const form = root.querySelector<HTMLFormElement>('#manual-form'); if (!form) return;

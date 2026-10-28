@@ -50,13 +50,14 @@ export function createRankRules(storage:StoragePort|undefined,read:()=>Masterdat
     host.querySelector('#rank-rules-original')?.addEventListener('click',()=>download(original!,'character-rank-rules-original.json'));
     host.querySelector<HTMLInputElement>('#rank-rules-file')?.addEventListener('change',async e=>{
       const file=(e.target as HTMLInputElement).files?.[0];if(!file)return;
-      const ticket=++readId,master=read(),key=JSON.stringify(master);draft=undefined;pending=true;
+      (e.target as HTMLInputElement).value='';
+      const ticket=++readId,master=read(),key=JSON.stringify(master);draft=undefined;pending=true;notice='旧定義を検証中…';render();
       try {
         if(file.size>RULES_LIMIT)throw new Error('旧定義JSONは2MiB以内にしてください');
-        const document=parseRankRules(await file.text());await mergeRankRules(master,document);
+        const document=parseRankRules(await file.text());const next=await mergeRankRules(master,document);
         if(ticket!==readId)return;
         if(key!==JSON.stringify(read()))throw new Error('マスタが変わりました。定義を選び直してください');
-        draft={document,baseKey:key};notice='版・内容を検証しました。確認するとcatalogへ統合します。';
+        const saved=replace(next);notice=saved?'ランク定義をcatalogへ統合しました。':'catalogを保存できませんでした。';changed();
       }catch(e){if(ticket===readId)notice=message(e);}
       finally {if(ticket===readId){pending=false;render();}}
     });

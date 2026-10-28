@@ -4,7 +4,7 @@ import type { CatalogTable, FieldKind } from '../data/catalog/fields';
 import { catalogIssues, validateCatalog, importCatalog, exportCatalog, CATALOG_LIMIT, emptyCatalog } from '../data/catalog/validate';
 
 const esc = (v: unknown): string => String(v).replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
-export interface EditorState { table: CatalogTable; index: number; preview?: Masterdata; readId: number }
+export interface EditorState { table: CatalogTable; index: number; readId: number }
 export interface EditorActions {
   replace(next: Masterdata, explicitRecovery?: boolean): void;
   render(): void;
@@ -23,7 +23,7 @@ export function catalogEditorMarkup(m: Masterdata, state: EditorState): string {
     '<label class="field"><span>' + esc(label) + '</span><input name="' + esc(key) + '" ' +
     (kind === 'text' || kind === 'ids' || kind === 'pair' ? 'type="text"' : 'type="number" step="1" min="' + (kind === 'zeroInteger' ? '0' : '1') + '"') +
     ' required value="' + esc(v ?? '') + '"></label>';
-  return '<section class="panel"><h2>マスターデータ</h2><p>データは同梱していません。手動で表を登録するか、利用できるJSONをImportしてください。保存先はこのブラウザ内です。</p>' +
+  return '<section class="panel"><h2>マスターデータ</h2><p>データは同梱していません。表を手動で登録・編集できます。JSONの入出力は「JSON Import / Export」で行います。保存先はこのブラウザ内です。</p>' +
     '<p>メンバー ' + m.members.length + ' / Snap ' + m.snaps.length + ' / バンド ' + m.bands.length + '</p>' +
     (issues.length ? '<div class="alert error" role="alert"><strong>不足・不整合（計算できません）</strong><ul>' + issues.map(i => '<li>' + esc(i) + '</li>').join('') + '</ul></div>' : '') +
     '<form id="catalog-meta"><div class="form-grid">' + input('catalogId','catalogId（同じデータ体系で固定）',m.catalogId,'text') + input('revision','revision（版）',m.revision,'text') +
@@ -37,11 +37,8 @@ export function catalogEditorMarkup(m: Masterdata, state: EditorState): string {
       return input(key, key + (kind === 'ids' || kind === 'pair' ? '（カンマ区切りの整数）' : ''), Array.isArray(v) ? v.join(',') : v, kind);
     }).join('') + '</div><button class="primary" type="submit">' + (state.index < 0 ? '行を登録' : '行を更新') + '</button> ' +
     (state.index >= 0 ? '<button class="secondary danger" type="button" id="catalog-delete">この行を削除</button>' : '') + '</form></section>' +
-    '<section class="panel"><h2>マスタのImport / Export</h2><p>カード・育成・ランク定義・総合ランクボーナス表を1つのcatalog JSONで管理します（schemaVersion 1）。Importは不足や不正な参照がある場合に拒否します。所持登録と矛盾する更新も拒否します。</p>' +
-    '<button class="secondary" id="catalog-export">マスタJSONをExport</button> <button class="secondary" id="catalog-original" hidden>元の保存マスタをExport</button>' +
-    '<label class="file-label" for="catalog-import">マスタJSONを選択<input id="catalog-import" type="file" accept=".json,application/json"></label>' +
-    (state.preview ? '<p>検証済み: メンバー ' + state.preview.members.length + ' / Snap ' + state.preview.snaps.length + ' / 版 ' + esc(state.preview.revision) + ' / ランク定義 ' + (state.preview.rankDefinition ? 'あり' : 'なし（現在の定義も置換）') + '</p><button class="primary" id="catalog-apply">確認してマスタを置き換える</button>' : '') +
-    '<p>作成途中のExportはバックアップ用です。不足を解消してからImportしてください。</p><button class="secondary danger" id="catalog-clear">マスタを空にする</button></section>';
+    '<section class="panel"><h2>初期化</h2><button class="secondary danger" id="catalog-clear">マスタを空にする</button></section>';
+
 }
 export function bindCatalogEditor(root: HTMLElement, m: Masterdata, state: EditorState, actions: EditorActions): void {
   const report = (action: () => void, success: string): void => actions.report(action,success);
@@ -81,19 +78,17 @@ export function bindCatalogEditor(root: HTMLElement, m: Masterdata, state: Edito
   }
   root.querySelector('#catalog-import')?.addEventListener('change', async e => {
     const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return;
-    const id = ++state.readId; state.preview = undefined;
+    const id = ++state.readId; (e.target as HTMLInputElement).value = '';
+    report(() => {}, 'マスタを検証中…');
     try {
       if (file.size > CATALOG_LIMIT) throw new Error('マスタJSONの上限は10MiBです');
       const text = await file.text(); if (id !== state.readId) return;
       const next = importCatalog(text);
-      report(() => { state.preview = next; },'マスタJSONの検証が完了しました');
+      report(() => { actions.replace(next,true); state.index = -1; },'マスタをImportしました');
     } catch (error) { if (id === state.readId) report(() => { throw error; },''); }
   });
-  root.querySelector('#catalog-apply')?.addEventListener('click', () => report(() => {
-    if (!state.preview) return; actions.replace(state.preview,true); state.preview = undefined; state.index = -1;
-  },'マスタをImportしました'));
   root.querySelector('#catalog-clear')?.addEventListener('click', () => {
     if (!window.confirm('マスタを空にします。必要なJSONをExport済みですか？ 所持参照が残っていれば拒否します。')) return;
-    report(() => { actions.replace(emptyCatalog(),true); state.index = -1; state.preview = undefined; },'マスタを空にしました');
+    report(() => { actions.replace(emptyCatalog(),true); state.index = -1; },'マスタを空にしました');
   });
 }

@@ -9,7 +9,7 @@ import { digest, importProfile, renderTemplate } from '../domain/conversion/prof
 import type { BoundRankRules } from '../domain/character-rank/rules';
 import type { ConversionProfile } from '../domain/conversion/profile';
 
-export interface ExportOptions { applyTraining: boolean; training: TrainingSettings; complete: boolean }
+export interface ExportOptions { applyTraining: boolean; training: TrainingSettings }
 export function prepareExport(master: Masterdata, value: Collection, options: ExportOptions, rules?:BoundRankRules) {
   const catalog = validateCatalog(master);
   if (catalogIssues(catalog).length || !catalog.characters.length) throw new Error('マスタに不足・不整合があります');
@@ -46,7 +46,7 @@ export async function exportConversion(master: Masterdata, collection: Collectio
   // Revalidate at the boundary, including callers other than the UI.
   const profile = await importProfile(JSON.stringify(supplied));
   await assertProfileCatalog(profile,master);
-  if (typeof options.applyTraining !== 'boolean' || options.complete !== true) throw new Error('所持一覧を確認し、完全性のチェックを入れてください');
+  if (typeof options.applyTraining !== 'boolean') throw new Error('仮育成設定が不正です');
   if (!/^[A-Za-z0-9-]{1,100}$/.test(context.exportId) || !Number.isSafeInteger(context.at) || context.at < 0) throw new Error('Exportの識別情報が不正です');
   const preview = prepareExport(master,collection,options,rules);
   const value = renderTemplate(profile,preview.data,{...context,totalRank:preview.totalRank,tgwRank:preview.tgwRank});

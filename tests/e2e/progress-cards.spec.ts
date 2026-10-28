@@ -69,7 +69,7 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   const exported = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
   expect(exported).toEqual(saved);
   await page.locator('#import-file').setInputFiles({ name:'cards.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(exported)) });
-  await page.locator('#apply-import').click();
+  await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await page.locator('nav [data-tab=progress]').click();
   await expect(page.locator('#rank-8203')).toHaveValue('7');
   await page.locator('#item-8605').fill('1'); // in range but absent from master
