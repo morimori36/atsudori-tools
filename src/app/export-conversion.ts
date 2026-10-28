@@ -34,7 +34,7 @@ export function prepareExport(master: Masterdata, value: Collection, options: Ex
   // Estimate from the real collection above, before applying the shared training projection.
   return { data:{members,snaps:collection.snaps.map(s=>({...s})),ranks:ranks.map(r=>({id:r.id,value:r.effectiveRank!})),
     items:catalog.bandItems.map(i=>({id:i.id,level:collection.bandItems[i.id]!,owned:collection.bandItems[i.id] !== null}))},
-    ranks,adjustments,totalRank:ranks.reduce((sum,r)=>sum+r.effectiveRank!,0) };
+    ranks,adjustments,tgwRank:collection.tgwRank ?? null,totalRank:ranks.reduce((sum,r)=>sum+r.effectiveRank!,0) };
 }
 export async function assertProfileCatalog(profile: ConversionProfile, master: Masterdata): Promise<void> {
   if (profile.catalog.catalogId !== master.catalogId || profile.catalog.revision !== master.revision || (profile.catalog.sha256 !== await digest(validateCatalog(master)) && profile.catalog.sha256 !== await digest(catalogBase(master)))) {
@@ -49,7 +49,7 @@ export async function exportConversion(master: Masterdata, collection: Collectio
   if (typeof options.applyTraining !== 'boolean' || options.complete !== true) throw new Error('所持一覧を確認し、完全性のチェックを入れてください');
   if (!/^[A-Za-z0-9-]{1,100}$/.test(context.exportId) || !Number.isSafeInteger(context.at) || context.at < 0) throw new Error('Exportの識別情報が不正です');
   const preview = prepareExport(master,collection,options,rules);
-  const value = renderTemplate(profile,preview.data,{...context,totalRank:preview.totalRank});
+  const value = renderTemplate(profile,preview.data,{...context,totalRank:preview.totalRank,tgwRank:preview.tgwRank});
   const text = JSON.stringify(value,null,2)+'\n';
   if (new TextEncoder().encode(text).length > 20_000_000) throw new Error('出力JSONが容量上限を超えています');
   return {text,preview};

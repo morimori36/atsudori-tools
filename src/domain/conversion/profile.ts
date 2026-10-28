@@ -62,7 +62,7 @@ function checkProgram(value: unknown): void {
       case 'get': {
         keys(r,['op','path']); const path = list(r.path,2);
         if (path.length !== 2 || !path.every(k => typeof k === 'string' && safeKey(k))) fail();
-        if (!(path[0] === 'meta' && ['exportId','at','totalRank'].includes(String(path[1]))
+        if (!(path[0] === 'meta' && ['exportId','at','totalRank','tgwRank'].includes(String(path[1]))
           || path[0] === 'row' && source && rowFields[source].includes(String(path[1])))) fail();
         break;
       }

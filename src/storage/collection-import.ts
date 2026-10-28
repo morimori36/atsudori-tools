@@ -8,11 +8,11 @@ export function prepareCollectionImport(incoming: Collection, current: Collectio
   const next = validateCollection(incoming, master);
   if (!preserveMissingProgress) return next;
   const previous = validateCollection(current, master);
-  if (previous.characterProgress === undefined) return next;
+  const tgwRank = next.tgwRank ?? previous.tgwRank;
   const characterProgress = { ...previous.characterProgress };
   for (const [id, progress] of Object.entries(next.characterProgress ?? {})) {
     // Explicit values, including zero, win. Omission never means clearing a saved field.
     characterProgress[id] = { ...characterProgress[id], ...progress };
   }
-  return validateCollection({ ...next, characterProgress }, master);
+  return validateCollection({ ...next, ...(previous.characterProgress === undefined && next.characterProgress === undefined ? {} : {characterProgress}), ...(tgwRank === undefined ? {} : {tgwRank}) }, master);
 }

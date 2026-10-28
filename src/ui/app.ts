@@ -292,7 +292,7 @@ export function mountApp(root: HTMLElement): void {
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
-    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。マスタ管理で定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">マスタ管理を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span></div>
+    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。マスタ管理で定義を含むJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="catalog">マスタ管理を開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
       <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
       <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${draftValue('totalRankBonus', collection.totalRankBonus)}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
       <section class="progress-section" aria-labelledby="character-ranks-heading"><h2 id="character-ranks-heading">キャラクターランク</h2>
@@ -319,9 +319,9 @@ export function mountApp(root: HTMLElement): void {
       <p class="muted">保存はこのブラウザ内です。ブラウザのデータ消去に備えてバックアップしてください。</p></section>
       <section class="panel"><h2>JSONをImport</h2><p>ファイルを検証し、内容を確認してから現在の登録内容を置き換えます。</p>
       <label class="file-label" for="import-file">JSONファイルを選択<input type="file" id="import-file" accept=".json,application/json"></label>
-      ${candidate ? `<div class="import-preview"><strong>反映後の内容</strong><p>メンバー ${candidate.members.length}枚 / Snap ${candidate.snaps.length}枚<br>キャラランク ${Object.keys(candidate.characterRanks).length}件 / アイテム ${Object.keys(candidate.bandItems).length}件<br>キャラクター進捗 ${Object.keys(candidate.characterProgress ?? {}).length}人</p>
-      <label class="check"><input type="checkbox" id="preserve-import-progress" ${preserveImportProgress ? 'checked' : ''}>ファイルにないキャラクター進捗は現在の値を保持</label>
-      <p class="muted">手入力の進捗が対象です。ファイルに記載された値は反映します。チェックを外すと、進捗もファイルの内容で置き換えます。</p>
+      ${candidate ? `<div class="import-preview"><strong>反映後の内容</strong><p>メンバー ${candidate.members.length}枚 / Snap ${candidate.snaps.length}枚<br>キャラランク ${Object.keys(candidate.characterRanks).length}件 / アイテム ${Object.keys(candidate.bandItems).length}件<br>キャラクター進捗 ${Object.keys(candidate.characterProgress ?? {}).length}人 / TGWランク ${candidate.tgwRank ?? '不明'}</p>
+      <label class="check"><input type="checkbox" id="preserve-import-progress" ${preserveImportProgress ? 'checked' : ''}>ファイルにないキャラクター進捗・TGWランクは現在の値を保持</label>
+      <p class="muted">手入力の進捗とTGWランクが対象です。ファイルに記載された値は反映します。チェックを外すと、未記載の値も削除します。</p>
       <button class="primary" id="apply-import">確認して置き換える</button></div>` : ''}</section></div>
       <section class="panel"><h2>マスタのバックアップ</h2><p>カード・育成・ランク定義・総合ランクボーナス表はマスタJSONに含まれます。所持JSONとあわせて保存してください。</p><button class="secondary" data-tab="catalog">マスタのImport / Export</button></section>
       <div id="conversion-export"></div>
@@ -557,9 +557,11 @@ export function mountApp(root: HTMLElement): void {
           if (Object.keys(entry).length) characterProgress[id] = entry; else delete characterProgress[id];
         }
       }
-      const { totalRankBonus: previousBonus, ...base } = collection;
+      const { totalRankBonus: previousBonus, tgwRank: previousTgw, ...base } = collection;
+      const tgwDraft = progressDraft.get('tgwRank');
+      const tgwRank = tgwDraft === undefined ? previousTgw : tgwDraft.trim() === '' ? undefined : Number(tgwDraft);
       const bonus = progressDraft.get('totalRankBonus');
-      return { ...base, characterRanks, characterProgress, bandItems, ...((bonus === undefined ? previousBonus : bonus.trim() === '' ? undefined : Number(bonus)) === undefined ? {} : { totalRankBonus: bonus === undefined ? previousBonus : Number(bonus) }) };
+      return { ...base, characterRanks, characterProgress, bandItems, ...(tgwRank === undefined ? {} : {tgwRank}), ...((bonus === undefined ? previousBonus : bonus.trim() === '' ? undefined : Number(bonus)) === undefined ? {} : { totalRankBonus: bonus === undefined ? previousBonus : Number(bonus) }) };
     };
     const update = (): void => {
       const next = readValues();

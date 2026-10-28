@@ -100,3 +100,13 @@ describe('bounded profile export',()=>{
     }
   });
 });
+
+it('provides only nullable TGW metadata and keeps old profiles compatible',async()=>{
+  const {master,collection}=setup(),old=await fictionalProfile(master);
+  const profile=await reseal({...old,program:{op:'get',path:['meta','tgwRank']},output:{type:'choice',options:[{type:'null'},{type:'integer',min:1,max:Number.MAX_SAFE_INTEGER}]}});
+  await expect(importProfile(JSON.stringify(profile))).resolves.toEqual(profile);
+  expect(JSON.parse((await exportConversion(master,collection,profile,options,context)).text)).toBeNull();
+  expect(JSON.parse((await exportConversion(master,{...collection,tgwRank:1},profile,options,context)).text)).toBe(1);
+  expect((await exportConversion(master,{...collection,tgwRank:7},old,options,context)).text).toBe((await exportConversion(master,collection,old,options,context)).text);
+  expect(prepareExport(master,{...collection,tgwRank:7},{...options,applyTraining:true}).tgwRank).toBe(7);
+});
