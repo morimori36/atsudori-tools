@@ -42,10 +42,10 @@ test('provisional selection notices remain available by hover and keyboard',asyn
 const file=(name:string,value:unknown)=>({name,mimeType:'application/json',buffer:Buffer.from(typeof value==='string'?value:JSON.stringify(value))});
 async function tab(page:Page,name:string):Promise<void>{await page.locator('nav [data-tab="'+name+'"]').click();}
 async function openRank(page:Page,id=8201):Promise<void>{
-  await page.locator(`[data-target="${id}"]`).click();
+  await page.locator(`[data-character-rank="${id}"]`).scrollIntoViewIfNeeded();
 }
 async function openItems(page:Page):Promise<void>{
-  await page.locator('[data-target="items"]').click();
+  await page.locator('[data-progress-scroll="items"]').scrollIntoViewIfNeeded();
 }
 async function catalog(page:Page):Promise<void>{
   await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',syntheticCatalog()));
@@ -266,21 +266,21 @@ test('switching targets and bands retains drafts, previews, saves and reloads',a
   await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('catalog.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
   await collection(page);await tab(page,'progress');
   await page.locator('#rank-8201').fill('7');
-  await expect(page.locator('[data-effective-rank]')).toHaveText('7');
+  await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('7');
   await page.locator('#progress-8201-stamps').fill('4');
-  await page.locator('[data-target="8202"]').click();await page.locator('#rank-8202').fill('3');
+  await openRank(page,8202);await page.locator('#rank-8202').fill('3');
   await openItems(page);await page.locator('#item-8601').fill('2');
-  await page.locator('#progress-band').selectOption('8102');await page.locator('#rank-8210').fill('2');
-  await page.locator('#progress-band').selectOption('8101');await openRank(page);
+  await page.locator('[data-progress-band="8102"]').click();await page.locator('#rank-8210').fill('2');
+  await page.locator('[data-progress-band="8101"]').click();await openRank(page);
   await expect(page.locator('#rank-8201')).toHaveValue('7');await expect(page.locator('#progress-8201-stamps')).toHaveValue('4');
-  await expect(page.locator('[data-effective-rank]')).toHaveText('7');
+  await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('7');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await page.locator('#progress-form button[type=submit]').click();
   await page.reload();await tab(page,'progress');
   await expect(page.locator('#rank-8201')).toHaveValue('7');await expect(page.locator('#progress-8201-stamps')).toHaveValue('4');
   await openRank(page,8202);await expect(page.locator('#rank-8202')).toHaveValue('3');
   await openItems(page);await expect(page.locator('#item-8601')).toHaveValue('2');
-  await page.locator('#progress-band').selectOption('8102');await expect(page.locator('#rank-8210')).toHaveValue('2');
+  await page.locator('[data-progress-band="8102"]').click();await expect(page.locator('#rank-8210')).toHaveValue('2');
 });
 
 test('collapsed invalid rank opens for correction and failed explicit save stays visible',async({page})=>{
@@ -339,7 +339,7 @@ test('catalog replacement removes obsolete progress drafts and retains surviving
   await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('smaller.json',syntheticCatalog()));await page.locator('#catalog-apply').click();
   await tab(page,'progress');await openRank(page);
   await expect(page.locator('#rank-8201')).toHaveValue('3');
-  await expect(page.locator('[data-target="8202"]')).toHaveCount(0);
+  await expect(page.locator('[data-character-rank="8202"]')).toHaveCount(0);
   await openItems(page);await expect(page.locator('#item-8601')).toHaveValue('2');
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.getByRole('alert')).toHaveCount(0);
