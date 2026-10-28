@@ -24,8 +24,6 @@ export const provisionalHigherRarity: CollisionPolicy = {
 };
 // Isolated application tie order; replace when the game's order is observed.
 const provisionalCardOrder = (a: { id: number }, b: { id: number }): number => a.id - b.id;
-const provisionalRecipientOrder = (a: MemberCandidate, b: MemberCandidate): number =>
-  a.characterId - b.characterId || provisionalCardOrder(a, b);
 function choose<T extends { id: number; rarity: number }>(candidates: readonly T[], policy: CollisionPolicy): Choice<T> {
   if (!candidates.length) return { status: 'none' };
   if (candidates.length === 1) return { status: 'selected', candidate: candidates[0]!, provisional: false };
@@ -52,7 +50,7 @@ export interface ColorSelection {
 }
 export const equalRarityNotice = '同レアリティの重複は暫定順で選出しています。ゲーム内の選出順は未確認です。';
 
-/** Band → color → character. Greedy rarity-first allocation, never rating optimization. */
+/** Band → color → character → up to three cards. Greedy allocation, never rating optimization. */
 export function selectByColor(
   members: readonly MemberCandidate[], snaps: readonly SnapCandidate[], policy: CollisionPolicy = provisionalHigherRarity,
 ): ColorSelection[] {
@@ -63,15 +61,23 @@ export function selectByColor(
     .map(key => key.split(':').map(Number) as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return groups.map(([bandId, cardType]) => {
     const matching = members.filter(m => m.bandId === bandId && m.cardType === cardType);
-    const slots: SelectedSlot[] = [...new Set(matching.map(m => m.characterId))].sort((a, b) => a - b).map(characterId => {
-      const candidates = matching.filter(m => m.characterId === characterId);
-      const member = choose(candidates, policy);
-      const notices = member.status === 'selected' && member.provisional ? [equalRarityNotice] : [];
-      if (candidates.some(c => usesProvisionalRarity(c.rarity))) notices.push(provisionalRarityNotice);
-      return { characterId, member, snap: { status: 'none' }, issues: [],
-        notices,
-        status: member.status === 'ambiguous' ? 'ambiguous' : 'resolved' };
-    });
+    const slots: SelectedSlot[] = [];
+    for (const characterId of [...new Set(matching.map(m => m.characterId))].sort((a, b) => a - b)) {
+      const characterMembers = matching.filter(m => m.characterId === characterId);
+      let candidates = [...characterMembers].sort(provisionalCardOrder);
+      // Trial rule: three independent cards per character/color, regardless of equal rarity.
+      // Reuse the policy for each seat so unknown rarity orders still remain pending.
+      for (let seat = 0; seat < 3 && candidates.length; seat++) {
+        const member = choose(candidates, policy);
+        const notices = member.status === 'selected' && member.provisional ? [equalRarityNotice] : [];
+        if (characterMembers.length > 1) notices.push('同一キャラクター・同色はメンバーとSnapを各最大3枚とする試験仕様です。');
+        if (candidates.some(c => usesProvisionalRarity(c.rarity))) notices.push(provisionalRarityNotice);
+        slots.push({ characterId, member, snap: { status: 'none' }, issues: [], notices,
+          status: member.status === 'ambiguous' ? 'ambiguous' : 'resolved' });
+        if (member.status !== 'selected') break;
+        candidates = candidates.filter(c => c.id !== member.candidate.id);
+      }
+    }
     const eligible = (slot: SelectedSlot) => snaps.filter(s => s.cardType === cardType && s.characterIds.includes(slot.characterId));
     // Unknown member orders must not silently give a shared Snap to another recipient.
     for (const snap of snaps.filter(s => s.cardType === cardType)) {
@@ -101,7 +107,7 @@ export function selectByColor(
     const allocation = slots.filter(s => s.status === 'resolved' && s.member.status === 'selected').sort((a, b) => {
       const am = a.member.status === 'selected' ? a.member.candidate : undefined;
       const bm = b.member.status === 'selected' ? b.member.candidate : undefined;
-      return ((selectionRarityPriority(bm!.rarity) ?? 0) - (selectionRarityPriority(am!.rarity) ?? 0)) || provisionalRecipientOrder(am!, bm!);
+      return ((selectionRarityPriority(bm!.rarity) ?? 0) - (selectionRarityPriority(am!.rarity) ?? 0)) || provisionalCardOrder(am!, bm!);
     });
     for (const slot of allocation) {
       const candidates = eligible(slot).filter(s => !used.has(s.id));
