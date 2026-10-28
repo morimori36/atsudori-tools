@@ -1,3 +1,4 @@
+import { DEFAULT_TRAINING } from '../../src/app/hypothetical-training';
 import { describe, expect, it } from 'vitest';
 import { exportConversion, prepareExport } from '../../src/app/export-conversion';
 import { digest, importProfile } from '../../src/domain/conversion/profile';
@@ -7,7 +8,7 @@ import { bindRankRules } from '../../src/domain/character-rank/rules';
 import { fictionalProfile } from '../helpers/conversion';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
 
-const options={liveSkill4:false,gekisouSkill4:false,complete:true};
+const options={applyTraining:false,training:{...DEFAULT_TRAINING},complete:true};
 const context={exportId:'fictional-export',at:1234};
 const setup=()=>{const master=syntheticCatalog();master.members[0]!.liveSkillLevels=[1,2,3,4,5];master.members[0]!.gekisouSkillLevels=[1,2,3,4,5];return {master,collection:syntheticCollection(master)};};
 async function reseal(profile: ConversionProfile):Promise<ConversionProfile> {const {checksum:_,...payload}=profile;return {...payload,checksum:await digest(payload)};}
@@ -21,18 +22,18 @@ describe('bounded profile export',()=>{
   });
   it.each([[false,false,1,1],[true,false,4,1],[false,true,1,4],[true,true,4,4]])('separates both explicit training options (%s / %s)',async(liveSkill4,gekisouSkill4,live,geki)=>{
     const {master,collection}=setup(),profile=await fictionalProfile(master),before=JSON.stringify(collection);
-    const result=await exportConversion(master,collection,profile,{...options,liveSkill4,gekisouSkill4},context);
+    const result=await exportConversion(master,collection,profile,{...options,applyTraining:true,training:{...DEFAULT_TRAINING,trainingStage:null,liveSkillLevel:liveSkill4?4:null,gekisouSkillLevel:gekisouSkill4?4:null}},context);
     expect(JSON.parse(result.text).roster[0]).toEqual({id:8301,outLive:live,outGeki:geki});expect(JSON.stringify(collection)).toBe(before);
   });
-  it('keeps higher levels and skips only skills without a legal level 4',()=>{
+  it('keeps higher levels and raises to the highest legal level below the target',()=>{
     const {master,collection}=setup();collection.members[0]!.liveSkillLevel=5;master.members[0]!.gekisouSkillLevels=[1,2];
-    const p=prepareExport(master,collection,{...options,liveSkill4:true,gekisouSkill4:true});
-    expect(p.data.members[0]).toMatchObject({liveSkillLevel:5,gekisouSkillLevel:1});expect(p.skipped).toEqual([{cardId:8301,skill:'撃奏'}]);
+    const p=prepareExport(master,collection,{...options,applyTraining:true,training:{...DEFAULT_TRAINING,trainingStage:null,liveSkillLevel:4,gekisouSkillLevel:4}});
+    expect(p.data.members[0]).toMatchObject({liveSkillLevel:5,gekisouSkillLevel:2});expect(p.adjustments).toEqual([{cardId:8301,skill:'撃奏',before:1,after:2}]);
   });
   it('uses manual ranks first, estimates from real skills, and reports missing mission progress',async()=>{
     const {master,collection}=setup();delete collection.characterRanks['8201'];
     const profile=await fictionalProfile(master),rules=await bindRankRules(await fictionalRules(master),master);
-    const a=await exportConversion(master,collection,profile,options,context,rules),b=await exportConversion(master,collection,profile,{...options,liveSkill4:true,gekisouSkill4:true},context,rules);
+    const a=await exportConversion(master,collection,profile,options,context,rules),b=await exportConversion(master,collection,profile,{...options,applyTraining:true,training:{...DEFAULT_TRAINING,trainingStage:null,liveSkillLevel:4,gekisouSkillLevel:4}},context,rules);
     expect(a.preview.ranks[0]).toMatchObject({effectiveRank:1,estimatedRank:1,missingProgress:expect.arrayContaining(['stamps','bondRankTotal','liveClears','songClears'])});
     expect(JSON.parse(a.text).ranks).toEqual(JSON.parse(b.text).ranks);
     collection.characterRanks['8201']=7;

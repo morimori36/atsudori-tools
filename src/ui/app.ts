@@ -1,3 +1,5 @@
+import { createTrainingSettings } from '../storage/training-settings';
+import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
 type Theme = 'light' | 'dark' | 'system';
 const themeKey = 'atsudori-theme';
 function getTheme(): Theme {
@@ -95,7 +97,8 @@ export function mountApp(root: HTMLElement): void {
   const eventPlanner = createEventPlanner(storage, syncSaveState);
   const rankRules = createRankRules(storage,()=>master,render,download,next=>{replaceCatalog(next);return catalogSaved;});
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(manualProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
-  const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download);
+  const trainingSettings = createTrainingSettings(storage);
+  const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
   let noteListenerController = new AbortController();
   let notice: { error: boolean; text: string } | undefined;
@@ -194,13 +197,13 @@ export function mountApp(root: HTMLElement): void {
     });
   }
   function ratingPage(): string {
-    if (!master.members.length || catalogIssues(master).length) return missingCatalog();
-    const bands = summarizeBands(evaluateCollection(master, ratingMode === 'potential' ? potentialCollection(master, collection) : collection, collection,rankRules.current()));
+    if (!master.members.length || catalogIssues(master).length) return trainingSettingsMarkup(trainingSettings) + missingCatalog();
+    const bands = summarizeBands(evaluateCollection(master, ratingMode === 'potential' ? potentialCollection(master, collection, trainingSettings.current()) : collection, collection,rankRules.current()));
     const colors = bands.flatMap(b => b.colors);
-    if (!colors.length) return `<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
+    if (!colors.length) return `${trainingSettingsMarkup(trainingSettings)}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
       <p>メンバーとSnapを登録し、キャラクターランク・アイテムを設定すると、登録分の評価値を確認できます。</p>
       <button class="primary" data-tab="members">メンバーを登録</button><button class="secondary" data-tab="manual">表示値で試す</button></section>`;
-    return `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '育成最大']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset>${ratingMode === 'potential' ? noteMarker(['所持メンバーの特訓・ライブ・撃奏を最大にし、Lvを特訓後の上限に合わせた理論値です。覚醒・Snap・ランク・アイテムは現在のまま。所持データは変更しません。'], 'potential-conditions', '育成最大の条件') : ''}</div>${bands.map(band => `<section class="panel band-result" data-band="${band.bandId}">
+    return `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '仮育成']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset></div>${trainingSettingsMarkup(trainingSettings)}${bands.map(band => `<section class="panel band-result" data-band="${band.bandId}">
         <div class="panel-heading"><div><h2>${escape(master.bands.find(b => b.id === band.bandId)!.name)}</h2></div>
         <div class="rating-total"><span>${band.rating === null ? 'バンド全体の合計は保留' : '合計'}</span><strong>${band.rating === null ? '—' : number(band.rating)}</strong>
         ${band.rating === null ? `<small>計算済み小計 ${number(band.subtotal)}</small>` : ''}</div></div>
@@ -372,12 +375,14 @@ export function mountApp(root: HTMLElement): void {
       }
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
+    if (active === 'rating') bindTrainingSettings(root,trainingSettings);
     if (active === 'catalog') bindCatalogEditor(root, master, editorState, { replace: replaceCatalog, render, report: run, download, damaged: damagedCatalog });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'catalog') rankRules.mount(root.querySelector<HTMLElement>('#rank-rules')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
   }
+  trainingSettings.subscribe(()=>{if(active==='rating') preserveTrainingView(root,render);});
   function memberFormValue(form: HTMLFormElement): OwnedMember {
     const data = new FormData(form);
     const result: OwnedMember = { cardId: Number(data.get('cardId')), level: Number(data.get('memberLevel')),
