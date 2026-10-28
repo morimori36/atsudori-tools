@@ -8,7 +8,7 @@ import { bindRankRules } from '../../src/domain/character-rank/rules';
 import { fictionalProfile } from '../helpers/conversion';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
 
-const options={applyTraining:false,training:{...DEFAULT_TRAINING},complete:true};
+const options={applyTraining:false,training:{...DEFAULT_TRAINING}};
 const context={exportId:'fictional-export',at:1234};
 const setup=()=>{const master=syntheticCatalog();master.members[0]!.liveSkillLevels=[1,2,3,4,5];master.members[0]!.gekisouSkillLevels=[1,2,3,4,5];return {master,collection:syntheticCollection(master)};};
 async function reseal(profile: ConversionProfile):Promise<ConversionProfile> {const {checksum:_,...payload}=profile;return {...payload,checksum:await digest(payload)};}
@@ -39,10 +39,10 @@ describe('bounded profile export',()=>{
     collection.characterRanks['8201']=7;
     expect(prepareExport(master,collection,options,rules).ranks[0]).toMatchObject({effectiveRank:7,estimatedRank:1,overrideRank:7});
   });
-  it('keeps absent items distinct from missing facts, and requires the ownership declaration',async()=>{
+  it('keeps absent items distinct from missing facts, without an ownership declaration',async()=>{
     const {master,collection}=setup(),p=await fictionalProfile(master);collection.bandItems['8601']=null;
     expect(JSON.parse((await exportConversion(master,collection,p,options,context)).text).items).toEqual({8601:'absent'});
-    await expect(exportConversion(master,collection,p,{...options,complete:false},context)).rejects.toThrow('完全性');
+    await expect(exportConversion(master,collection,p,options,context)).resolves.toHaveProperty('text');
     delete collection.bandItems['8601'];await expect(exportConversion(master,collection,p,options,context)).rejects.toThrow('未入力');
   });
   it('rejects changed master bytes even under the same ID and revision',async()=>{

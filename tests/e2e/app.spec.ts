@@ -31,8 +31,8 @@ test('provisional selection notices remain available by hover and keyboard',asyn
   m.members.push({...m.members[0]!,id:8302,title:'別の架空カード'});
   m.snaps.push({...m.snaps[0]!,id:8504,title:'別の架空Snap'});
   c.members.push({...c.members[0]!,cardId:8302});c.snaps.push({...c.snaps[0]!,supportCardId:8504});
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('ties.json',m));await page.locator('#catalog-apply').click();
-  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('ties-owned.json',c));await page.locator('#apply-import').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('ties.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('ties-owned.json',c));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await tab(page,'rating');const tip=page.locator('.selection-tooltip').first();
   await expect(tip).toBeHidden();await page.locator('.note-marker').first().hover();
   await expect(tip).toBeVisible();await expect(tip).toContainText('ゲーム内の選出順は未確認');
@@ -48,16 +48,16 @@ async function openItems(page:Page):Promise<void>{
   await page.locator('[data-progress-scroll="items"]').scrollIntoViewIfNeeded();
 }
 async function catalog(page:Page):Promise<void>{
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',syntheticCatalog()));
-  await page.locator('#catalog-apply').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',syntheticCatalog()));
+  await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await rules(page);await tab(page,'catalog');
 }
 async function rules(page:Page,m=syntheticCatalog()):Promise<void>{
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',await fictionalCatalog(m)));await page.locator('#catalog-apply').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('fictional-catalog.json',await fictionalCatalog(m)));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
 }
 async function collection(page:Page):Promise<void>{
   await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('fictional-collection.json',syntheticCollection()));
-  await page.locator('#apply-import').click();
+  await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
 }
 test.beforeEach(async({page})=>{
   const errors:string[]=[];const external:string[]=[];
@@ -126,9 +126,10 @@ test('catalog and collection JSON export/import round trips stay independent',as
   await tab(page,'catalog');
   await page.locator('#catalog-meta [name=revision]').fill('test-2');await page.locator('#catalog-meta button').click();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(collectionBytes);
+  await page.locator('nav [data-tab=exchange]').click();
   const [md]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-export').click()]);
   const masterText=await readFile((await md.path())!,'utf8');
-  await page.locator('#catalog-import').setInputFiles(file('roundtrip.json',masterText));await page.locator('#catalog-apply').click();
+  await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('roundtrip.json',masterText));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await collection(page);await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
 });
 test('invalid JSON, missing data, invalid values and future schemas leave existing bytes intact',async({page})=>{
@@ -137,7 +138,7 @@ test('invalid JSON, missing data, invalid values and future schemas leave existi
   await tab(page,'catalog');
   const incomplete=syntheticCatalog();incomplete.memberTraining=[];
   for(const value of ['{broken',incomplete,{...syntheticCatalog(),schemaVersion:2}]){
-    await page.locator('#catalog-import').setInputFiles(file('bad.json',value));
+    await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('bad.json',value));
     await expect(page.getByRole('alert')).toBeVisible();await expect(page.locator('#catalog-apply')).toHaveCount(0);
   }
   await tab(page,'exchange');
@@ -165,9 +166,10 @@ test('corrupt catalog and intact collection recover without overwriting either o
   expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe('{broken-catalog');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(c);
   await tab(page,'catalog');
+  await tab(page,'exchange');await page.locator('.json-exchange > details > summary').click();
   const [original]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-original').click()]);
   expect(await readFile((await original.path())!,'utf8')).toBe('{broken-catalog');
-  await page.locator('#catalog-import').setInputFiles(file('restore.json',syntheticCatalog()));await page.locator('#catalog-apply').click();
+  await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('restore.json',syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(c);
 });
@@ -176,22 +178,24 @@ test('corrupt collection remains protected until explicit replacement',async({pa
   await page.reload();await tab(page,'members');await page.locator('[data-member-card="8301"] [data-ownership-toggle]').click();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe('{broken-owned');
   await tab(page,'exchange');
+  await page.locator('.json-exchange > details > summary').click();
   const [original]=await Promise.all([page.waitForEvent('download'),page.locator('#damaged-backup').click()]);
   expect(await readFile((await original.path())!,'utf8')).toBe('{broken-owned');
   await collection(page);await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
 });
-test('storage quota failure remains usable in memory and exportable',async({page})=>{
-  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new DOMException('quota','QuotaExceededError');};});
+test('storage quota failure rejects imports and keeps existing memory and bytes',async({page})=>{
   await catalog(page);await collection(page);
-  await expect(page.locator('.save-state')).toHaveText('保存未完了');
-  await expect(page.locator('#autosave-warning')).toContainText('保存');
+  const before=await page.evaluate(()=>({...localStorage}));
+  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});
+  await page.locator('#import-file').setInputFiles(file('new.json',{...syntheticCollection(),members:[]}));
+  await expect(page.getByRole('alert')).toContainText('保存できません');
+  expect(await page.evaluate(()=>({...localStorage}))).toEqual(before);
   const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
   expect(JSON.parse(await readFile((await download.path())!,'utf8'))).toEqual(syntheticCollection());
-  await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
 });
 test('imported strings render as text without active markup',async({page})=>{
   const m=syntheticCatalog();m.members[0]!.title='<img src=x onerror=alert(1)>';
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('text.json',m));await page.locator('#catalog-apply').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('text.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'members');await expect(page.locator('.card-title')).toContainText('<img src=x onerror=alert(1)>');
   await expect(page.locator('img')).toHaveCount(0);
 });
@@ -230,15 +234,15 @@ test('rank estimation, manual progress, overrides, reset, persistence and export
   await openRank(page);await expect(page.locator('#progress-8201-stamps')).toHaveValue('9');
   await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
   const json=await readFile((await d.path())!,'utf8');expect(JSON.parse(json).characterRanks).toEqual({'8201':7});expect(JSON.parse(json).characterProgress).toEqual({'8201':{stamps:9}});
-  await page.locator('#import-file').setInputFiles(file('roundtrip.json',json));await page.locator('#apply-import').click();
+  await page.locator('#import-file').setInputFiles(file('roundtrip.json',json));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();await expect(summary).toContainText('使用ランク 2');
 });
 test('counts three skill contributions using fictional thresholds and preserves legacy progress',async({page})=>{
   const m=syntheticCatalog(),c=syntheticCollection(m);c.characterRanks={};
   m.memberAwakening.push({...m.memberAwakening[0]!,stage:5,leaderSkillLevel:5});m.members[0]!.liveSkillLevels.push(5);m.members[0]!.gekisouSkillLevels.push(5);
   c.characterProgress={8201:{skillLevel2:83,skillLevel5:97}};
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('skills.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
-  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('owned.json',c));await page.locator('#apply-import').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('skills.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();await rules(page,m);
+  await tab(page,'exchange');await page.locator('#import-file').setInputFiles(file('owned.json',c));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('EXP 3');await expect(page.locator('input[name*=skillLevel]')).toHaveCount(0);
   await page.locator('#progress-form button[type=submit]').click();expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).characterProgress,STORAGE_KEY)).toEqual(c.characterProgress);
   await tab(page,'members');for(const name of ['awakeningStage','liveSkillLevel','gekisouSkillLevel'])await page.locator('[data-member-card="8301"] input[name="'+name+'"][value="5"]').check();
@@ -253,7 +257,7 @@ test('manual progress uses imported nonuniform thresholds and survives JSON roun
   await page.reload();await tab(page,'progress');await openRank(page);await expect(page.locator('#progress-8201-songClears')).toHaveValue('10');
   await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空進捗B'})).toContainText('10 → 2件22 EXP');
   await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);const json=await readFile((await d.path())!,'utf8');
-  expect(JSON.parse(json).characterProgress).toEqual({'8201':{songClears:10}});await page.locator('#import-file').setInputFiles(file('progress.json',json));await page.locator('#apply-import').click();
+  expect(JSON.parse(json).characterProgress).toEqual({'8201':{songClears:10}});await page.locator('#import-file').setInputFiles(file('progress.json',json));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('EXP 25');
 });
 
@@ -263,7 +267,7 @@ test('switching targets and bands retains drafts, previews, saves and reloads',a
   m.bands.push({id:8102,name:'架空バンドB'});
   m.characters.push({id:8210,bandId:8102,name:'架空奏者C'});
   await page.setViewportSize({width:390,height:844});
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('catalog.json',m));await page.locator('#catalog-apply').click();await rules(page,m);
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('catalog.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();await rules(page,m);
   await collection(page);await tab(page,'progress');
   await page.locator('#rank-8201').fill('7');
   await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('7');
@@ -310,9 +314,9 @@ for (const replacement of ['import', 'reset'] as const) test(`${replacement} dis
   if(replacement==='import') {
     const imported={...syntheticCollection(),characterProgress:{8201:{stamps:4}}};
     await page.locator('#import-file').setInputFiles(file('replacement.json',imported));
-    await page.locator('#apply-import').click();
+    await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   } else {
-    page.once('dialog',d=>d.accept());await page.locator('#reset-button').click();
+    await tab(page,'catalog');page.once('dialog',d=>d.accept());await page.locator('#reset-button').click();
   }
   const replacementData=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),STORAGE_KEY);
   await tab(page,'progress');await openRank(page);
@@ -332,11 +336,11 @@ test('catalog replacement removes obsolete progress drafts and retains surviving
   m.bandItems.push({id:8602,bandId:8101,name:'架空アイテムB'});
   m.bandItemLevels.push({itemId:8602,level:1});
   m.bandItemEffects.push({...m.bandItemEffects[0]!,itemId:8602});
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('expanded.json',m));await page.locator('#catalog-apply').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('expanded.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await page.locator('#rank-8201').fill('3');
   await openRank(page,8202);await page.locator('#rank-8202').fill('7');await page.locator('#progress-8202-stamps').fill('9');
   await openItems(page);await page.locator('#item-8601').fill('2');await page.locator('#item-8602').fill('1');
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file('smaller.json',syntheticCatalog()));await page.locator('#catalog-apply').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('smaller.json',syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await openRank(page);
   await expect(page.locator('#rank-8201')).toHaveValue('3');
   await expect(page.locator('[data-character-rank="8202"]')).toHaveCount(0);

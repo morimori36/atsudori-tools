@@ -31,7 +31,7 @@ describe('shared hypothetical training',()=>{
   it('uses identical members in rating and export, while OFF preserves real ownership',()=>{
     const m=syntheticCatalog(),c=syntheticCollection(m),settings={...DEFAULT_TRAINING,awakeningStage:2 as const};
     const p=potentialCollection(m,c,settings);
-    const options={complete:true,applyTraining:true,training:settings};
+    const options={applyTraining:true,training:settings};
     expect(prepareExport(m,c,options).data.members).toEqual(p.members);
     expect(prepareExport(m,c,{...options,applyTraining:false}).data.members).toEqual(c.members);
   });
@@ -59,5 +59,5 @@ it('keeps real character rank, total bonus, Snap and items even when all growth 
   const p=potentialCollection(m,c,settings),real=evaluateCollection(m,c,c,rules)[0]!.slots[0]!.input!;
   const virtual=evaluateCollection(m,p,c,rules)[0]!.slots[0]!.input!;
   expect(virtual).toMatchObject({characterRank:real.characterRank,totalRankBonus:real.totalRankBonus,snapPercentBp:real.snapPercentBp,snapLimitBreak:real.snapLimitBreak,bandItemTenthPercent:real.bandItemTenthPercent});
-  expect(prepareExport(m,c,{applyTraining:true,training:settings,complete:true},rules).ranks).toEqual(prepareExport(m,c,{applyTraining:false,training:settings,complete:true},rules).ranks);
+  expect(prepareExport(m,c,{applyTraining:true,training:settings},rules).ranks).toEqual(prepareExport(m,c,{applyTraining:false,training:settings},rules).ranks);
 });

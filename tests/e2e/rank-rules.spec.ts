@@ -19,30 +19,30 @@ test('missing rules retain manual ranks, ownership editing, backup and manual-on
   await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 —.*EXP —.*手動上書き中.*使用ランク 3/);
   await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   await tab(page,'exchange');expect(await download(page,'#export-button')).toContain('skillLevel5');
-  await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile()));await page.locator('#conversion-profile-apply').click();await page.locator('#conversion-complete').check();await page.locator('#conversion-preview').click();await expect(page.locator('#conversion-download')).toBeVisible();
+  await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile()));await expect(page.locator('#conversion-preview')).toBeEnabled();await download(page,'#conversion-preview');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
   await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('[data-effective-rank]')).toHaveText('—');await expect(page.locator('[data-total-character-rank]')).toContainText('未算出');
   await tab(page,'rating');await expect(page.locator('.band-result')).toContainText('ランク定義');
-  await tab(page,'exchange');await expect(page.locator('#conversion-preview')).toBeDisabled();await expect(page.locator('.conversion-panel')).toContainText('ランク定義');
+  await tab(page,'exchange');await expect(page.locator('#conversion-preview')).toBeDisabled();await expect(page.locator('#conversion-export')).toContainText('ランク定義');
   await tab(page,'members');await page.locator('[data-member-card="8301"] input[name=liveSkillLevel][value="2"]').check();await tab(page,'exchange');expect(JSON.parse(await download(page,'#export-button')).members[0].liveSkillLevel).toBe(2);
 });
 test('imports, backs up and restores all static definitions with catalog alone',async({page})=>{
   await page.setViewportSize({width:375,height:812});
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
   await expect(page.locator('nav [data-tab=rules]')).toHaveCount(0);
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog()));await page.locator('#catalog-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('test-9');
-  const backup=await download(page,'#catalog-export');expect(JSON.parse(backup).rankDefinition.rankThresholds).toEqual((await fictionalRules()).rankThresholds);
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await tab(page,'catalog');await expect(page.locator('#rank-rules')).toContainText('test-9');
+  await tab(page,'exchange');const backup=await download(page,'#catalog-export');expect(JSON.parse(backup).rankDefinition.rankThresholds).toEqual((await fictionalRules()).rankThresholds);
   expect(JSON.parse(backup).rankDefinition.totalRankBonuses).toEqual((await fictionalRules()).totalRankBonuses);
   expect(JSON.parse(backup).rankDefinition).not.toHaveProperty('catalog');
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBeNull();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
   await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await page.locator('#catalog-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('未登録');
-  await page.locator('#catalog-import').setInputFiles(file(backup));await page.locator('#catalog-apply').click();
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await tab(page,'catalog');await expect(page.locator('#rank-rules')).toContainText('未登録');
+  await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(backup));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
@@ -54,7 +54,7 @@ test('offers saved legacy definitions for verified migration without changing le
   await tab(page,'catalog');await expect(page.locator('#rank-rules-apply')).toBeVisible();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).rankDefinition,CATALOG_STORAGE_KEY)).toBeUndefined();
   await page.locator('#rank-rules-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('catalogへ統合しました');
+  await tab(page,'catalog');await expect(page.locator('#rank-rules')).toContainText('catalogへ統合しました');
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe(raw);
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
   await page.reload();await tab(page,'catalog');await expect(page.locator('#rank-rules-apply')).toHaveCount(0);
@@ -69,33 +69,36 @@ test('rejects invalid legacy definitions without changing catalog, collection or
     expect(await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[CATALOG_STORAGE_KEY,STORAGE_KEY,RANK_RULES_STORAGE_KEY])).toEqual(before);
   }
 });
-test('preserves damaged legacy source and exports the combined catalog after failed persistence',async({page})=>{
+test('legacy file imports automatically and failed persistence protects existing definitions',async({page})=>{
   await page.evaluate(k=>localStorage.setItem(k,'{damaged'),RANK_RULES_STORAGE_KEY);await page.reload();await tab(page,'catalog');
   await expect(page.locator('#rank-rules')).toContainText('元JSONを保護');expect(await download(page,'#rank-rules-original')).toBe('{damaged');
-  await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules()));
   const before=await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY);
-  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});await page.locator('#rank-rules-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('ブラウザ保存未完了');
+  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});
+  await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules()));
+  await expect(page.locator('#rank-rules')).toContainText('マスタを保存できません');
   expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe(before);
+  await page.reload();await tab(page,'catalog');
+  await page.locator('#rank-rules-file').setInputFiles(file(await fictionalRules()));
+  await expect(page.locator('#rank-rules')).toContainText('catalogへ統合しました');
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe('{damaged');
-  expect(JSON.parse(await download(page,'#catalog-export')).rankDefinition.version).toBe('test-9');
+  await expect(page.locator('#rank-rules-apply')).toHaveCount(0);
 });
 test('a native catalog wins over an incompatible saved legacy definition',async({page})=>{
   const old=await fictionalRules();old.catalog.revision='old';const raw=JSON.stringify(old);
   await page.evaluate(({k,raw})=>localStorage.setItem(k,raw),{k:RANK_RULES_STORAGE_KEY,raw});await page.reload();
   const catalog=await fictionalCatalog();catalog.rankDefinition!.version='native-10';
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(catalog));await page.locator('#catalog-apply').click();
-  await expect(page.locator('#rank-rules')).toContainText('native-10');await expect(page.locator('#rank-rules-apply')).toHaveCount(0);
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(catalog));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await tab(page,'catalog');await expect(page.locator('#rank-rules')).toContainText('native-10');await expect(page.locator('#rank-rules-apply')).toHaveCount(0);
   await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 2.*EXP 17/);
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBe(raw);
 });
 test('editing a table that invalidates embedded ranks reports issues without crashing backup/export',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await tab(page,'catalog');await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog()));await page.locator('#catalog-apply').click();
-  await page.locator('#catalog-table').selectOption('characterRankLevels');await page.locator('#catalog-row').selectOption('3');
+  await tab(page,'catalog');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await tab(page,'catalog');await page.locator('#catalog-table').selectOption('characterRankLevels');await page.locator('#catalog-row').selectOption('3');
   page.once('dialog',d=>d.accept());await page.locator('#catalog-delete').click();
-  await expect(page.locator('#rank-rules')).toContainText('推定を停止');
-  expect(JSON.parse(await download(page,'#catalog-export')).rankDefinition.rankThresholds).toHaveLength(4);
+  await tab(page,'catalog');await expect(page.locator('#rank-rules')).toContainText('推定を停止');
+  await tab(page,'exchange');expect(JSON.parse(await download(page,'#catalog-export')).rankDefinition.rankThresholds).toHaveLength(4);
   await tab(page,'exchange');await expect(page.locator('#export-button')).toBeVisible();
   expect(errors).toEqual([]);
 });

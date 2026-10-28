@@ -25,12 +25,9 @@ for(const width of [1280,390]) test(`TGW draft, persistence and legacy import at
   const {readFile}=await import('node:fs/promises');const exported=JSON.parse(await readFile(path!,'utf8'));
   expect(exported.tgwRank).toBe(1);
   const file=(value:unknown)=>({name:'collection.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
-  await page.locator('#import-file').setInputFiles(file(collection));await page.locator('#apply-import').click();
+  await page.locator('#import-file').setInputFiles(file(collection));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await tab('progress');await expect(input).toHaveValue('1');
-  await tab('exchange');await page.locator('#import-file').setInputFiles(file(collection));
-  await page.locator('#preserve-import-progress').uncheck();await page.locator('#apply-import').click();
-  await tab('progress');await expect(input).toHaveValue('');
-  await tab('exchange');await page.locator('#import-file').setInputFiles(file(exported));await page.locator('#apply-import').click();
+  await tab('exchange');await page.locator('#import-file').setInputFiles(file(exported));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await tab('progress');await expect(input).toHaveValue('1');await input.fill('');
   await page.getByRole('button',{name:'ランク・アイテムを保存',exact:true}).click();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).tgwRank,STORAGE_KEY)).toBeUndefined();
