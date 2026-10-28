@@ -309,7 +309,6 @@ footer { overflow-wrap: anywhere; }
 .progress-overview strong { margin-left: 8px; font-size: 22px; font-variant-numeric: tabular-nums; }
 .progress-overview > span { font-size: 11px; }
 .progress-grid { grid-template-columns: 1fr; gap: 16px; align-items: start; }
-.progress-band.panel { padding: 0 14px; overflow-wrap: anywhere; }
 .rank-band-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 4px 8px; border-bottom: 1px solid var(--line); }
 .rank-band-heading h2 { margin: 0; font-size: 15px; }
 .rank-band-heading > span { flex-shrink: 0; font-size: 10px; color: var(--muted); margin-right: 22px; }
@@ -329,8 +328,6 @@ footer { overflow-wrap: anywhere; }
 .rank-editor h3 { margin: 0 0 8px; font-size: 13px; color: light-dark(#45405b, #c1bdd1); }
 .rank-editor h3 small { color: var(--muted); font-size: 10px; font-weight: 400; margin-left: 6px; }
 .rank-editor p { font-size: 12px; line-height: 1.7; margin-bottom: 12px; }
-.progress-band .inline-field { grid-template-columns: minmax(0, 1fr) 88px; font-size: 12px; gap: 12px; }
-.progress-band input { font-size: 16px; min-height: 44px; padding: 8px; text-align: right; }
 .rank-override button { margin-top: 10px; min-height: 44px; }
 .rank-override button:disabled { opacity: .5; cursor: default; }
 .rank-breakdown { list-style: none; padding: 0; margin: 0; }
@@ -369,8 +366,30 @@ footer { overflow-wrap: anywhere; }
 .primary:hover { background: light-dark(#4e3b9d, #7864cd); }
 @media (max-width: 480px) { .site-header { height: auto; min-height: 80px; flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; } }
 
-.progress-selector { display: grid; gap: .75rem; margin: 1rem 0; }
 .progress-targets { display: flex; overflow-x: auto; gap: .4rem; }
-.progress-targets button { flex: 0 0 auto; min-height: 44px; padding: .45rem .75rem; }
+.progress-targets button { flex: 0 0 auto; min-height: 44px; padding: .45rem .75rem; border-radius: 8px; background: light-dark(#f0eef8, #241f3b); color: var(--accent-dark); }
 .progress-targets button[aria-pressed="true"] { background: var(--accent, #3156a0); color: white; }
-.progress-editor { min-width: 0; }
+
+/* Compact, independently scrollable forms on both desktop and touch screens. */
+.progress-section { min-width: 0; margin-top: 24px; }
+.progress-section > h2 { font-size: 18px; margin-bottom: 12px; }
+.progress-targets { padding-bottom: 6px; }
+.progress-scroll-hint { font-size: 12px; margin: 8px 0; }
+.progress-cards { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding: 2px 2px 14px; scroll-padding-inline: 2px; overscroll-behavior-x: contain; }
+.progress-card.panel { flex: 0 0 192px; width: 192px; padding: 12px; margin: 0; overflow-wrap: anywhere; }
+.progress-card h2, .progress-card h3 { font-size: 14px; margin: 0 0 8px; }
+.progress-card [data-rank-summary] { font-size: 12px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.progress-card [data-rank-summary] > span { display: block; }
+.progress-card [data-effective-rank] { font-size: 20px; color: var(--accent-dark); }
+.progress-card .rank-editor { padding: 12px 0 0; margin: 10px 0 0; background: transparent; border-top: 1px solid var(--line); }
+.progress-card .inline-field { display: flex; flex-direction: column; align-items: stretch; gap: 4px; font-size: 12px; }
+#progress-form input { min-width: 0; font-size: 16px; min-height: 44px; padding: 8px; scroll-margin-block: 100px; }
+.progress-card input { width: 100%; text-align: right; }
+.progress-card .rank-override button { width: 100%; padding: 8px 4px; font-size: 12px; }
+.progress-card details { margin-top: 12px; }
+.progress-card details summary { font-size: 12px; min-height: 44px; }
+.progress-card details summary small { display: block; font-size: 11px; color: var(--muted); }
+.progress-card .rank-breakdown li { flex-wrap: wrap; gap: 4px; }
+@media (max-width: 700px) {
+  .progress-card.panel { flex-basis: 224px; width: 224px; }
+}
