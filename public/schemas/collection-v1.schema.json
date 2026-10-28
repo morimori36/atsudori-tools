@@ -130,6 +130,11 @@
         "maximum": 9007199254740991
       }
     },
+    "tgwRank": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
     "totalRankBonus": {
       "type": "integer",
       "minimum": 0,
