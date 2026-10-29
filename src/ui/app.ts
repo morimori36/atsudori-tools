@@ -283,10 +283,14 @@ export function mountApp(root: HTMLElement): void {
   }
   let progressBand: number | undefined;
   const progressDraft = new Map<string, string>();
+  // Presentation only: leave other group sizes and the catalog arrays untouched.
+  function progressOrder<T>(rows: T[]): T[] {
+    return rows.length === 5 ? [rows[1]!, rows[3]!, rows[0]!, rows[4]!, rows[2]!] : rows;
+  }
   function progressPage(): string {
     const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
     if (band) progressBand = band.id;
-    const characters = master.characters.filter(c => c.bandId === band?.id);
+    const characters = progressOrder(master.characters.filter(c => c.bandId === band?.id));
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
@@ -306,8 +310,8 @@ export function mountApp(root: HTMLElement): void {
           <button class="secondary" type="button" data-reset-rank="${c.id}">自動推定に戻す</button></section>
           <details data-progress-section="rank-details-${c.id}"><summary>EXP内訳・推定理由 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><p class="muted" data-rank-reason>${rankReason(rank)}</p><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></article>`;
       }).join('')}</div></section>
-      <section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテム</h2><p class="muted progress-scroll-hint">横にスクロールして全バンドを編集できます。0 は未解放です。</p>
-      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${master.bandItems.filter(item => item.bandId === b.id).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>
+      <section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテム</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
+      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${progressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>
       <div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">ランク・アイテムを保存</button></div></form>`;
   }
   function exchangePage(): string {
