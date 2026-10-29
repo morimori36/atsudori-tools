@@ -1,13 +1,13 @@
 import {it,expect} from 'vitest';
 import {selectByColor as select} from '../../src/domain/selection/select';
 import {calculateRating} from '../../src/domain/rating/calculate';
-import type {MemberCandidate, SnapCandidate, CandidateRating} from '../../src/domain/selection/select';
-const rating: CandidateRating = (member, snap) => calculateRating({
+import type {MemberCandidate, SnapCandidate} from '../../src/domain/selection/select';
+const rating = (member: MemberCandidate, snap: SnapCandidate | undefined) => calculateRating({
   memberDisplayedStats:{performance:member.id === 102 ? 2000 : 1000,technic:0,visual:0},
   awakeLevel:1,liveSkillLevel:1,gekisouSkillLevel:1,characterRank:1,totalRankBonus:0,bandItemTenthPercent:0,
   snapPercentBp:{performance:snap?.scoreBp ?? 0,technic:0,visual:0},snapLimitBreak:0,
 }).bandRating;
-const selectByColor = (members: MemberCandidate[], snaps: SnapCandidate[]) => select(members,snaps,rating);
+const selectByColor = (members: MemberCandidate[], snaps: SnapCandidate[]) => select(members,snaps);
 const m=(id:number,characterId:number,rarity=4,bandId=81,cardType=7)=>({id,characterId,rarity,bandId,cardType});
 const s=(id:number,characterIds:number[],rarity=3,cardType=7,scoreBp=1000)=>({id,characterIds,rarity,cardType,scoreBp});
 it('selects member rarity before progression or import order',()=>{
@@ -22,10 +22,10 @@ it('isolates band, color and character, reusing Snap across bands',()=>{
     expect.objectContaining({status:'selected',candidate:expect.objectContaining({id:301})})]);
   expect(out.find(c=>c.cardType===8)?.slots[0]?.snap.status).toBe('none');
 });
-it('assigns a shared Snap by calculated benefit',()=>{
+it('assigns a shared Snap by stable ID when scores tie',()=>{
   const out=selectByColor([m(101,201,2),m(102,202,4)],[s(301,[201,202])]);
-  expect(out[0]?.slots[0]?.snap.status).toBe('none');
-  expect(out[0]?.slots[1]?.snap).toMatchObject({status:'selected',candidate:{id:301}});
+  expect(out[0]?.slots[1]?.snap.status).toBe('none');
+  expect(out[0]?.slots[0]?.snap).toMatchObject({status:'selected',candidate:{id:301}});
 });
 it('uses stable identity ties and preserves provisional notices',()=>{
   const a=selectByColor([m(102,201),m(101,201)],[s(302,[201]),s(301,[201])]);
@@ -45,7 +45,7 @@ it('treats EX/BD as comparison policy, preserving raw rarity',()=>{
   expect(ex.rarity).toBe(10);
   expect(selectByColor([m(101,201,20),m(102,201,2)],[])[0]?.slots[0]?.member).toMatchObject({candidate:{id:101}});
 });
-it('combines dedicated and shared Snaps to maximize the rating',()=>{
+it('combines dedicated and shared Snaps to maximize the Snap score',()=>{
   const out=selectByColor([m(101,201),m(102,202,3)],[s(301,[201,202],4),s(302,[201],3)]);
   expect(out[0]?.slots[0]?.snap).toMatchObject({candidate:{id:302}});
   expect(out[0]?.slots[1]?.snap).toMatchObject({candidate:{id:301}});
@@ -68,12 +68,12 @@ it.each([
   expect(memberIds([...members].reverse())).toEqual(expected);
   expect(JSON.stringify(members)).toBe(before);
 });
-it.each([0,1,2,3,4])('assigns %i candidate Snaps once, by rating with stable ID ties, with a three-card cap', count => {
+it.each([0,1,2,3,4])('assigns %i candidate Snaps once, by score with stable ID ties, with a three-card cap', count => {
   const members = [m(101,201,2),m(102,201,3),m(103,201,4),m(104,201,2)];
   const snaps = Array.from({length:count}, (_,i) => s(301+i,[201]));
   const output = selectByColor(members,snaps), slots = output[0]!.slots;
   expect(slots.map(slot => slot.member.status === 'selected' && slot.member.candidate.id)).toEqual([103,102,101]);
-  expect(slots.map(slot => slot.snap.status === 'selected' ? slot.snap.candidate.id : null)).toEqual(count===0 ? [null,null,null] : count===1 ? [null,301,null] : count===2 ? [null,302,301] : [303,302,301]);
+  expect(slots.map(slot => slot.snap.status === 'selected' ? slot.snap.candidate.id : null)).toEqual(count===0 ? [null,null,null] : count===1 ? [null,null,301] : count===2 ? [null,302,301] : [303,302,301]);
   expect(output[0]!.status).toBe('resolved');
   expect(selectByColor([...members].reverse(),[...snaps].reverse())).toEqual(output);
 });
@@ -110,31 +110,34 @@ it.each([undefined,NaN,Infinity,-1,0.5,Number.MAX_SAFE_INTEGER+1])('rejects inva
   expect(()=>selectByColor([m(101,201)],[{...s(301,[201]),scoreBp:scoreBp as number}])).toThrow('Snap scoreBp');
 });
 
-it('can give a shared Snap to a lower rarity member with greater rating benefit', () => {
-  const result = selectByColor([m(101,201,4),m(102,202,2)],[s(301,[201,202])]);
-  expect(result[0]!.slots.map(slot => slot.snap.status)).toEqual(['none','selected']);
-});
-it('C differs from B (maximum equipped count) and D (dedicated first)', () => {
-  // A base=1040, B base=2080. Shared +100%, dedicated B +1%.
-  // C: shared B, A none = 1040+4160=5200 (one equipped).
-  // B or D: shared A, dedicated B = 2080+2100=4180 (two equipped).
+it('E prioritizes Snap score even when C would yield a higher total member rating', () => {
+  // Independently invented bases 1040/2080. C chooses one +100% Snap on B.
+  // E chooses shared A and dedicated B: score 10100 > 10000, rating 4180 < 5200.
   const members = [m(101,201),m(102,202)], snaps = [s(301,[201,202],3,7,10000),s(302,[202],3,7,100)];
   const result = selectByColor(members,snaps)[0]!;
-  expect(result.slots.map(slot => slot.snap.status==='selected' ? slot.snap.candidate.id : null)).toEqual([null,301]);
-  const c = rating(members[0]!,undefined)! + rating(members[1]!,snaps[0])!;
-  const bAndD = rating(members[0]!,snaps[0])! + rating(members[1]!,snaps[1])!;
-  expect(c).toBe(5200); expect(bAndD).toBe(4180);
+  expect(result.slots.map(slot => slot.snap.status==='selected' ? slot.snap.candidate.id : null)).toEqual([301,302]);
+  expect(rating(members[0]!,undefined) + rating(members[1]!,snaps[0])).toBe(5200);
+  expect(rating(members[0]!,snaps[0]) + rating(members[1]!,snaps[1])).toBe(4180);
 });
-it('keeps the whole allocation pending if even a losing candidate cannot be calculated', () => {
-  const result=select([m(101,201),m(102,202)],[s(301,[201,202]),s(302,[201])],
-    (member,snap)=>snap?.id===302 ? null : rating(member,snap));
-  expect(result[0]!.status).toBe('unresolved');
-  expect(result[0]!.slots.every(slot=>slot.snap.status==='none' && slot.allocationReason)).toBe(true);
+it('uses score rather than ties in rounded member rating', () => {
+  const result=selectByColor([m(101,201)],[s(302,[201],3,7,2),s(301,[201],3,7,1)]);
+  expect(result[0]!.slots[0]!.snap).toMatchObject({candidate:{id:302}});
 });
-it('ties use actual rounded rating, not effective Snap score', () => {
-  const result=select([m(101,201)],[s(302,[201],3,7,2),s(301,[201],3,7,1)],
-    (_,snap)=>calculateRating({memberDisplayedStats:{performance:1,technic:0,visual:0},awakeLevel:1,
-      liveSkillLevel:1,gekisouSkillLevel:1,characterRank:1,totalRankBonus:0,bandItemTenthPercent:0,
-      snapPercentBp:{performance:snap?.scoreBp??0,technic:0,visual:0},snapLimitBreak:0}).bandRating);
-  expect(result[0]!.slots[0]!.snap).toMatchObject({candidate:{id:301}});
+// Independently constructed small-integer graph: the shared edges form a chain.
+// All four Snaps cannot fit in three slots. 7+19+11=37 beats 19+11+5=35.
+it('finds the global score maximum across a three-member compatibility chain', () => {
+  const members=[m(101,201),m(102,202),m(103,203)];
+  const snaps=[s(301,[201],3,7,7),s(302,[201,202],3,7,19),s(303,[202,203],3,7,11),s(304,[203],3,7,5)];
+  const result=selectByColor(members,snaps)[0]!;
+  expect(result.slots.map(slot=>slot.snap.status==='selected' ? slot.snap.candidate.id : null)).toEqual([301,302,303]);
+  expect(result.slots.reduce((sum,slot)=>sum+(slot.snap.status==='selected' ? slot.snap.candidate.scoreBp : 0),0)).toBe(37);
+  expect(selectByColor([...members].reverse(),[...snaps].reverse())).toEqual([result]);
+});
+it.each([[12,301],[48,302]])('changes the chosen Snap when a fictional score crosses 30: %i', (score,expected) => {
+  const result=selectByColor([m(101,201)],[s(301,[201],3,7,30),s(302,[201],2,7,score)]);
+  expect(result[0]!.slots[0]!.snap).toMatchObject({candidate:{id:expected}});
+});
+it('does not add equipped-count or dedicated-first objectives above stable ID ties', () => {
+  const result=selectByColor([m(101,201),m(102,202)],[s(301,[201,202],3,7,100),s(302,[201],3,7,0)]);
+  expect(result[0]!.slots.map(slot=>slot.snap.status==='selected' ? slot.snap.candidate.id : null)).toEqual([301,null]);
 });

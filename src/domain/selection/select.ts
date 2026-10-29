@@ -35,8 +35,7 @@ function choose<T extends { id: number; rarity: number }>(candidates: readonly T
   if (result.reason !== 'equal-rarity') return { status: 'ambiguous', candidates: result.candidates, reason: result.reason };
   return { status: 'selected', candidate: [...result.candidates].sort(provisionalCardOrder)[0]!, provisional: true };
 }
-export const snapScoreNotice = 'Snapはバンド・色ごとの評価値合計最大化で選出する試験仕様です。同点ID順も含め実機観測からの暫定仮説で、ゲーム内仕様は未確定です。';
-export type CandidateRating = (member: MemberCandidate, snap: SnapCandidate | undefined) => number | null;
+export const snapScoreNotice = 'Snapはバンド・色ごとのSnap実効補正合計最大化（仮説E）で選出する試験仕様です。同点ID順も含め実機観測からの暫定仮説で、ゲーム内仕様は未確定です。';
 export interface SelectedSlot {
   characterId: number;
   member: Choice<MemberCandidate>;
@@ -57,7 +56,7 @@ export const equalRarityNotice = '同レアリティの重複は暫定順で選�
 
 /** Member selection is unchanged; optimize only Snap assignments within each band/color. */
 export function selectByColor(
-  members: readonly MemberCandidate[], snaps: readonly SnapCandidate[], rating: CandidateRating,
+  members: readonly MemberCandidate[], snaps: readonly SnapCandidate[],
   policy: CollisionPolicy = provisionalHigherRarity,
 ): ColorSelection[] {
   if (new Set(members.map(m => m.id)).size !== members.length || new Set(snaps.map(s => s.id)).size !== snaps.length) {
@@ -89,22 +88,17 @@ export function selectByColor(
       .sort((a, b) => provisionalCardOrder(a.member, b.member));
     const candidates = [...snaps].filter(s => s.cardType === cardType && allocation.some(({member}) => s.characterIds.includes(member.characterId)))
       .sort(provisionalCardOrder);
-    let pending = slots.some(slot => slot.member.status !== 'selected');
-    const weights = allocation.map(({member}) => {
-      const value = (snap: SnapCandidate | undefined) => {
-        const result = rating(member, snap);
-        if (result === null) { pending = true; return null; }
-        requireInteger(result, 'candidate bandRating');
-        return result;
-      };
-      const withoutSnap = value(undefined);
-      return [...candidates.map(snap => snap.characterIds.includes(member.characterId) ? value(snap) : null),
-        ...allocation.map(() => withoutSnap)];
-    });
+    const pending = slots.some(slot => slot.member.status !== 'selected');
+    // Hypothesis E: only owned Snap effective scores determine the assignment.
+    // Incompatible edges are forbidden; no-Snap dummy columns have score zero.
+    const weights = allocation.map(({member}) => [
+      ...candidates.map(snap => snap.characterIds.includes(member.characterId) ? snap.scoreBp : null),
+      ...allocation.map(() => 0),
+    ]);
     if (pending) {
       for (const slot of slots) {
         slot.status = slot.member.status === 'ambiguous' ? 'ambiguous' : 'unresolved';
-        slot.allocationReason = 'バンド・色内の候補評価値が未確定のためSnap割り当てを保留しています';
+        slot.allocationReason = 'バンド・色内のメンバー選出が未確定のためSnap割り当てを保留しています';
       }
     } else {
       const assignment = maximumAssignment(weights);
