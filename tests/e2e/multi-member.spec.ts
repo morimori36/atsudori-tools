@@ -34,6 +34,9 @@ for (const width of [1280,390]) for (const snapCount of [1,3,4]) {
       const marker = rows.nth(i).locator('.note-marker').first();
       const target = await marker.getAttribute('aria-describedby');
       await expect(page.locator('#'+target)).toHaveCount(1);
+      await marker.scrollIntoViewIfNeeded();
+      // Let scrolling finish before focus opens the tooltip (scroll dismisses it).
+      await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
       await marker.focus(); await expect(page.locator('#'+target)).toBeVisible();
       await expect(page.locator('#'+target)).toContainText('各最大3枚');
       await page.keyboard.press('Escape');
@@ -64,6 +67,9 @@ test('pending reasons have separate tooltip IDs for each card of the same charac
   },{master,collection,mk:CATALOG_STORAGE_KEY,ck:STORAGE_KEY});
   await page.reload();
   const rows=page.locator('[data-rating-slot]');await expect(rows).toHaveCount(3);
+  await expect(page.locator('.character-total')).toContainText('合計は保留');
+  await expect(page.locator('.character-total small')).toHaveText('計算済み小計 0');
+  await expect(page.locator('.character-total strong')).toHaveText('—');
   for(let i=0;i<3;i++) {
     const marker=rows.nth(i).getByRole('button',{name:'計算待ちの理由'}), target=await marker.getAttribute('aria-describedby');
     await expect(page.locator('#'+target)).toHaveCount(1);

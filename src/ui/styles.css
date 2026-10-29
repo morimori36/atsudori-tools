@@ -402,3 +402,16 @@ footer { overflow-wrap: anywhere; }
 .exchange-section h2 { display: inline-block; margin: 0 .8rem .6rem 0; }
 .exchange-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
 .exchange-section details { margin-top: .7rem; }
+
+/* Compact character groups keep card/Snap details in the existing table. */
+.rating-page .character-heading th, .rating-page .character-heading td {
+  background: color-mix(in srgb, var(--card-color) 7%, light-dark(white, #292735));
+  border-top: 1px solid var(--line);
+  padding-block: 6px;
+}
+.rating-page .character-heading th { text-align: left; overflow-wrap: anywhere; }
+.character-total { font-variant-numeric: tabular-nums; }
+.character-total > span, .character-total > small { display: block; font-size: 11px; color: var(--muted); }
+.character-total > strong { font-size: 16px; }
+.rating-page .rarity-label { display: inline; font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.rating-candidate { display: block; }
