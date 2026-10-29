@@ -15,6 +15,13 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     m.skillTargets.push({ id: 8700+n, targetType: 3, bandId: 8100+n, characterId: 0, cardType: 0, tagId: 0 });
     m.bandItemEffects.push({ itemId: 8600+n, level: n, effectType: 1000, valueBp: 100, targetIds: [8700+n] });
   }
+  // Independently invented extra fields: five items per band, without changing IDs above.
+  for (let band = 1; band <= 5; band++) for (let slot = 2; slot <= 5; slot++) {
+    const id = 9000 + band * 10 + slot;
+    m.bandItems.push({ id, bandId: 8100 + band, name: `架空小道具${band}-${slot}` });
+    m.bandItemLevels.push({ itemId: id, level: 1 });
+    m.bandItemEffects.push({ itemId: id, level: 1, effectType: 1000, valueBp: 100, targetIds: [8700 + band] });
+  }
   const catalog = await fictionalCatalog(m), owned = syntheticCollection(m);
   await page.setViewportSize({ width, height: 844 });
   await page.goto('./');
@@ -26,6 +33,23 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   const characters = page.locator('[data-progress-scroll=characters]'), items = page.locator('[data-progress-scroll=items]');
   await expect(characters.locator('article')).toHaveCount(5);
   await expect(items.locator('article')).toHaveCount(5);
+  expect(await characters.locator('article').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank'))))
+    .toEqual(['8202', '8204', '8201', '8205', '8203']);
+  const bandBoxes = await items.locator('article').evaluateAll(els => els.map(el => ({x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y, bottom: el.getBoundingClientRect().bottom})));
+  for (let band = 1; band <= 5; band++) {
+    const card = items.locator('article').nth(band - 1);
+    const extra = 9000 + band * 10;
+    expect(await card.locator('input').evaluateAll(els => els.map(el => el.id)))
+      .toEqual([`item-${extra+2}`, `item-${extra+4}`, `item-${8600+band}`, `item-${extra+5}`, `item-${extra+3}`]);
+    const fields = await card.locator('label').evaluateAll(els => els.map(el => ({x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y})));
+    expect(new Set(fields.map(b => b.y)).size).toBe(1);
+    for (let n = 1; n < fields.length; n++) expect(fields[n]!.x).toBeGreaterThan(fields[n-1]!.x);
+    if (band > 1) {
+      expect(bandBoxes[band-1]!.x).toBe(bandBoxes[0]!.x);
+      expect(bandBoxes[band-1]!.y).toBeGreaterThan(bandBoxes[band-2]!.bottom);
+    }
+  }
+  expect(await items.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(width < 700);
   const numeric = page.locator('#progress-8201-stamps');
   await expect(numeric).toHaveAttribute('inputmode', 'numeric');
   const inputSize = await numeric.evaluate(el => ({ font: parseFloat(getComputedStyle(el).fontSize), height: el.getBoundingClientRect().height }));
@@ -47,6 +71,8 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.locator('#rank-8202').fill('3');
   await page.locator('#rank-8203').fill('7');
   for (let n = 1; n <= 5; n++) await page.locator(`#item-${8600+n}`).fill(String(n === 1 ? 2 : n));
+  if (width < 700) await items.evaluate(el => { el.scrollLeft = 180; });
+  await page.locator('#item-9014').fill('1');
   const itemScroll = await items.evaluate(el => el.scrollLeft);
   await page.locator('[data-progress-band="8102"]').click();
   await expect(page.locator('#rank-8222')).toBeVisible();
@@ -56,10 +82,11 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.locator('[data-progress-band="8101"]').click();
   await expect(page.locator('#progress-8201-stamps')).toHaveValue('9');
   await expect(page.locator('#rank-8202')).toHaveValue('3');
+  await expect(page.locator('#item-9014')).toHaveValue('1');
   await expect(page.locator('[data-total-character-rank]')).toContainText('19'); // 2+3+7+1+1+2+1+1+1
   await page.locator('#progress-form button[type=submit]').click();
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), STORAGE_KEY);
-  expect(saved.bandItems).toEqual({ 8601:2, 8602:2, 8603:3, 8604:4, 8605:5 });
+  expect(saved.bandItems).toEqual({ 8601:2, 8602:2, 8603:3, 8604:4, 8605:5, 9014:1 });
   expect(saved.characterProgress).toEqual({8201:{stamps:9}});
   expect(saved.characterRanks).toEqual({8202:3,8203:7,8222:2});
   await page.reload(); await page.locator('nav [data-tab=progress]').click();
@@ -68,6 +95,10 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   const downloadPromise = page.waitForEvent('download'); await page.locator('#export-button').click();
   const exported = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
   expect(exported).toEqual(saved);
+  const catalogDownload = page.waitForEvent('download'); await page.locator('#catalog-export').click();
+  const exportedCatalog = JSON.parse(await readFile((await (await catalogDownload).path())!, 'utf8'));
+  expect(exportedCatalog).toEqual(catalog); // display order never changes serialized master data
+  await page.locator('#catalog-import').setInputFiles({ name:'catalog.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(exportedCatalog)) });
   await page.locator('#import-file').setInputFiles({ name:'cards.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(exported)) });
   await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
   await page.locator('nav [data-tab=progress]').click();
@@ -76,5 +107,31 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('#item-8605')).toHaveValue('1');
   expect(await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), STORAGE_KEY)).toEqual(saved);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+});
+
+for (const count of [0, 1, 4, 6]) test(`non-five progress groups preserve all ${count} rows in catalog order`, async ({ page }) => {
+  const m = syntheticCatalog();
+  m.bands.push({id: 8180, name: '架空の可変バンド'});
+  m.skillTargets.push({id: 8780, targetType: 3, bandId: 8180, characterId: 0, cardType: 0, tagId: 0});
+  // Descending IDs deliberately distinguish original order from ID sorting.
+  for (let n = 0; n < count; n++) {
+    m.characters.push({id: 8280-n, bandId: 8180, name: `架空可変奏者${n}`});
+    m.bandItems.push({id: 8680-n, bandId: 8180, name: `架空可変小道具${n}`});
+    m.bandItemLevels.push({itemId: 8680-n, level: 1});
+    m.bandItemEffects.push({itemId: 8680-n, level: 1, effectType: 1000, valueBp: 100, targetIds: [8780]});
+  }
+  await page.setViewportSize({width: 320, height: 844});
+  await page.goto('./');
+  await page.evaluate(({m, owned, keys}) => {
+    localStorage.setItem(keys[0]!, JSON.stringify(m));
+    localStorage.setItem(keys[1]!, JSON.stringify(owned));
+  }, {m, owned: syntheticCollection(m), keys: [CATALOG_STORAGE_KEY, STORAGE_KEY]});
+  await page.reload(); await page.locator('nav [data-tab=progress]').click();
+  await page.locator('[data-progress-band="8180"]').click();
+  expect(await page.locator('[data-character-rank]').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank'))))
+    .toEqual(Array.from({length: count}, (_, n) => String(8280-n)));
+  expect(await page.locator('.band-items').nth(1).locator('input').evaluateAll(els => els.map(el => el.id)))
+    .toEqual(Array.from({length: count}, (_, n) => `item-${8680-n}`));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });

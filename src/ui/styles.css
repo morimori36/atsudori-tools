@@ -415,3 +415,9 @@ footer { overflow-wrap: anywhere; }
 .character-total > strong { font-size: 16px; }
 .rating-page .rarity-label { display: inline; font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .rating-candidate { display: block; }
+
+/* Keep band cards, stacking bands vertically and their item fields horizontally. */
+.progress-cards[data-progress-scroll="items"] { flex-direction: column; align-items: stretch; }
+.progress-cards .band-items.panel { flex: 0 0 auto; width: max-content; min-width: 100%; }
+.progress-cards .band-items > .rank-list { flex-direction: row; }
+.progress-cards .band-items .inline-field { flex: 1 0 168px; width: 168px; }
