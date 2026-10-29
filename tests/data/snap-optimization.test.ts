@@ -4,7 +4,7 @@ import {potentialCollection} from '../../src/app/potential-collection';
 import {calculateRating} from '../../src/domain/rating/calculate';
 import {snapOptimizationFixture as fixture} from '../helpers/snap-optimization';
 
-it.each([false,true])('combines dedicated and shared Snaps using actual calculated ratings (potential=%s)',potential=>{
+it.each([false,true])('combines dedicated and shared Snaps using effective Snap scores (potential=%s)',potential=>{
   const {master,collection}=fixture(),before=JSON.stringify({master,collection});
   const owned=potential ? potentialCollection(master,collection) : collection;
   const color=evaluateCollection(master,owned,collection)[0]!;
@@ -26,6 +26,9 @@ it.each(['rank','item','bonus','calculation'] as const)('does not invent a zero 
   if(kind==='calculation')collection.members[1]!.liveSkillLevel=0;
   const color=evaluateCollection(master,collection)[0]!;
   expect(color.rating).toBeNull();
-  expect(color.slots.every(s=>s.status==='pending' && !s.result && s.selection.snap.status==='none')).toBe(true);
-  expect(color.slots.flatMap(s=>s.reasons).join('')).toContain('保留');
+  expect(color.slots.map(s=>s.selection.snap.status==='selected' && s.selection.snap.candidate.id)).toEqual([8504,8501]);
+  const pending=color.slots.filter(s=>s.status==='pending');
+  expect(pending.length).toBe(kind==='rank' || kind==='calculation' ? 1 : 2);
+  expect(pending.every(s=>!s.result && s.reasons.length>0 && s.selection.status==='resolved')).toBe(true);
+  expect(color.subtotal).toBe(color.slots.reduce((sum,s)=>sum+(s.result?.bandRating ?? 0),0));
 });

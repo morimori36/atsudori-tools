@@ -1,18 +1,18 @@
 /**
  * Rectangular Hungarian matching. Rows and columns must already be in stable ID order.
  * null forbids an edge; callers provide one dummy (no Snap) column per member.
- * BigInt encodes an exact lexicographic column tie-break below the rating total:
+ * BigInt encodes an exact lexicographic column tie-break below the weight total:
  * no floating epsilon, overflow or change to calculateRating's rounding.
  * O(rows² * columns) time, O(rows * columns) space; no exponential enumeration.
  */
-export function maximumAssignment(ratings: readonly (readonly (number | null)[])[]): number[] {
-  const n = ratings.length;
+export function maximumAssignment(weights: readonly (readonly (number | null)[])[]): number[] {
+  const n = weights.length;
   if (!n) return [];
-  const m = ratings[0]!.length;
-  if (m < n || ratings.some(row => row.length !== m)) throw new Error('invalid assignment dimensions');
+  const m = weights[0]!.length;
+  if (m < n || weights.some(row => row.length !== m)) throw new Error('invalid assignment dimensions');
   const base = BigInt(m + 1), scale = base ** BigInt(n);
   const places = Array.from({length:n}, (_,i) => base ** BigInt(n - 1 - i));
-  const costs = ratings.map((row,i) => row.map((value,j) => value === null ? null
+  const costs = weights.map((row,i) => row.map((value,j) => value === null ? null
     : -BigInt(value) * scale + BigInt(j) * places[i]!));
   const u = Array<bigint>(n + 1).fill(0n), v = Array<bigint>(m + 1).fill(0n);
   const p = Array<number>(m + 1).fill(0), way = Array<number>(m + 1).fill(0);

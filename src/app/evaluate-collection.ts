@@ -125,31 +125,9 @@ export function evaluateCollection(master: Masterdata, collection: Collection, r
       return { selection, status: 'pending', reasons: [`計算入力を確認してください（${error instanceof Error ? error.message : String(error)}）`] };
     }
   };
-  // Cache complete evaluations: optimization and final display use the same formula and inputs.
-  const cache = new Map<string, EvaluatedSlot>();
-  const key = (memberId: number, snapId?: number) => `${memberId}:${snapId ?? 'none'}`;
-  const colors = selectByColor(members, snaps, (member, snap) => {
-    const identity = key(member.id, snap?.id);
-    if (!cache.has(identity)) cache.set(identity, evaluateSlot({
-      characterId: member.characterId, member: { status: 'selected', candidate: member, provisional: false },
-      snap: snap ? { status: 'selected', candidate: snap, provisional: true } : { status: 'none' },
-      status: 'resolved', issues: [], notices: [],
-    }));
-    return cache.get(identity)!.result?.bandRating ?? null;
-  });
+  const colors = selectByColor(members, snaps);
   return colors.map(color => {
-    const slots = color.slots.map((selection): EvaluatedSlot => {
-      if (selection.status !== 'resolved' || selection.member.status !== 'selected') {
-        const pending = evaluateSlot(selection);
-        const memberId = selection.member.status === 'selected' ? selection.member.candidate.id : undefined;
-        const candidateReasons = [...cache.values()].filter(entry => entry.selection.member.status === 'selected'
-          && entry.selection.member.candidate.id === memberId).flatMap(entry => entry.reasons);
-        return { ...pending, reasons: [...new Set([...pending.reasons, ...candidateReasons])] };
-      }
-      const cached = cache.get(key(selection.member.candidate.id,
-        selection.snap.status === 'selected' ? selection.snap.candidate.id : undefined))!;
-      return { ...cached, selection };
-    });
+    const slots = color.slots.map(evaluateSlot);
 
     const subtotal = slots.reduce((sum, s) => sum + (s.result?.bandRating ?? 0), 0);
     requireInteger(subtotal, 'color total');
