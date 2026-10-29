@@ -1,0 +1,28 @@
+import {test,expect} from '@playwright/test';
+import {snapOptimizationFixture} from '../helpers/snap-optimization';
+const file=(value:unknown)=>({name:'fictional.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
+for(const width of [1280,390])test(`optimizes shared and dedicated Snaps and preserves owned JSON at ${width}px`,async({page})=>{
+  const {master,collection}=snapOptimizationFixture();
+  await page.setViewportSize({width,height:844});await page.goto('./');
+  await page.locator('nav [data-tab=exchange]').click();
+  await page.locator('#catalog-import').setInputFiles(file(master));
+  await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+  await page.locator('#import-file').setInputFiles(file(collection));
+  await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
+  const bytes=()=>page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)));
+  const before=await bytes();
+  await page.locator('nav [data-tab=rating]').click();
+  const rows=page.locator('[data-rating-slot]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).locator('.slot-rating')).toHaveText('793');
+  await expect(rows.nth(1).locator('.slot-rating')).toHaveText('857');
+  await expect(page.locator('.color-total strong')).toHaveText('1,650');
+  await page.locator('input[name=rating-mode][value=potential]').check();
+  await expect(rows.nth(0).locator('.slot-rating')).toHaveText('1,124');
+  await expect(rows.nth(1).locator('.slot-rating')).toHaveText('1,214');
+  await expect(page.locator('.color-total strong')).toHaveText('2,338');
+  expect(await bytes()).toEqual(before);
+  await page.reload();
+  await expect(page.locator('.color-total strong')).toHaveText('1,650');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
