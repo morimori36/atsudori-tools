@@ -207,9 +207,10 @@ export function mountApp(root: HTMLElement): void {
         <span class="color-total"><span>${color.rating === null ? '合計は保留' : ''}</span><strong>${color.rating === null ? '—' : number(color.rating)}</strong>${color.rating === null ? `<small>計算済み小計 ${number(color.subtotal)}</small>` : ''}</span></summary>
         <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>Snap</th><th class="numeric">評価値</th></tr></thead><tbody>
         ${color.slots.map(slot => {
-          const key = `note-${band.bandId}-${color.cardType}-${slot.selection.characterId}`;
+          const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${slot.selection.characterId}`;
+          const key = `note-${band.bandId}-${color.cardType}-${memberKey}`;
           const note = noteMarker(slot.selection.notices, key, '暫定選出の注記');
-          return `<tr><td><div class="candidate">${choice(slot.selection.member, memberName)}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
+          return `<tr data-rating-slot="${memberKey}"><td><div class="candidate">${choice(slot.selection.member, memberName)}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
           <td><div class="candidate">${choice(slot.selection.snap, id => master.snaps.find(s => s.id === id)!.title)}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
           <td class="numeric">${slot.result ? `<strong class="slot-rating">${number(slot.result.bandRating)}</strong>`
             : `<span class="pending-pill">${slot.selection.status === 'resolved' ? '入力待ち' : '選出未確定'}</span>${noteMarker(slot.reasons, key + '-pending', '計算待ちの理由')}`}</td></tr>`;
