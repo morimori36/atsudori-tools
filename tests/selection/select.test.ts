@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import {selectByColor} from '../../src/domain/selection/select';
 const m=(id:number,characterId:number,rarity=4,bandId=81,cardType=7)=>({id,characterId,rarity,bandId,cardType});
-const s=(id:number,characterIds:number[],rarity=3,cardType=7)=>({id,characterIds,rarity,cardType});
+const s=(id:number,characterIds:number[],rarity=3,cardType=7,scoreBp=1000)=>({id,characterIds,rarity,cardType,scoreBp});
 it('selects member rarity before progression or import order',()=>{
   const out=selectByColor([m(101,201,2),m(102,201,4)],[]);
   expect(out[0]?.slots[0]?.member).toMatchObject({status:'selected',candidate:{id:102},provisional:false});
@@ -69,9 +69,9 @@ it.each([0,1,2,3,4])('assigns %i candidate Snaps once, highest member first, wit
   expect(output[0]!.status).toBe('resolved');
   expect(selectByColor([...members].reverse(),[...snaps].reverse())).toEqual(output);
 });
-it('never double uses shared Snaps across multiple cards and characters, and keeps Snap rarity priority', () => {
+it('never double uses shared Snaps across multiple cards and characters, in score order', () => {
   const members = [m(104,201,2),m(103,202,3),m(102,201,4),m(101,201,3)];
-  const snaps = [s(301,[201,202],2),s(302,[201,202],4),s(303,[201,202],3)];
+  const snaps = [s(301,[201,202],4,7,100),s(302,[201,202],2,7,300),s(303,[201,202],3,7,200)];
   const output = selectByColor(members,snaps), slots = output[0]!.slots;
   const assigned = Object.fromEntries(slots.map(slot => [slot.member.status === 'selected' && slot.member.candidate.id, slot.snap.status === 'selected' ? slot.snap.candidate.id : null]));
   expect(assigned).toEqual({102:302,101:303,103:301,104:null});
@@ -89,4 +89,15 @@ it('allows the same three shared Snaps again in another band, but never twice wi
   const members = [m(101,201,4),m(102,201,3),m(103,201,2),m(104,202,4,82),m(105,202,3,82),m(106,202,2,82)];
   const colors = selectByColor(members,[s(301,[201,202]),s(302,[201,202]),s(303,[201,202])]);
   expect(colors.map(c=>c.slots.map(slot=>slot.snap.status==='selected' && slot.snap.candidate.id))).toEqual([[301,302,303],[301,302,303]]);
+});
+
+it('ignores all Snap rarity orders, including unknown codes, and breaks score ties by ID', () => {
+  const snaps = [s(303,[201],4,7,900),s(302,[201],10,7,800),s(301,[201],99,7,900)];
+  const result = selectByColor([m(101,201)],snaps);
+  expect(result[0]!.slots[0]!.snap).toMatchObject({candidate:{id:301},provisional:true});
+  expect(result[0]!.slots[0]!.notices.join('')).toContain('実効補正');
+  expect(selectByColor([m(101,201)],[...snaps].reverse())).toEqual(result);
+});
+it.each([undefined,NaN,Infinity,-1,0.5,Number.MAX_SAFE_INTEGER+1])('rejects invalid or missing Snap score %s', scoreBp => {
+  expect(()=>selectByColor([m(101,201)],[{...s(301,[201]),scoreBp:scoreBp as number}])).toThrow('Snap scoreBp');
 });

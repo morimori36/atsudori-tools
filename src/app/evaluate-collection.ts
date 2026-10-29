@@ -59,7 +59,11 @@ export function evaluateCollection(master: Masterdata, collection: Collection, r
   const snaps = collection.snaps.map(owned => {
     const row = master.snaps.find(s => s.id === owned.supportCardId);
     if (!row) throw new Error(`unknown Snap ${owned.supportCardId}`);
-    return { id: row.id, characterIds: row.characterIds, cardType: row.cardType, rarity: row.rarity };
+    const display = deriveSnapDisplay(master, owned);
+    const { performance, technic, visual } = display.percentBp;
+    const scoreBp = performance + technic + visual + 200 * display.snapLimitBreak;
+    requireInteger(scoreBp, 'Snap scoreBp');
+    return { id: row.id, characterIds: row.characterIds, cardType: row.cardType, rarity: row.rarity, scoreBp };
   });
   return selectByColor(members, snaps).map(color => {
     const slots = color.slots.map((selection): EvaluatedSlot => {
