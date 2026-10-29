@@ -123,19 +123,18 @@ it('uses score rather than ties in rounded member rating', () => {
   const result=selectByColor([m(101,201)],[s(302,[201],3,7,2),s(301,[201],3,7,1)]);
   expect(result[0]!.slots[0]!.snap).toMatchObject({candidate:{id:302}});
 });
-// Synthetic compatibility graphs for observations A/B/C. No catalog or real card rows.
-it.each([
-  {name:'A', members:[m(101,201,2),m(102,202,4)], snaps:[s(301,[201],2,7,2500),s(302,[202],4,7,7678),s(303,[201,202],4,7,10318)], expected:[303,302], score:17996},
-  {name:'B', members:[m(101,201,4),m(102,202,3)], snaps:[s(301,[201],3,7,2300),s(302,[201,202],4,7,7100)], expected:[301,302], score:9400},
-  {name:'C', members:[m(101,201,4),m(102,202,4)], snaps:[s(301,[201,202],4,7,8200),s(302,[202],4,7,6100)], expected:[301,302], score:14300},
-])('reproduces the assignment topology of observation $name', ({members,snaps,expected,score}) => {
+// Independently constructed small-integer graph: the shared edges form a chain.
+// All four Snaps cannot fit in three slots. 7+19+11=37 beats 19+11+5=35.
+it('finds the global score maximum across a three-member compatibility chain', () => {
+  const members=[m(101,201),m(102,202),m(103,203)];
+  const snaps=[s(301,[201],3,7,7),s(302,[201,202],3,7,19),s(303,[202,203],3,7,11),s(304,[203],3,7,5)];
   const result=selectByColor(members,snaps)[0]!;
-  expect(result.slots.map(slot=>slot.snap.status==='selected' ? slot.snap.candidate.id : null)).toEqual(expected);
-  expect(result.slots.reduce((sum,slot)=>sum+(slot.snap.status==='selected' ? slot.snap.candidate.scoreBp : 0),0)).toBe(score);
+  expect(result.slots.map(slot=>slot.snap.status==='selected' ? slot.snap.candidate.id : null)).toEqual([301,302,303]);
+  expect(result.slots.reduce((sum,slot)=>sum+(slot.snap.status==='selected' ? slot.snap.candidate.scoreBp : 0),0)).toBe(37);
   expect(selectByColor([...members].reverse(),[...snaps].reverse())).toEqual([result]);
 });
-it.each([[4347,301],[7678,302]])('observation D reverses at effective score %i', (score,expected) => {
-  const result=selectByColor([m(101,201,3)],[s(301,[201],10,7,4900),s(302,[201],4,7,score)]);
+it.each([[12,301],[48,302]])('changes the chosen Snap when a fictional score crosses 30: %i', (score,expected) => {
+  const result=selectByColor([m(101,201)],[s(301,[201],3,7,30),s(302,[201],2,7,score)]);
   expect(result[0]!.slots[0]!.snap).toMatchObject({candidate:{id:expected}});
 });
 it('does not add equipped-count or dedicated-first objectives above stable ID ties', () => {
