@@ -34,6 +34,27 @@ export interface EvaluatedBand {
   rating: number | null;
   provisional: boolean;
 }
+export interface EvaluatedCharacter {
+  characterId: number;
+  slots: EvaluatedSlot[];
+  subtotal: number;
+  rating: number | null;
+}
+/** Display-only grouping within one color, including non-adjacent and pending slots. */
+export function summarizeCharacters(color: EvaluatedColor): EvaluatedCharacter[] {
+  const groups = new Map<number, EvaluatedSlot[]>();
+  for (const slot of color.slots) {
+    const id = slot.selection.characterId;
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id)!.push(slot);
+  }
+  return [...groups].map(([characterId, slots]) => {
+    const subtotal = slots.reduce((sum, slot) => sum + (slot.status === 'calculated' ? slot.result!.bandRating : 0), 0);
+    requireInteger(subtotal, 'character total');
+    return { characterId, slots, subtotal,
+      rating: slots.every(slot => slot.status === 'calculated') ? subtotal : null };
+  });
+}
 /** Aggregate calculated slots; a pending color never becomes a completed band total. */
 export function summarizeBands(colors: readonly EvaluatedColor[]): EvaluatedBand[] {
   return [...new Set(colors.map(c => c.bandId))].sort((a, b) => a - b).map(bandId => {

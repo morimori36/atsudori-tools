@@ -28,7 +28,7 @@ import { calculateRating } from '../domain/rating/calculate';
 import type { RatingInput, Stats } from '../domain/rating/calculate';
 import type { Choice, MemberCandidate, SnapCandidate } from '../domain/selection/select';
 import { cardTypeName, cardTypeAccent } from '../data/catalog/card-types';
-import { summarizeBands, evaluateCollection } from '../app/evaluate-collection';
+import { summarizeBands, summarizeCharacters, evaluateCollection } from '../app/evaluate-collection';
 import { potentialCollection } from '../app/potential-collection';
 import { emptyCollection, validateCollection, importCollection, exportCollection } from '../storage/collection';
 import type { Collection, OwnedMember } from '../storage/collection';
@@ -163,8 +163,9 @@ export function mountApp(root: HTMLElement): void {
   }
   function choice<T extends MemberCandidate | SnapCandidate>(value: Choice<T>, name: (id: number) => string): string {
     if (value.status === 'none') return '<span class="muted">なし</span>';
-    if (value.status === 'selected') return `<span>${escape(name(value.candidate.id))}</span>`;
-    return value.candidates.map(c => `<span>${escape(name(c.id))}</span>`).join('');
+    const label = (candidate: T) => `<span class="rating-candidate"><small class="rarity-label">${escape(rarity(candidate.rarity))}</small> ${escape(name(candidate.id))}</span>`;
+    const candidates = value.status === 'selected' ? [value.candidate] : value.candidates;
+    return `<span class="rating-choices">${candidates.map(label).join('')}</span>`;
   }
   function noteMarker(notes: readonly string[], id: string, label: string): string {
     if (!notes.length) return '';
@@ -206,7 +207,8 @@ export function mountApp(root: HTMLElement): void {
         <summary class="color-summary"><span class="color-label">${cardTypeName(color.cardType)}</span>
         <span class="color-total"><span>${color.rating === null ? '合計は保留' : ''}</span><strong>${color.rating === null ? '—' : number(color.rating)}</strong>${color.rating === null ? `<small>計算済み小計 ${number(color.subtotal)}</small>` : ''}</span></summary>
         <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>Snap</th><th class="numeric">評価値</th></tr></thead><tbody>
-        ${color.slots.map(slot => {
+        ${summarizeCharacters(color).map(character => `<tr class="character-heading" data-rating-character="${character.characterId}"><th scope="rowgroup" colspan="${character.slots.length === 1 ? 3 : 2}">${escape(master.characters.find(c => c.id === character.characterId)!.name)}</th>${character.slots.length === 1 ? '' : `<td class="numeric character-total">${character.rating === null ? `<span>合計は保留</span><strong>—</strong><small>計算済み小計 ${number(character.subtotal)}</small>` : `<span>合計</span><strong>${number(character.rating)}</strong>`}</td>`}</tr>
+        ${character.slots.map(slot => {
           const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${slot.selection.characterId}`;
           const key = `note-${band.bandId}-${color.cardType}-${memberKey}`;
           const note = noteMarker(slot.selection.notices, key, '暫定選出の注記');
@@ -214,7 +216,7 @@ export function mountApp(root: HTMLElement): void {
           <td><div class="candidate">${choice(slot.selection.snap, id => master.snaps.find(s => s.id === id)!.title)}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
           <td class="numeric">${slot.result ? `<strong class="slot-rating">${number(slot.result.bandRating)}</strong>`
             : `<span class="pending-pill">${slot.selection.status === 'resolved' ? '入力待ち' : '選出未確定'}</span>${noteMarker(slot.reasons, key + '-pending', '計算待ちの理由')}`}</td></tr>`;
-        }).join('')}
+        }).join('')}`).join('</tbody><tbody>')}
         </tbody></table></div></details>`).join('')}</section>`).join('')}
 `;
   }
