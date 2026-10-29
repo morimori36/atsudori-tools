@@ -1,7 +1,8 @@
+import { requireInteger } from '../rating/calculate';
 import { selectionRarityPriority, usesProvisionalRarity, provisionalRarityNotice } from './rarity';
 
 export interface MemberCandidate { id: number; bandId: number; characterId: number; cardType: number; rarity: number }
-export interface SnapCandidate { id: number; characterIds: readonly number[]; cardType: number; rarity: number }
+export interface SnapCandidate { id: number; characterIds: readonly number[]; cardType: number; rarity: number; /** Derived from owned Lv/U, never persisted. */ scoreBp: number }
 export type Choice<T> =
   | { status: 'selected'; candidate: T; provisional: boolean }
   | { status: 'none' }
@@ -33,6 +34,12 @@ function choose<T extends { id: number; rarity: number }>(candidates: readonly T
   if (result.reason !== 'equal-rarity') return { status: 'ambiguous', candidates: result.candidates, reason: result.reason };
   return { status: 'selected', candidate: [...result.candidates].sort(provisionalCardOrder)[0]!, provisional: true };
 }
+export const snapScoreNotice = 'Snapは実効補正最大・同点ID昇順で選出する試験仕様です。実機観測に一致する暫定仮説で、ゲーム内の選出順は未確定です。';
+function chooseSnap(candidates: readonly SnapCandidate[]): Choice<SnapCandidate> {
+  if (!candidates.length) return { status: 'none' };
+  const candidate = [...candidates].sort((a, b) => b.scoreBp - a.scoreBp || provisionalCardOrder(a, b))[0]!;
+  return { status: 'selected', candidate, provisional: candidates.length > 1 };
+}
 export interface SelectedSlot {
   characterId: number;
   member: Choice<MemberCandidate>;
@@ -57,6 +64,7 @@ export function selectByColor(
   if (new Set(members.map(m => m.id)).size !== members.length || new Set(snaps.map(s => s.id)).size !== snaps.length) {
     throw new Error('duplicate owned card identities');
   }
+  for (const snap of snaps) requireInteger(snap.scoreBp, 'Snap scoreBp');
   const groups = [...new Set(members.map(m => `${m.bandId}:${m.cardType}`))]
     .map(key => key.split(':').map(Number) as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return groups.map(([bandId, cardType]) => {
@@ -111,12 +119,11 @@ export function selectByColor(
     });
     for (const slot of allocation) {
       const candidates = eligible(slot).filter(s => !used.has(s.id));
-      if (candidates.some(c => usesProvisionalRarity(c.rarity)) && !slot.notices.includes(provisionalRarityNotice)) slot.notices.push(provisionalRarityNotice);
-      slot.snap = choose(candidates, policy);
+      slot.snap = chooseSnap(candidates);
       if (slot.snap.status === 'ambiguous') slot.status = 'ambiguous';
       if (slot.snap.status === 'selected') {
         used.add(slot.snap.candidate.id);
-        if (slot.snap.provisional && !slot.notices.includes(equalRarityNotice)) slot.notices.push(equalRarityNotice);
+        if (slot.snap.provisional) slot.notices.push(snapScoreNotice);
       }
     }
     const status = slots.some(s => s.status === 'unresolved') ? 'unresolved' : slots.some(s => s.status === 'ambiguous') ? 'ambiguous' : 'resolved';
