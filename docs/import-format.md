@@ -4,7 +4,7 @@ catalogは共通のカード・育成定義、collectionは利用者の所持・
 
 イベント周回プランナーは別format・別保存キーです。この文書のcatalog/collectionとは独立した仕様です。[周回プランJSON仕様](event-planner.md#保存json)を参照してください。
 
-JSON出力の変換プロファイルも別format・別保存キーです。[プロファイルの仕様と使い方](profile-export.md)、[構造Schema](../public/schemas/conversion-profile-v2.schema.json)を参照してください。catalog／collection v1は変更していません。
+JSON出力の変換プロファイルも別format・別保存キーです。[プロファイルの仕様と使い方](profile-export.md)、[構造Schema](../public/schemas/conversion-profile-v2.schema.json)を参照してください。catalog／collectionのformatとschemaVersionは1を維持します。
 
 正確な構造は[Catalog JSON Schema](../public/schemas/catalog-v1.schema.json)と[Collection JSON Schema](../public/schemas/collection-v1.schema.json)、追加の意味検証はsrc/data/catalog/validate.tsとsrc/storage/collection.tsが定義します。Schemaは必要条件です。参照関係や連動条件は下記の意味検証も必要です。Schemaはnpm run schema:writeでフィールド定義から生成します。
 
@@ -47,12 +47,12 @@ JSON出力の変換プロファイルも別format・別保存キーです。[プ
 
 すべての表は省略不可。空catalogは正常な状態ですが、所持計算には必要な定義を登録します。以前保存した作成途中のcatalogも読み込みとExportは可能です。不足・不整合を一覧にし、その間は所持表示・計算を止めます。Importでは構造に加えて参照・育成定義を検証し、不完全なcatalogは拒否します。途中のExportは保管用で、不足解消前の再Importはできません。
 
-各行のフィールドはすべて必須、記載以外のキーは不可です。Statsはperformance/technic/visualの3つの非負整数です。
+明記した任意フィールド以外は必須、記載以外のキーは不可です。Statsはperformance/technic/visualの3つの非負整数です。
 
 | 表 | フィールド | 複合キー |
 | --- | --- | --- |
 | bands | id, name | id |
-| characters | id, bandId, name | id |
+| characters | id, bandId, name, displayOrder?: 非負整数（任意） | id |
 | members | id, characterId, cardType, rarity, name, title, maxStats: Stats, levelGroup, trainingGroup, awakeningGroup, liveSkillLevels: 整数配列, gekisouSkillLevels: 整数配列 | id |
 | snaps | id, characterIds: 整数配列, cardType, rarity, name, title, maxPercentBp: Stats, levelGroup, rankGroup | id |
 | characterRankLevels | 正整数の配列 | 値 |
@@ -158,3 +158,11 @@ collection v1の`tgwRank`はプレイヤー全体のTGWランクです。1以上
 ## catalog.materialDefinition（任意）
 
 素材名称・単位・育成項目別費用・カードとの対応をcatalogへ内包できます。[必要素材の定義・計算・EXPの制約](materials.md)を参照してください。catalogのrevisionと一致しない定義は拒否します。未登録の旧catalogも有効で、collectionは変更しません。Schemaは`npm run schema:write`で同期します。
+
+## キャラクターの表示順
+
+`characters[].displayOrder`はバンド内の表示順を表す任意の安全な非負整数です。0からの開始や連番を要求せず、別バンドでは同じ値を使えます。同一バンドでは全員に指定して昇順に表示するか、全員で省略します。重複・一部だけの指定は意味検証でImportを拒否し、負数・小数・文字列・null・安全でない整数は構造検証で拒否します。不完全な定義から順序を推測しません。
+
+全員未指定の旧catalogは各画面の従来順を維持します。ランク編集と絆理論値では従来の5行レイアウト順を使い、その他の一覧は元の順序を保ちます。指定がある場合、ランク編集・絆理論値・評価値のキャラクター見出し・詳細フィルタ・Snapの対応キャラクター名に共通の表示規則を使います。バンドアイテムの順序は変更しません。
+
+表示時にcatalogの配列を並べ替えず、Import/Exportではフィールドと配列順を保持します。schemaVersionとcollectionの構造・保存キーは変更せず、移行は不要です。計算・選出には表示順を使いません。拡張フィールドに未対応の古いアプリへ新catalogを渡す場合は拒否されるため、対応版を使用してください。

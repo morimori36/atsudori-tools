@@ -50,6 +50,7 @@ export interface SkillTarget {
   cardType: number;
   tagId: number;
 }
+export interface CharacterMaster { id: number; bandId: number; name: string; displayOrder?: number }
 export interface Masterdata {
   materialDefinition?: import('../../domain/materials/model').MaterialDefinition;
   /** Static progression definitions and total-rank bonus table, supplied with this catalog. */
@@ -60,7 +61,7 @@ export interface Masterdata {
   revision: string;
   members: MemberMaster[];
   snaps: SnapMaster[];
-  characters: { id: number; bandId: number; name: string }[];
+  characters: CharacterMaster[];
   bands: { id: number; name: string }[];
   characterRankLevels: number[];
   memberLevels: LevelRate[];
