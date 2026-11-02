@@ -1,0 +1,66 @@
+import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { bondTheoryFixture } from '../helpers/bond-theory';
+import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
+
+for (const width of [1280, 390, 320]) test(`bond theory is independent, readable and survives JSON round trips at ${width}px`, async ({ page }) => {
+  const errors: string[] = [], external: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4173')) external.push(request.url()); });
+  const { master, collection } = bondTheoryFixture();
+  // At total4 there is no reward; the self-consistent rank2 is unreachable.
+  master.rankDefinition!.achievements[0]!.thresholds = [8];
+  collection.characterRanks = { 8201: 5 };
+  collection.characterProgress = { 8201: { bondRankTotal: 999 } };
+  await page.setViewportSize({ width, height: 844 });
+  await page.goto('./');
+  await page.locator('nav [data-tab=exchange]').click();
+  await page.locator('#catalog-import').setInputFiles({ name: 'toy-catalog.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(master)) });
+  await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
+  await page.locator('#import-file').setInputFiles({ name: 'toy-collection.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(collection)) });
+  await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
+  const saved = await page.evaluate(keys => keys.map(k => localStorage.getItem(k)), [CATALOG_STORAGE_KEY, STORAGE_KEY]);
+  await page.locator('nav [data-tab=progress]').click();
+  const result = page.locator('[data-bond-theory]');
+  await expect(result.getByText(/絆ランクの仕様：.*5人で10ペア/)).toBeVisible();
+  await expect(result).not.toContainText('暫定');
+  await expect(result.getByText(/実機で確定した到達値ではありません/)).toBeVisible();
+  expect(await result.locator('tbody tr').evaluateAll(rows => rows.map(r => r.getAttribute('data-bond-character')))).toEqual(['8202', '8204', '8201', '8205', '8203']);
+  await expect(result.locator('input,button')).toHaveCount(0);
+  await expect(result.locator('[data-bond-base]')).toHaveText(['1', '1', '1', '1', '1']);
+  await expect(result.locator('[data-bond-final]')).toHaveText(['1', '1', '1', '1', '1']);
+  await expect(result.locator('[data-bond-total]')).toHaveText(['4', '4', '4', '4', '4']);
+  await expect(result.locator('small')).toHaveText(Array(5).fill('進捗に未入力あり'));
+  await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('5');
+  await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('999');
+  expect(await page.evaluate(keys => keys.map(k => localStorage.getItem(k)), [CATALOG_STORAGE_KEY, STORAGE_KEY])).toEqual(saved);
+  // All five result rows fit without horizontal scrolling on a phone.
+  const bounds = await result.locator('table').boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+  expect(await result.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  if (width === 390) await result.screenshot({ path: 'test-results/bond-theory-390.png' });
+  // The theory uses other progress after the ordinary explicit save action.
+  await page.locator('#progress-8201-stamps').fill('1');
+  await expect(result.locator('[data-bond-character="8201"] [data-bond-base]')).toHaveText('1');
+  await page.locator('#progress-form button[type=submit]').click();
+  await expect(result.locator('[data-bond-character="8201"] [data-bond-base]')).toHaveText('2');
+  await expect(result.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('2');
+  await page.reload(); await page.locator('nav [data-tab=progress]').click();
+  await expect(result.locator('[data-bond-character="8201"] [data-bond-base]')).toHaveText('2');
+  await page.locator('nav [data-tab=exchange]').click();
+  const downloadPromise = page.waitForEvent('download'); await page.locator('#export-button').click();
+  const exported = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+  expect(exported).toEqual({ ...collection, characterProgress: { 8201: { bondRankTotal: 999, stamps: 1 } } });
+  await page.locator('#import-file').setInputFiles({ name: 'toy-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exported)) });
+  await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
+  delete master.rankDefinition;
+  await page.locator('#catalog-import').setInputFiles({ name: 'toy-no-definition.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(master)) });
+  await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
+  await page.locator('nav [data-tab=progress]').click();
+  await expect(result.getByText(/未算出：/)).toBeVisible();
+  await expect(result.locator('table')).toHaveCount(0);
+  await expect(page.locator('#rank-8201')).toHaveValue('5');
+  await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('999');
+  expect(errors).toEqual([]); expect(external).toEqual([]);
+});
