@@ -243,6 +243,187 @@
         "rankThresholds"
       ]
     },
+    "materialDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "catalogRevision": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+        },
+        "resources": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "unit": {
+                "enum": [
+                  "item",
+                  "card",
+                  "exp"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "unit"
+            ]
+          }
+        },
+        "schedules": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+              },
+              "axis": {
+                "enum": [
+                  "trainingStage",
+                  "awakeningStage",
+                  "liveSkillLevel",
+                  "gekisouSkillLevel",
+                  "level",
+                  "rank"
+                ]
+              },
+              "mode": {
+                "enum": [
+                  "steps",
+                  "cumulative",
+                  "unsupported"
+                ]
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "stages": {
+                "type": "array",
+                "maxItems": 1000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "stage": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "amounts": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "resourceId": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                          },
+                          "quantity": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "resourceId",
+                          "quantity"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "stage",
+                    "amounts"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "axis",
+              "mode",
+              "basis",
+              "stages"
+            ]
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "member",
+                  "snap"
+                ]
+              },
+              "cardId": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "axis": {
+                "enum": [
+                  "trainingStage",
+                  "awakeningStage",
+                  "liveSkillLevel",
+                  "gekisouSkillLevel",
+                  "level",
+                  "rank"
+                ]
+              },
+              "scheduleId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+              }
+            },
+            "required": [
+              "kind",
+              "cardId",
+              "axis",
+              "scheduleId"
+            ]
+          }
+        }
+      },
+      "required": [
+        "catalogRevision",
+        "resources",
+        "schedules",
+        "bindings"
+      ]
+    },
     "bands": {
       "type": "array",
       "maxItems": 20000,
