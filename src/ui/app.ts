@@ -19,6 +19,7 @@ setTheme(getTheme(), false);
 
 import { resolveTotalRankBonus } from '../domain/character-rank/bonus';
 import { estimateCharacterRank, estimateCharacterRanks, sumCharacterRanks } from '../domain/character-rank/estimate';
+import { estimateBondRankTheory } from '../domain/character-rank/bond-theory';
 import { manualProgressKeys } from '../domain/character-rank/definitions';
 import type { CharacterProgress } from '../domain/character-rank/definitions';
 import type { Masterdata } from '../data/catalog/model';
@@ -287,6 +288,22 @@ export function mountApp(root: HTMLElement): void {
   function progressOrder<T>(rows: T[]): T[] {
     return rows.length === 5 ? [rows[1]!, rows[3]!, rows[0]!, rows[4]!, rows[2]!] : rows;
   }
+  function bondTheoryPage(bandId: number | undefined): string {
+    const result = !allowWrites || !allowCatalogWrites || bandId === undefined
+      ? { status: 'pending' as const, reason: '有効なマスタと所持データを登録してください。' }
+      : estimateBondRankTheory(master, collection, bandId);
+    const characters = progressOrder(master.characters.filter(c => c.bandId === bandId));
+    return `<section class="panel bond-theory" aria-labelledby="bond-theory-heading" data-bond-theory>
+      <h2 id="bond-theory-heading">絆ランク込み理論値 · ${escape(master.bands.find(b => b.id === bandId)?.name ?? 'バンド未登録')}</h2>
+      <p class="muted">暫定仮定：同一バンドの全ペアを絆ランク1から開始し、上限を2人のキャラランクの小さい方とします。この上限規則は実機未確認です。</p>
+      <p class="muted">登録済みの所持・育成・進捗から計算します。編集中の値は保存操作後に反映します。手動ランク上書きと絆合計の手入力は使いません。結果は通常のランク・手入力・保存データに反映しません。</p>
+      ${result.status === 'pending' ? `<p role="status">未算出：${escape(result.reason)}</p>` : `
+      <p class="muted">入力済み条件に基づく推定です。未入力進捗は加算せず、同じバンドの他キャラの未入力も影響します。実機で確定した到達値ではありません。</p>
+      <table><caption class="sr-only">選択中バンドの絆ランク込み理論値</caption><thead><tr><th scope="col">キャラ</th><th scope="col">絆なし<br>自動推定</th><th scope="col">絆込み<br>最終理論</th><th scope="col">絆合計<br>理論上限</th></tr></thead><tbody>${characters.map(c => {
+        const row = result.characters.find(r => r.id === c.id)!;
+        return `<tr data-bond-character="${c.id}"><th scope="row">${escape(c.name)}${row.missingProgress.length ? '<small>進捗に未入力あり</small>' : ''}</th><td data-bond-base>${number(row.baseRank)}</td><td data-bond-final>${number(row.finalRank)}</td><td data-bond-total>${number(row.bondRankTotal)}</td></tr>`;
+      }).join('')}</tbody></table>`}</section>`;
+  }
   function progressPage(): string {
     const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
     if (band) progressBand = band.id;
@@ -310,6 +327,7 @@ export function mountApp(root: HTMLElement): void {
           <button class="secondary" type="button" data-reset-rank="${c.id}">自動推定に戻す</button></section>
           <details data-progress-section="rank-details-${c.id}"><summary>EXP内訳・推定理由 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><p class="muted" data-rank-reason>${rankReason(rank)}</p><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></article>`;
       }).join('')}</div></section>
+      ${bondTheoryPage(band?.id)}
       <section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテム</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
       <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${progressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>
       <div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">ランク・アイテムを保存</button></div></form>`;
