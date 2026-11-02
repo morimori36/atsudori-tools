@@ -1,5 +1,5 @@
 import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
-import { materialsPage } from './materials';
+import { createMaterialsPage } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
 import { trainingSettingsMarkup, trainingSettingsSummary, bindTrainingSettings, preserveTrainingView } from './training-settings';
 type Theme = 'light' | 'dark' | 'system';
@@ -44,9 +44,9 @@ import { createConversionExport } from './conversion-export';
 
 type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
 const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
-  ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
+  ['materials', '育成余地・素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
-  materials: ['必要素材', '所持メンバー・Snapの最大育成までの要求量を確認します。'],
+  materials: ['育成余地・素材', '追加ガチャ・凸なしで、所持カードの成長余地と必要素材を比較します。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
@@ -74,6 +74,7 @@ function fixed(value: FormDataEntryValue | null, digits: number, label: string):
 const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
 export function mountApp(root: HTMLElement): void {
+  let materialsView:ReturnType<typeof createMaterialsPage>|undefined;
   let storage: StoragePort | undefined;
   try { storage = window.localStorage; } catch { storage = undefined; }
   const loadedCatalog = loadCatalog(storage);
@@ -361,8 +362,9 @@ export function mountApp(root: HTMLElement): void {
       <output id="manual-output" class="manual-output" aria-live="polite"></output><p class="muted">この計算は所持データの登録内容を変更しません。評価値式は観測範囲で検証した推定式です。</p></section>`;
   }
   function pageBody(): string {
+    materialsView=undefined;
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return catalogIssues(master).length && ['members','snaps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : materialsPage(master,collection)) : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return catalogIssues(master).length && ['members','snaps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : (materialsView=createMaterialsPage(master,collection)).html) : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -399,6 +401,7 @@ export function mountApp(root: HTMLElement): void {
       bindTrainingSettings(root,trainingSettings);
       root.querySelector<HTMLDetailsElement>('[data-training-disclosure]')?.addEventListener('toggle', event => { trainingExpanded = (event.currentTarget as HTMLDetailsElement).open; });
     }
+    if (active === 'materials') materialsView?.bind(root);
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
