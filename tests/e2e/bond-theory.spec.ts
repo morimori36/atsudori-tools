@@ -22,7 +22,8 @@ for (const width of [1280, 390, 320]) test(`bond theory is independent, readable
   const saved = await page.evaluate(keys => keys.map(k => localStorage.getItem(k)), [CATALOG_STORAGE_KEY, STORAGE_KEY]);
   await page.locator('nav [data-tab=progress]').click();
   const result = page.locator('[data-bond-theory]');
-  await expect(result.getByText(/この上限規則は実機未確認/)).toBeVisible();
+  await expect(result.getByText(/絆ランクの仕様：.*5人で10ペア/)).toBeVisible();
+  await expect(result).not.toContainText('暫定');
   await expect(result.getByText(/実機で確定した到達値ではありません/)).toBeVisible();
   expect(await result.locator('tbody tr').evaluateAll(rows => rows.map(r => r.getAttribute('data-bond-character')))).toEqual(['8202', '8204', '8201', '8205', '8203']);
   await expect(result.locator('input,button')).toHaveCount(0);

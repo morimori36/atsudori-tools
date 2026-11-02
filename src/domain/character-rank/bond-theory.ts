@@ -19,7 +19,7 @@ export type BondTheoryResult =
   | { status: 'pending'; reason: string };
 
 /** Pure projection: never writes derived ranks or bond totals back to collection.
- * The min-rank pair cap is provisional, not a confirmed game rule.
+ * Each same-band pair starts at one and is capped at the lower character rank.
  */
 export function estimateBondRankTheory(master: Masterdata, collection: Collection, bandId: number): BondTheoryResult {
   try {

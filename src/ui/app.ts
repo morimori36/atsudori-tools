@@ -295,7 +295,7 @@ export function mountApp(root: HTMLElement): void {
     const characters = progressOrder(master.characters.filter(c => c.bandId === bandId));
     return `<section class="panel bond-theory" aria-labelledby="bond-theory-heading" data-bond-theory>
       <h2 id="bond-theory-heading">絆ランク込み理論値 · ${escape(master.bands.find(b => b.id === bandId)?.name ?? 'バンド未登録')}</h2>
-      <p class="muted">暫定仮定：同一バンドの全ペアを絆ランク1から開始し、上限を2人のキャラランクの小さい方とします。この上限規則は実機未確認です。</p>
+      <p class="muted">絆ランクの仕様：同一バンド内の2人の組み合わせごとに絆ランクが存在します（5人で10ペア）。各ペアは1から開始し、上限は2人のキャラランクの小さい方です。各キャラの絆合計は、そのキャラを含む全ペアの絆ランクの合計です。</p>
       <p class="muted">登録済みの所持・育成・進捗から計算します。編集中の値は保存操作後に反映します。手動ランク上書きと絆合計の手入力は使いません。結果は通常のランク・手入力・保存データに反映しません。</p>
       ${result.status === 'pending' ? `<p role="status">未算出：${escape(result.reason)}</p>` : `
       <p class="muted">入力済み条件に基づく推定です。未入力進捗は加算せず、同じバンドの他キャラの未入力も影響します。実機で確定した到達値ではありません。</p>
