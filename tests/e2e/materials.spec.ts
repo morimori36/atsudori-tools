@@ -1,0 +1,26 @@
+import { test,expect } from '@playwright/test';
+import { materialFixture } from '../helpers/materials';
+import { CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
+for(const width of [1280,390,320])test(`material import, detail, persistence and totals at ${width}px`,async({page})=>{
+  const {m,c}=materialFixture();await page.setViewportSize({width,height:900});await page.goto('./');
+  await page.getByRole('button',{name:'JSON Import / Export',exact:true}).first().click();
+  await page.locator('#catalog-import').setInputFiles({name:'fictional-catalog.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(m))});
+  await page.locator('#import-file').setInputFiles({name:'fictional-collection.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(c))});
+  await page.getByRole('button',{name:'必要素材',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'所持カード全体の素材別合計'})).toBeVisible();
+  const total=page.locator('main section.panel').first();await expect(total).toContainText('架空の折紙：31 個');
+  await expect(total).toContainText('43 EXP');await expect(total).toContainText('2 枚');await expect(total).toContainText('未計算項目');
+  const member=page.locator('[data-material-card="member-8301"]');await member.locator('summary').click();
+  await expect(member).toContainText('費用の根拠未確認');await expect(member).toContainText('特訓：1 → 2');await expect(member).toContainText('途中EXP');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  if(width===390)await page.screenshot({path:'test-results/materials-390.png',fullPage:true});
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);await page.reload();await page.getByRole('button',{name:'必要素材',exact:true}).click();
+  await expect(page.locator('main section.panel').first()).toContainText('架空の折紙：31 個');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.getByRole('button',{name:'JSON Import / Export',exact:true}).first().click();
+  m.materialDefinition!.catalogRevision='incompatible';
+  await page.locator('#catalog-import').setInputFiles({name:'wrong-revision.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(m))});
+  await expect(page.locator('[role=alert]:visible')).toContainText('版が一致');
+  expect(JSON.parse((await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY))!).revision).toBe('test-1');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+});

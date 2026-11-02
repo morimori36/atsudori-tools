@@ -51,6 +51,7 @@ export interface SkillTarget {
   tagId: number;
 }
 export interface Masterdata {
+  materialDefinition?: import('../../domain/materials/model').MaterialDefinition;
   /** Static progression definitions and total-rank bonus table, supplied with this catalog. */
   rankDefinition?: RankDefinition;
   schemaVersion: 1;
