@@ -18,6 +18,23 @@ function add(map:Map<string,number>,a:MaterialAmount):void {
 const amounts=(map:Map<string,number>):MaterialAmount[]=>[...map].sort(([a],[b])=>a.localeCompare(b)).map(([resourceId,quantity])=>({resourceId,quantity}));
 /** Uses real collection values only; hypothetical training is deliberately independent. */
 export function calculateMaterialRequirements(m:Masterdata,input:Collection):MaterialRequirements {
+  return calculate(m,input);
+}
+/** Costs only the explicit, validated projection. No implicit awakening or rank increase. */
+export function calculateMaterialRequirementsToTarget(m:Masterdata,input:Collection,target:Collection):MaterialRequirements {
+  const current=validateCollection(input,m),goal=validateCollection(target,m);
+  for(const kind of ['member','snap'] as const){
+    const from=kind==='member'?current.members:current.snaps,to=kind==='member'?goal.members:goal.snaps;
+    const identity=(c:typeof from[number])=>'cardId' in c?c.cardId:c.supportCardId;
+    if(from.length!==to.length||from.some(c=>!to.some(t=>identity(t)===identity(c))))throw new Error('目標状態の所持カードが一致しません');
+    for(const card of from){
+      const end=to.find(t=>identity(t)===identity(card))!;
+      for(const axis of axesFor(kind))if((end as unknown as Record<string,number>)[axis]!<(card as unknown as Record<string,number>)[axis]!)throw new Error('目標の育成段階は現在値以上が必要です');
+    }
+  }
+  return calculate(m,current,goal);
+}
+function calculate(m:Masterdata,input:Collection,goal?:Collection):MaterialRequirements {
   const issues=materialIssues(m);if(issues.length)throw new Error(issues.join('\n'));
   const c=validateCollection(input,m),d=m.materialDefinition;
   const schedules=new Map(d?.schedules.map(s=>[s.id,s]));
@@ -30,7 +47,8 @@ export function calculateMaterialRequirements(m:Masterdata,input:Collection):Mat
     for(const axis of axesFor(kind)){
       const current=(card as unknown as Record<string,number>)[axis]!;
       const progression=materialProgression(m,kind,cardId,axis);
-      const target=progression?.target??null;
+      const projected=kind==='member'?goal?.members.find(c=>c.cardId===cardId):goal?.snaps.find(c=>c.supportCardId===cardId);
+      const target=projected?(projected as unknown as Record<string,number>)[axis]!:progression?.target??null;
       const result:AxisRequirement={axis,current,target,status:'unavailable',amounts:[]};
       const schedule=schedules.get(bindings.get(`${kind}:${cardId}:${axis}`)??'');
       if(target===null)result.reason='合法的な最大段階を確定できません';
