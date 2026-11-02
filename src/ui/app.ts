@@ -1,7 +1,7 @@
 import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
 import { materialsPage } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
-import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
+import { trainingSettingsMarkup, trainingSettingsSummary, bindTrainingSettings, preserveTrainingView } from './training-settings';
 type Theme = 'light' | 'dark' | 'system';
 const themeKey = 'atsudori-theme';
 function getTheme(): Theme {
@@ -42,16 +42,17 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'progress' | 'exchange' | 'manual' | 'event';
+type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
 const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
-  ['materials', '必要素材'], ['progress', 'ランク・アイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
+  ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
   materials: ['必要素材', '所持メンバー・Snapの最大育成までの要求量を確認します。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
   snaps: ['所持Snap', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
-  progress: ['ランク・アイテム', 'バンドを選び、キャラクターの進捗やランク上書きをまとめて編集できます。バンドアイテムは全バンド分を下に表示します。'],
+  progress: ['キャラランク', 'バンドを選び、進捗とランク上書きを編集します。変更はこの画面で保存してください。'],
+  items: ['バンドアイテム', '各バンドのアイテムLvを編集します。変更はこの画面で保存してください。'],
   exchange: ['JSON Import / Export', 'JSONファイルを取り込み・保存します。'],
   manual: ['表示値で個別計算', 'ゲーム画面のP/T/Vと補正値を直接入力して、1枠の評価値を確認します。'],
 };
@@ -100,6 +101,7 @@ export function mountApp(root: HTMLElement): void {
   const trainingSettings = createTrainingSettings(storage);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
+  let trainingExpanded = false;
   let noteListenerController = new AbortController();
   let notice: { error: boolean; text: string } | undefined;
   const drafts = new Map<string, Record<string, string>>();
@@ -197,13 +199,14 @@ export function mountApp(root: HTMLElement): void {
     });
   }
   function ratingPage(): string {
-    if (!master.members.length || catalogIssues(master).length) return trainingSettingsMarkup(trainingSettings) + missingCatalog();
+    const controls = `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '仮育成']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset></div>${ratingMode === 'potential' ? `<details class="training-disclosure" data-training-disclosure ${trainingExpanded ? 'open' : ''}><summary>仮育成設定 <span>${trainingSettingsSummary(trainingSettings)}</span></summary>${trainingSettingsMarkup(trainingSettings)}</details>` : ''}`;
+    if (!master.members.length || catalogIssues(master).length) return controls + missingCatalog();
     const bands = summarizeBands(evaluateCollection(master, ratingMode === 'potential' ? potentialCollection(master, collection, trainingSettings.current()) : collection, collection,rankRules.current()));
     const colors = bands.flatMap(b => b.colors);
-    if (!colors.length) return `${trainingSettingsMarkup(trainingSettings)}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
+    if (!colors.length) return `${controls}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
       <p>メンバーとSnapを登録し、キャラクターランク・アイテムを設定すると、登録分の評価値を確認できます。</p>
       <button class="primary" data-tab="members">メンバーを登録</button><button class="secondary" data-tab="manual">表示値で試す</button></section>`;
-    return `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '仮育成']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset></div>${trainingSettingsMarkup(trainingSettings)}${bands.map(band => `<section class="panel band-result" data-band="${band.bandId}">
+    return `${controls}${bands.map(band => `<section class="panel band-result" data-band="${band.bandId}">
         <div class="panel-heading"><div><h2>${escape(master.bands.find(b => b.id === band.bandId)!.name)}</h2></div>
         <div class="rating-total"><span>${band.rating === null ? 'バンド全体の合計は保留' : '合計'}</span><strong>${band.rating === null ? '—' : number(band.rating)}</strong>
         ${band.rating === null ? `<small>計算済み小計 ${number(band.subtotal)}</small>` : ''}</div></div>
@@ -245,7 +248,7 @@ export function mountApp(root: HTMLElement): void {
       <button class="secondary small" type="button" data-reset-filters>絞り込みを解除</button>
       <p class="muted catalog-count" role="status"></p>
       <p class="muted catalog-help">カードをクリックして所持切替 · 段階の変更は自動保存</p>
-    </section><div class="catalog-grid">${rows.map(row => {
+    </section><div class="catalog-grid ${members ? 'member-grid' : 'snap-grid'}">${rows.map(row => {
       const owned = members ? collection.members.find(m => m.cardId === row.id) : collection.snaps.find(s => s.supportCardId === row.id);
       const member = members ? owned as OwnedMember | undefined : undefined;
       const snap = !members ? collection.snaps.find(s => s.supportCardId === row.id) : undefined;
@@ -260,7 +263,7 @@ export function mountApp(root: HTMLElement): void {
         }).join('')}</div></fieldset>`;
       return `<article style="--card-color: ${cardTypeAccent(row.cardType)}" class="panel collection-card ${owned ? 'is-owned' : ''}" data-catalog-id="${row.id}" data-member-card="${members ? row.id : ''}" data-snap-card="${members ? '' : row.id}">
         <button type="button" class="card-identity" data-ownership-toggle aria-pressed="${checked('owned', Boolean(owned))}" aria-label="${escape(row.name)}［${escape(row.title)}］の所持を切り替え">
-          <span class="card-meta"><span class="type-pill">${rarity(row.rarity)} · ${cardTypeName(row.cardType)} · ID ${row.id}</span><span class="ownership-badge" data-owned-label>${checked('owned', Boolean(owned)) ? '所持' : '未所持'}</span></span>
+          <span class="card-meta"><span class="rarity-badge" data-rarity="${row.rarity}">${rarity(row.rarity)}</span><span class="card-type-label">${cardTypeName(row.cardType)}</span><span class="card-id">ID ${row.id}</span><span class="ownership-badge" data-owned-label>${checked('owned', Boolean(owned)) ? '✓ 所持' : '未所持'}</span></span>
           <span class="card-name">${escape(row.name)}</span><span class="card-title">［${escape(row.title)}］</span>
           ${!members ? `<span class="muted card-characters">${characterRowsForDisplay(characters.map(id => master.characters.find(c => c.id === id)!), master.characters, c => c.id).map(c => escape(c.name)).join(' / ')}</span>` : ''}
         </button>
@@ -276,7 +279,7 @@ export function mountApp(root: HTMLElement): void {
   function membersPage(): string { return catalogPage('members'); }
   function snapsPage(): string { return catalogPage('snaps'); }
   function rankSummary(rank: ReturnType<typeof estimateCharacterRank>): string {
-    return `<span class="rank-meta">推定 <span data-estimated-rank>${rank.estimatedRank??'—'}</span> · EXP <span data-rank-exp>${rank.exp??'—'}</span><span class="rank-source" data-rank-source>${rank.overrideRank === undefined ? rank.estimatedRank===null?'定義未登録・不一致':'自動推定' : '手動上書き中'}</span></span>`;
+    return `<span class="rank-meta">推定 <span data-estimated-rank>${rank.estimatedRank??'—'}</span><span class="rank-source" data-rank-source>${rank.overrideRank === undefined ? rank.estimatedRank===null?'定義未登録・不一致':'自動推定' : '手動上書き中'}</span></span>`;
   }
   function rankBreakdown(rank: ReturnType<typeof estimateCharacterRank>): string {
     return rank.details.map(d => `<li><span>${escape(d.definition.label)}<small>${d.value ?? '不明'} → ${d.completed}件</small></span><strong>${d.exp} EXP</strong></li>`).join('');
@@ -287,21 +290,18 @@ export function mountApp(root: HTMLElement): void {
   }
   let progressBand: number | undefined;
   const progressDraft = new Map<string, string>();
-  function bondTheoryPage(bandId: number | undefined): string {
-    const result = !allowWrites || !allowCatalogWrites || bandId === undefined
+  function bondTheory(bandId: number | undefined) {
+    return !allowWrites || !allowCatalogWrites || bandId === undefined
       ? { status: 'pending' as const, reason: '有効なマスタと所持データを登録してください。' }
       : estimateBondRankTheory(master, collection, bandId);
-    const characters = progressCharacters(master.characters.filter(c => c.bandId === bandId));
-    return `<section class="panel bond-theory" aria-labelledby="bond-theory-heading" data-bond-theory>
-      <h2 id="bond-theory-heading">絆ランク込み理論値 · ${escape(master.bands.find(b => b.id === bandId)?.name ?? 'バンド未登録')}</h2>
-      <p class="muted">絆ランクの仕様：同一バンド内の2人の組み合わせごとに絆ランクが存在します（5人で10ペア）。各ペアは1から開始し、上限は2人のキャラランクの小さい方です。各キャラの絆合計は、そのキャラを含む全ペアの絆ランクの合計です。</p>
-      <p class="muted">登録済みの所持・育成・進捗から計算します。編集中の値は保存操作後に反映します。手動ランク上書きと絆合計の手入力は使いません。結果は通常のランク・手入力・保存データに反映しません。</p>
-      ${result.status === 'pending' ? `<p role="status">未算出：${escape(result.reason)}</p>` : `
-      <p class="muted">入力済み条件に基づく推定です。未入力進捗は加算せず、同じバンドの他キャラの未入力も影響します。実機で確定した到達値ではありません。</p>
-      <table><caption class="sr-only">選択中バンドの絆ランク込み理論値</caption><thead><tr><th scope="col">キャラ</th><th scope="col">絆なし<br>自動推定</th><th scope="col">絆込み<br>最終理論</th><th scope="col">絆合計<br>理論上限</th></tr></thead><tbody>${characters.map(c => {
-        const row = result.characters.find(r => r.id === c.id)!;
-        return `<tr data-bond-character="${c.id}"><th scope="row">${escape(c.name)}${row.missingProgress.length ? '<small>進捗に未入力あり</small>' : ''}</th><td data-bond-base>${number(row.baseRank)}</td><td data-bond-final>${number(row.finalRank)}</td><td data-bond-total>${number(row.bondRankTotal)}</td></tr>`;
-      }).join('')}</tbody></table>`}</section>`;
+  }
+  function progressActions(items = false): string {
+    return `<div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">${items ? 'バンドアイテム' : 'キャラランク'}を保存</button></div>`;
+  }
+  function itemsPage(): string {
+    const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
+    return `<form id="progress-form" data-edit-scope="items"><section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテムLv</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
+      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${legacyProgressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>${progressActions(true)}</form>`;
   }
   function progressPage(): string {
     const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
@@ -310,27 +310,29 @@ export function mountApp(root: HTMLElement): void {
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
-    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。JSON Import / Exportでランク定義を含むマスタJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="exchange">JSON Import / Exportを開く</button>'}<form id="progress-form"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
+    const theory = bondTheory(band?.id);
+    return `${rankRules.current()?'':'<p class="alert">ランク定義未登録または不一致：推定は未算出です。JSON Import / Exportでランク定義を含むマスタJSONをImportしてください。手入力値・進捗は保持します。</p><button class="secondary" data-tab="exchange">JSON Import / Exportを開く</button>'}<form id="progress-form" data-edit-scope="characters"><div class="progress-overview"><p data-total-character-rank>総合キャラクターランク <strong>${sumCharacterRanks(ranks)?.toLocaleString('ja-JP')??'未算出'}</strong></p><span class="muted">各キャラクターの使用ランク合計</span><label class="inline-field" for="tgwRank"><span>TGWランク</span><input name="tgwRank" id="tgwRank" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue('tgwRank', collection.tgwRank)}"></label></div>
       <details class="panel" data-progress-section="total-rank"><summary>総合ランクボーナス <span data-total-rank-bonus>使用する加算値：${bonus.bonus===null?'未設定':`+${bonus.bonus}`}（${bonus.source==='manual'?'手入力':bonus.source==='rules'?'ランク定義から算出':'評価値は保留'}）</span></summary>
       <label class="inline-field" for="totalRankBonus"><span>各パラメータへの加算値（上書き）</span><input name="totalRankBonus" id="totalRankBonus" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="定義から算出" value="${draftValue('totalRankBonus', collection.totalRankBonus)}"></label><p class="muted">ゲームの総合ランクボーナス欄の数値を入力できます。空欄はランク定義のボーナス表を使います。個人ランク分を含む合計ボーナスとは別です。</p></details>
       <section class="progress-section" aria-labelledby="character-ranks-heading"><h2 id="character-ranks-heading">キャラクターランク</h2>
+      <details class="rank-help" data-progress-section="bond-help"><summary>絆最大時とは</summary><p>保存済みの所持・育成・進捗から、同一バンドの絆を最大にした場合の理論キャラランクです。各ペアは1から始まり、上限は2人のキャラランクの小さい方として反復計算します。手動ランク上書きと絆合計の手入力は使いません。通常の使用ランク・評価値・保存値には反映しません。</p><p>編集中の進捗は保存後に反映します。未入力進捗は加算せず、バンド内の他キャラの未入力も影響します。実機で確定した到達値ではありません。</p>${theory.status === 'pending' ? `<p data-bond-reason>未算出：${escape(theory.reason)}</p>` : ''}</details>
       <div class="progress-targets" role="group" aria-label="バンド">${master.bands.map(b => `<button type="button" data-progress-band="${b.id}" aria-pressed="${b.id===band?.id}">${escape(b.name)}</button>`).join('')}</div>
       <p class="muted progress-scroll-hint">横にスクロールして編集できます</p>
       <div class="progress-cards" data-progress-scroll="characters" role="region" aria-label="キャラクターランクの編集欄" tabindex="0">${characters.map(c => {
         const rank = ranks.find(r=>r.id===c.id)!;
-        return `<article class="panel progress-card character-rank" data-character-rank="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary>${rankSummary(rank)} <span>使用ランク <strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span></div>
+        const theoretical = theory.status === 'ready' ? theory.characters.find(r => r.id === c.id) : undefined;
+        const uncertain = theory.status === 'ready' && theory.characters.some(r => r.missingProgress.length);
+        return `<article class="panel progress-card character-rank" data-character-rank="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary>${rankSummary(rank)} <span>使用ランク <strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span></div><div class="bond-rank" data-bond-character="${c.id}">絆最大時 <strong data-bond-final>${theoretical ? number(theoretical.finalRank) : '未算出'}</strong>${uncertain ? '<small>バンド内の進捗に未入力あり</small>' : ''}<small>保存済み条件</small></div>
           <div class="rank-editor"><section><h3>手入力進捗</h3>
           <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue(`progress-${c.id}-${key}`, collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress])}"></label>`).join('')}</div></section>
           <section class="rank-override"><h3>ランク上書き</h3>
           <label class="inline-field" for="rank-${c.id}"><span>手動で使用するランク</span><input name="rank-${c.id}" id="rank-${c.id}" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="自動" value="${draftValue(`rank-${c.id}`, rank.overrideRank)}"></label>
           <button class="secondary" type="button" data-reset-rank="${c.id}">自動推定に戻す</button></section>
-          <details data-progress-section="rank-details-${c.id}"><summary>EXP内訳・推定理由 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><p class="muted" data-rank-reason>${rankReason(rank)}</p><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></article>`;
+          <details data-progress-section="rank-details-${c.id}"><summary>EXP内訳・推定理由 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><p class="muted">EXP <span data-rank-exp>${rank.exp??'—'}</span></p><p class="muted" data-rank-reason>${rankReason(rank)}</p><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></article>`;
       }).join('')}</div></section>
-      ${bondTheoryPage(band?.id)}
-      <section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテム</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
-      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${legacyProgressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>
-      <div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">ランク・アイテムを保存</button></div></form>`;
+      ${progressActions()}</form>`;
   }
+
   function exchangePage(): string {
     return `<div class="json-exchange"><section class="exchange-section"><h2>所持・育成データ</h2><span class="muted">${collection.members.length || collection.snaps.length ? '登録済み' : '未登録'}</span>
       <div class="exchange-actions"><button class="primary" data-file="import-file">Import</button><input hidden type="file" id="import-file" accept=".json,application/json"><button class="secondary" id="export-button">Export</button></div></section>
@@ -360,7 +362,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return catalogIssues(master).length && ['members','snaps','progress','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : materialsPage(master,collection)) : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return catalogIssues(master).length && ['members','snaps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : materialsPage(master,collection)) : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -370,7 +372,7 @@ export function mountApp(root: HTMLElement): void {
     root.innerHTML = `<header class="site-header"><div class="brand"><span class="brand-mark" aria-hidden="true">ON</span><div><strong>atsudori-tools</strong><small>${active === 'event' ? 'イベント周回プランナー' : 'バンド評価値'}</small></div></div>
       <div class="header-meta"><label class="theme-setting">表示 <select data-theme aria-label="表示テーマ"><option value="system">システム</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label><span class="save-state ${saved ? '' : 'unsaved'}" role="status">${saved ? 'ブラウザ内に保存' : '保存未完了'}</span></div></header>
       <div class="layout"><nav class="navigation" aria-label="メインメニュー">${tabs.map(([id, label]) => `<button data-tab="${id}" ${active === id ? 'class="active" aria-current="page"' : ''}>${label}${id === 'members' || id === 'snaps' ? `<span>${id === 'members' ? collection.members.length : collection.snaps.length}</span>` : ''}</button>`).join('')}</nav>
-      <main class="${active === 'rating' ? 'rating-page' : active === 'progress' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
+      <main class="${active === 'rating' ? 'rating-page' : active === 'progress' || active === 'items' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
       ${pageBody()}
@@ -393,7 +395,10 @@ export function mountApp(root: HTMLElement): void {
       }
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
-    if (active === 'rating') bindTrainingSettings(root,trainingSettings);
+    if (active === 'rating') {
+      bindTrainingSettings(root,trainingSettings);
+      root.querySelector<HTMLDetailsElement>('[data-training-disclosure]')?.addEventListener('toggle', event => { trainingExpanded = (event.currentTarget as HTMLDetailsElement).open; });
+    }
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
@@ -413,7 +418,7 @@ export function mountApp(root: HTMLElement): void {
       if (state) { state.textContent = eventState.label; state.classList.toggle('unsaved', eventState.unsaved); }
       return;
     }
-    if (state) { state.textContent = !saved || !catalogSaved ? '保存未完了' : drafts.size || root.querySelector('#progress-form.is-dirty') ? '未保存の入力あり' : active === 'progress' ? '保存済み' : '自動保存済み'; state.classList.toggle('unsaved', !saved || !catalogSaved || drafts.size > 0 || Boolean(root.querySelector('#progress-form.is-dirty'))); }
+    if (state) { state.textContent = !saved || !catalogSaved ? '保存未完了' : drafts.size || progressDraft.size ? '未保存の入力あり' : active === 'progress' || active === 'items' ? '保存済み' : '自動保存済み'; state.classList.toggle('unsaved', !saved || !catalogSaved || drafts.size > 0 || progressDraft.size > 0); }
     const warning = root.querySelector<HTMLElement>('#autosave-warning');
     if (warning) { warning.textContent = [catalogStorageMessage,storageMessage].filter(Boolean).join(' '); warning.hidden = !warning.textContent; }
     for (const kind of ['members', 'snaps'] as const) {
@@ -466,7 +471,7 @@ export function mountApp(root: HTMLElement): void {
         const enabled = input('owned').checked;
         const ownershipButton = card.querySelector<HTMLButtonElement>('[data-ownership-toggle]')!;
         ownershipButton.setAttribute('aria-pressed', String(enabled));
-        card.querySelector('[data-owned-label]')!.textContent = enabled ? '所持' : '未所持';
+        card.querySelector('[data-owned-label]')!.textContent = enabled ? '✓ 所持' : '未所持';
         card.classList.toggle('is-owned', enabled);
         const growth = form.querySelector<HTMLFieldSetElement>('fieldset')!; growth.disabled = !enabled; growth.hidden = !enabled;
         const preview = form.querySelector<HTMLElement>('[data-preview]')!;
@@ -558,11 +563,13 @@ export function mountApp(root: HTMLElement): void {
 
   function bindProgress(): void {
     const form = root.querySelector<HTMLFormElement>('#progress-form'); if (!form) return;
+    const inScope = (name: string): boolean => name.startsWith('item-') === (form.dataset.editScope === 'items');
+    const scopedDrafts = () => [...progressDraft].filter(([name]) => inScope(name));
     const readValues = (): Collection => {
       const characterRanks = { ...collection.characterRanks };
       const characterProgress = { ...collection.characterProgress };
       const bandItems = { ...collection.bandItems };
-      for (const [name, value] of progressDraft) {
+      for (const [name, value] of scopedDrafts()) {
         const rank = /^rank-(\d+)$/.exec(name), item = /^item-(\d+)$/.exec(name), progress = /^progress-(\d+)-(.+)$/.exec(name);
         if (rank) { if (value.trim()) characterRanks[Number(rank[1])] = Number(value); else delete characterRanks[Number(rank[1])]; }
         if (item) bandItems[Number(item[1])] = Number(value) || null;
@@ -573,18 +580,20 @@ export function mountApp(root: HTMLElement): void {
           if (Object.keys(entry).length) characterProgress[id] = entry; else delete characterProgress[id];
         }
       }
+      if (form.dataset.editScope === 'items') return { ...collection, bandItems };
       const { totalRankBonus: previousBonus, tgwRank: previousTgw, ...base } = collection;
-      const tgwDraft = progressDraft.get('tgwRank');
+      const tgwDraft = inScope('tgwRank') ? progressDraft.get('tgwRank') : undefined;
       const tgwRank = tgwDraft === undefined ? previousTgw : tgwDraft.trim() === '' ? undefined : Number(tgwDraft);
-      const bonus = progressDraft.get('totalRankBonus');
+      const bonus = inScope('totalRankBonus') ? progressDraft.get('totalRankBonus') : undefined;
       return { ...base, characterRanks, characterProgress, bandItems, ...(tgwRank === undefined ? {} : {tgwRank}), ...((bonus === undefined ? previousBonus : bonus.trim() === '' ? undefined : Number(bonus)) === undefined ? {} : { totalRankBonus: bonus === undefined ? previousBonus : Number(bonus) }) };
     };
     const update = (): void => {
       const next = readValues();
-      const dirty = progressDraft.size > 0;
+      const dirty = scopedDrafts().length > 0;
       form.classList.toggle('is-dirty', dirty);
       form.querySelector('[data-progress-state]')!.textContent = !saved ? 'ブラウザ保存未完了' : dirty ? '未保存の変更あり' : '変更後は保存してください';
       syncSaveState();
+      if (form.dataset.editScope === 'items') return;
       const previewRanks=estimateCharacterRanks(master,next,rankRules.current());
       for (const c of master.characters) {
         const row = form.querySelector<HTMLElement>(`[data-character-rank="${c.id}"]`);
@@ -631,7 +640,19 @@ export function mountApp(root: HTMLElement): void {
     form.addEventListener('submit', event => {
       event.preventDefault();
       const restore = captureProgressView();
-      run(() => { persist(readValues()); if (saved) progressDraft.clear(); }, 'ランク・アイテムを反映しました');
+      try {
+        const previous = collection;
+        persist(readValues());
+        if (saved) {
+          for (const [name] of scopedDrafts()) progressDraft.delete(name);
+          notice = { error: false, text: form.dataset.editScope === 'items' ? 'バンドアイテムを反映しました' : 'キャラランクを反映しました' };
+        } else {
+          // A failed save must not leak this screen's draft into another save.
+          collection = previous;
+          notice = undefined;
+        }
+      } catch (error) { notice = { error: true, text: errorMessage(error) }; }
+      render();
       restore();
     });
   }

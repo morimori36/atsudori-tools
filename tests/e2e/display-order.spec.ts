@@ -20,7 +20,9 @@ for (const legacy of [false, true]) test(`character order across views and JSON 
     await expect(page.locator('[data-character-rank]').first()).toHaveAttribute('data-character-rank', expected[0]!); // first card below
     expect(await page.locator('[data-character-rank]').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank')))).toEqual(expected);
     expect(await page.locator('[data-bond-character]').evaluateAll(els => els.map(el => el.getAttribute('data-bond-character')))).toEqual(expected);
+    await page.locator('nav [data-tab=items]').click();
     expect(await page.locator('.band-items').first().locator('input').evaluateAll(els => els.map(el => el.id))).toEqual(['item-8698', 'item-8696', 'item-8601', 'item-8694', 'item-8692']);
+    await page.locator('nav [data-tab=progress]').click();
     await page.locator('[data-progress-band="8197"]').click();
     const second = legacy ? ['8328', '8314', '8306'] : ['8314', '8306', '8328'];
     expect(await page.locator('[data-character-rank]').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank')))).toEqual(second);

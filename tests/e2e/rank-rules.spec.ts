@@ -16,7 +16,7 @@ test.beforeEach(async({page})=>{
 });
 test('missing rules retain manual ranks, ownership editing, backup and manual-only profile export',async({page})=>{
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 —.*EXP —.*手動上書き中.*使用ランク 3/);
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 —.*手動上書き中.*使用ランク 3/);await expect(page.locator('[data-rank-exp]')).toHaveText('—');
   await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   await tab(page,'exchange');expect(await download(page,'#export-button')).toContain('skillLevel5');
   await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile()));await expect(page.locator('#conversion-preview')).toBeEnabled();await download(page,'#conversion-preview');
