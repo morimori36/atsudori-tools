@@ -1,3 +1,4 @@
+import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
 import { materialsPage } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
 import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
@@ -210,7 +211,7 @@ export function mountApp(root: HTMLElement): void {
         <summary class="color-summary"><span class="color-label">${cardTypeName(color.cardType)}</span>
         <span class="color-total"><span>${color.rating === null ? '合計は保留' : ''}</span><strong>${color.rating === null ? '—' : number(color.rating)}</strong>${color.rating === null ? `<small>計算済み小計 ${number(color.subtotal)}</small>` : ''}</span></summary>
         <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>Snap</th><th class="numeric">評価値</th></tr></thead><tbody>
-        ${summarizeCharacters(color).map(character => `<tr class="character-heading" data-rating-character="${character.characterId}"><th scope="rowgroup" colspan="${character.slots.length === 1 ? 3 : 2}">${escape(master.characters.find(c => c.id === character.characterId)!.name)}</th>${character.slots.length === 1 ? '' : `<td class="numeric character-total">${character.rating === null ? `<span>合計は保留</span><strong>—</strong><small>計算済み小計 ${number(character.subtotal)}</small>` : `<span>合計</span><strong>${number(character.rating)}</strong>`}</td>`}</tr>
+        ${characterRowsForDisplay(summarizeCharacters(color), master.characters.filter(c => c.bandId === band.bandId), c => c.characterId).map(character => `<tr class="character-heading" data-rating-character="${character.characterId}"><th scope="rowgroup" colspan="${character.slots.length === 1 ? 3 : 2}">${escape(master.characters.find(c => c.id === character.characterId)!.name)}</th>${character.slots.length === 1 ? '' : `<td class="numeric character-total">${character.rating === null ? `<span>合計は保留</span><strong>—</strong><small>計算済み小計 ${number(character.subtotal)}</small>` : `<span>合計</span><strong>${number(character.rating)}</strong>`}</td>`}</tr>
         ${character.slots.map(slot => {
           const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${slot.selection.characterId}`;
           const key = `note-${band.bandId}-${color.cardType}-${memberKey}`;
@@ -237,7 +238,7 @@ export function mountApp(root: HTMLElement): void {
       ${toggles('ownership', '所持状況', [['owned', '所持'], ['unowned', '未所持']])}
       <div class="field"><label for="filter-${kind}-sort">並び替え</label><select id="filter-${kind}-sort" data-filter="sort">${[['id', 'ID順'], ['name', '名前順'], ['rarity', 'レアリティ順'], ['level', 'Lvが高い順'], ['owned', '所持を先に']].map(([id, label]) => `<option value="${id}" ${filter.sort === id ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
       </div><details class="catalog-filters" ${filter.band || filter.character || filter.type || filter.rarity ? 'open' : ''}><summary>詳細フィルタ</summary><div class="catalog-filter-grid">      ${toggles('band', 'バンド', master.bands.map(b => [b.id, b.name]))}
-      ${toggles('character', 'キャラクター', master.characters.map(c => [c.id, c.name]))}
+      ${toggles('character', 'キャラクター', characterDisplayOrder(master.characters).map(c => [c.id, c.name]))}
       ${toggles('type', '色', [...new Set(rows.map(r => r.cardType))].sort((a,b) => a-b).map(t => [t, cardTypeName(t)]))}
       ${toggles('rarity', 'レアリティ', [...new Set(rows.map(r => r.rarity))].sort((a,b) => b-a).map(r => [r, rarity(r)]))}
       </div></details>
@@ -261,7 +262,7 @@ export function mountApp(root: HTMLElement): void {
         <button type="button" class="card-identity" data-ownership-toggle aria-pressed="${checked('owned', Boolean(owned))}" aria-label="${escape(row.name)}［${escape(row.title)}］の所持を切り替え">
           <span class="card-meta"><span class="type-pill">${rarity(row.rarity)} · ${cardTypeName(row.cardType)} · ID ${row.id}</span><span class="ownership-badge" data-owned-label>${checked('owned', Boolean(owned)) ? '所持' : '未所持'}</span></span>
           <span class="card-name">${escape(row.name)}</span><span class="card-title">［${escape(row.title)}］</span>
-          ${!members ? `<span class="muted card-characters">${characters.map(id => escape(master.characters.find(c => c.id === id)!.name)).join(' / ')}</span>` : ''}
+          ${!members ? `<span class="muted card-characters">${characterRowsForDisplay(characters.map(id => master.characters.find(c => c.id === id)!), master.characters, c => c.id).map(c => escape(c.name)).join(' / ')}</span>` : ''}
         </button>
         <form data-card-form="${row.id}"><input type="hidden" name="${members ? 'cardId' : 'supportCardId'}" value="${row.id}">
         <input type="checkbox" name="owned" hidden ${checked('owned', Boolean(owned)) ? 'checked' : ''}>
@@ -286,15 +287,11 @@ export function mountApp(root: HTMLElement): void {
   }
   let progressBand: number | undefined;
   const progressDraft = new Map<string, string>();
-  // Presentation only: leave other group sizes and the catalog arrays untouched.
-  function progressOrder<T>(rows: T[]): T[] {
-    return rows.length === 5 ? [rows[1]!, rows[3]!, rows[0]!, rows[4]!, rows[2]!] : rows;
-  }
   function bondTheoryPage(bandId: number | undefined): string {
     const result = !allowWrites || !allowCatalogWrites || bandId === undefined
       ? { status: 'pending' as const, reason: '有効なマスタと所持データを登録してください。' }
       : estimateBondRankTheory(master, collection, bandId);
-    const characters = progressOrder(master.characters.filter(c => c.bandId === bandId));
+    const characters = progressCharacters(master.characters.filter(c => c.bandId === bandId));
     return `<section class="panel bond-theory" aria-labelledby="bond-theory-heading" data-bond-theory>
       <h2 id="bond-theory-heading">絆ランク込み理論値 · ${escape(master.bands.find(b => b.id === bandId)?.name ?? 'バンド未登録')}</h2>
       <p class="muted">絆ランクの仕様：同一バンド内の2人の組み合わせごとに絆ランクが存在します（5人で10ペア）。各ペアは1から開始し、上限は2人のキャラランクの小さい方です。各キャラの絆合計は、そのキャラを含む全ペアの絆ランクの合計です。</p>
@@ -309,7 +306,7 @@ export function mountApp(root: HTMLElement): void {
   function progressPage(): string {
     const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
     if (band) progressBand = band.id;
-    const characters = progressOrder(master.characters.filter(c => c.bandId === band?.id));
+    const characters = progressCharacters(master.characters.filter(c => c.bandId === band?.id));
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     const ranks=estimateCharacterRanks(master,collection,rankRules.current()),progressLabels=manualProgressFields();
     const bonus=resolveTotalRankBonus(ranks,collection,rankRules.current());
@@ -331,7 +328,7 @@ export function mountApp(root: HTMLElement): void {
       }).join('')}</div></section>
       ${bondTheoryPage(band?.id)}
       <section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテム</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
-      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${progressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>
+      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${legacyProgressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>
       <div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit">ランク・アイテムを保存</button></div></form>`;
   }
   function exchangePage(): string {

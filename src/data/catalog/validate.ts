@@ -1,6 +1,6 @@
 import { validateMaterialDefinition, materialIssues } from '../../domain/materials/validate';
 import type { Masterdata } from './model';
-import { tableFields, tableKeys } from './fields';
+import { tableFields, tableKeys, optionalTableFields } from './fields';
 import type { CatalogTable, FieldKind } from './fields';
 
 export const CATALOG_LIMIT = 10 * 1024 * 1024;
@@ -47,7 +47,7 @@ export function validateCatalog(value: unknown): Masterdata {
     result[table] = values.map((v, i) => {
       const p = path + '[' + i + ']';
       const row = table === 'characterRankLevels' ? { value: integer(v, p, 1) }
-        : Object.fromEntries(Object.entries(strictObject(v, p, Object.keys(fields))).map(([k,n]) => [k, read(n, p + '.' + k, fields[k as keyof typeof fields] as FieldKind)]));
+        : Object.fromEntries(Object.entries(strictObject(v, p, Object.keys(fields), Object.keys(fields).filter(k => !optionalTableFields[table as CatalogTable]?.includes(k)))).map(([k,n]) => [k, read(n, p + '.' + k, fields[k as keyof typeof fields] as FieldKind)]));
       const key = tableKeys[table as CatalogTable].map(k => row[k]).join(':');
       if (ids.has(key)) fail(p, '複合キーが重複しています: ' + key);
       ids.add(key);
@@ -68,6 +68,14 @@ export function catalogIssues(m: Masterdata): string[] {
   const need = (ok: boolean, p: string, text: string): void => { if (!ok && issues.length < 100) issues.push(p + ': ' + text); };
   const exists = (rows: readonly {id:number}[], id: number) => rows.some(r => r.id === id);
   for (const c of m.characters) need(exists(m.bands,c.bandId), 'characters/' + c.id, '参照バンドがありません');
+  for (const bandId of new Set(m.characters.map(c => c.bandId))) {
+    const characters = m.characters.filter(c => c.bandId === bandId);
+    const orders = characters.filter(c => c.displayOrder !== undefined).map(c => c.displayOrder!);
+    if (!orders.length) continue;
+    const path = 'characters/band/' + bandId + '/displayOrder';
+    need(orders.length === characters.length, path, 'バンド内の全キャラクターに表示順を指定してください');
+    need(new Set(orders).size === orders.length, path, '表示順が重複しています');
+  }
   if (m.members.length) need(m.characterRankLevels.length > 0, 'characterRankLevels', '合法ランクがありません');
   for (const c of m.members) {
     const p = 'members/' + c.id;

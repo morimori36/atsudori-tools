@@ -2,7 +2,8 @@ import { materialDefinitionSchema } from '../src/domain/materials/schema.ts';
 import { characterRankRulesSchema, rankDefinitionSchema } from '../src/domain/character-rank/schema.ts';
 import { storedProgressFields } from '../src/domain/character-rank/definitions.ts';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { tableFields } from '../src/data/catalog/fields.ts';
+import { tableFields, optionalTableFields } from '../src/data/catalog/fields.ts';
+import type { CatalogTable } from '../src/data/catalog/fields.ts';
 import { eventPlannerSchema } from '../src/domain/event-planner/schema.ts';
 import { conversionProfileSchema } from '../src/domain/conversion/schema.ts';
 const int = {type:'integer',minimum:1,maximum:Number.MAX_SAFE_INTEGER};
@@ -19,7 +20,7 @@ const catalog = {
   title:'atsudori-tools catalog v1',
   description:'Structural schema only. See docs/import-format.md for references, completeness, units and arithmetic constraints.',
   ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,rankDefinition:rankDefinitionSchema,materialDefinition:materialDefinitionSchema,
-    ...Object.fromEntries(Object.entries(tableFields).map(([table,fields]) => [table,array(table==='characterRankLevels'?int:object(Object.fromEntries(Object.entries(fields).map(([key,kind])=>[key,kinds[kind]]))))]))},['format','schemaVersion','catalogId','revision',...Object.keys(tableFields)])
+    ...Object.fromEntries(Object.entries(tableFields).map(([table,fields]) => [table,array(table==='characterRankLevels'?int:object(Object.fromEntries(Object.entries(fields).map(([key,kind])=>[key,kinds[kind]])),Object.keys(fields).filter(key=>!optionalTableFields[table as CatalogTable]?.includes(key))))]))},['format','schemaVersion','catalogId','revision',...Object.keys(tableFields)])
 };
 const member=object({cardId:int,level:int,trainingStage:int,awakeningStage:int,liveSkillLevel:int,gekisouSkillLevel:int,displayedStatsOverride:stats},['cardId','level','trainingStage','awakeningStage','liveSkillLevel','gekisouSkillLevel']);
 const record=(value:unknown)=>({type:'object',propertyNames:{pattern:'^[1-9][0-9]*$'},additionalProperties:value});

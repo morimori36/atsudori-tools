@@ -1,7 +1,7 @@
 export type FieldKind = 'integer' | 'zeroInteger' | 'text' | 'ids' | 'pair' | 'stats';
 export const tableFields = {
   bands: { id: 'integer', name: 'text' },
-  characters: { id: 'integer', bandId: 'integer', name: 'text' },
+  characters: { id: 'integer', bandId: 'integer', name: 'text', displayOrder: 'zeroInteger' },
   members: { id: 'integer', characterId: 'integer', cardType: 'integer', rarity: 'integer', name: 'text', title: 'text', maxStats: 'stats', levelGroup: 'integer', trainingGroup: 'integer', awakeningGroup: 'integer', liveSkillLevels: 'ids', gekisouSkillLevels: 'ids' },
   snaps: { id: 'integer', characterIds: 'ids', cardType: 'integer', rarity: 'integer', name: 'text', title: 'text', maxPercentBp: 'stats', levelGroup: 'integer', rankGroup: 'integer' },
   characterRankLevels: { value: 'integer' },
@@ -30,3 +30,6 @@ export const tableKeys: Record<CatalogTable, string[]> = {
   memberLevelLimits: ['rarity','trainingStage'], snapLevels: ['group','level'], snapRanks: ['group','rank'],
   bandItems: ['id'], bandItemLevels: ['itemId','level'], bandItemEffects: ['itemId','level'], skillTargets: ['id'],
 };
+
+/** Optional row fields; shared by the parser and generated structural schema. */
+export const optionalTableFields: Partial<Record<CatalogTable, readonly string[]>> = { characters: ['displayOrder'] };
