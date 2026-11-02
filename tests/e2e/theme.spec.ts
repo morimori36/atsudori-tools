@@ -6,12 +6,22 @@ test('theme selection persists and system follows the device', async ({ page }) 
   const theme = page.getByLabel('表示テーマ');
   await expect(theme).toHaveValue('system');
   await expect(page.locator('html')).toHaveCSS('color-scheme', 'light dark');
+  const systemDark = await page.locator('html').evaluate(el => getComputedStyle(el).color);
   await theme.selectOption('light');
   await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
+  await expect.poll(() => page.locator('html').evaluate(el => getComputedStyle(el).color)).not.toBe(systemDark);
+  const lightColor = await page.locator('html').evaluate(el => getComputedStyle(el).color);
   await page.reload();
   await expect(theme).toHaveValue('light');
   await theme.selectOption('dark');
   await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
+  await expect.poll(() => page.locator('html').evaluate(el => getComputedStyle(el).color)).toBe(systemDark);
+  // A forced dark theme must stay dark even when the system preference is light.
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveCSS('color', systemDark);
+  await theme.selectOption('system');
+  await expect.poll(() => page.locator('html').evaluate(el => getComputedStyle(el).color)).toBe(lightColor);
+  await page.emulateMedia({ colorScheme: 'dark' });
   await theme.selectOption('system');
   const darkBackground = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
   const darkColor = await page.locator('html').evaluate(el => getComputedStyle(el).color);

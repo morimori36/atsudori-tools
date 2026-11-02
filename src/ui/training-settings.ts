@@ -3,6 +3,10 @@ import type { TrainingSettings } from '../app/hypothetical-training';
 import type { TrainingSettingsStore } from '../storage/training-settings';
 const fields=[['trainingStage','特訓段階'],['awakeningStage','覚醒段階'],['liveSkillLevel','ライブスキルLv'],['gekisouSkillLevel','撃奏スキルLv']] as const;
 const escape=(v:string)=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
+export function trainingSettingsSummary(store:TrainingSettingsStore):string {
+  const settings=store.current();
+  return fields.map(([key,label])=>`${label} ${settings[key]??'引き上げなし'}`).join(' / ');
+}
 export function trainingSettingsMarkup(store:TrainingSettingsStore):string {
   const settings=store.current();
   return `<fieldset class="training-settings"><legend>共通の仮育成設定</legend><div class="training-grid">${fields.map(([key,label])=>`<label>${label}<select data-training="${key}" ${store.damaged()?'disabled':''}>${[null,2,3,4,5].map(n=>`<option value="${n??''}" ${settings[key]===n?'selected':''}>${n??'引き上げない'}</option>`).join('')}</select></label>`).join('')}</div><p class="muted">指定値は引き上げ先の目標であり、現在値を下げません。カードの合法な段階・Lvまで適用します。特訓が上がる場合だけメンバーLvを上限に合わせます。</p><p class="muted">キャラクターランク・総合ランクボーナス・Snap・バンドアイテムは実所持の状態を使います。所持データは変更しません。</p>${store.message()?`<p role="status">${escape(store.message())}</p>`:''}${store.damaged()?'<button type="button" data-training-reset>保存設定を初期設定で置き換える</button>':''}</fieldset>`;

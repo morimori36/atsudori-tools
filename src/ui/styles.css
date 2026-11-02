@@ -186,7 +186,7 @@ footer p { margin-bottom: 4px; }
 .filter-group { margin: 0; border: 0; padding: 0; min-width: 0; }
 .rating-mode { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
 .rating-mode .filter-options { flex-wrap: nowrap; gap: 0; }
-.rating-mode .filter-options span { min-width: 96px; text-align: center; border-radius: 0; }
+.rating-mode .filter-options span { min-height: 44px; padding-block: 11px; min-width: 96px; text-align: center; border-radius: 0; }
 .rating-mode .filter-options label:first-child span { border-radius: 5px 0 0 5px; }
 .rating-mode .filter-options label:last-child span { border-radius: 0 5px 5px 0; }
 .filter-group legend { font-size: 11px; color: var(--muted); margin-bottom: 5px; padding: 0; }
@@ -201,38 +201,50 @@ footer p { margin-bottom: 4px; }
 .catalog-help { margin: 0 0 0 auto; font-size: 11px; }
 .catalog-grid { display: flex; flex-direction: column; gap: 6px; }
 .collection-card { display: grid; grid-template-columns: minmax(200px, .9fr) minmax(0, 2fr); gap: 20px; align-items: center; margin: 0; padding: 10px 14px; border-radius: 6px; box-shadow: none; cursor: pointer; }
-.collection-card:hover { border-color: light-dark(#b5a8dc, #342a52); background: light-dark(#fcfbff, #231c37); }
-.collection-card.is-owned { border-color: light-dark(#c7bddf, #32274c); box-shadow: inset 3px 0 var(--accent); }
+.collection-card:hover { background: light-dark(#fafafa, #303030); }
 .card-identity { background: transparent; padding: 0; text-align: left; color: inherit; min-width: 0; width: 100%; border-radius: 3px; }
-.card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
-.collection-card .type-pill { background: none; padding: 0; margin: 0; font-size: 10px; }
-.ownership-badge { font-size: 10px; color: var(--muted); }
-.is-owned .ownership-badge { color: var(--accent-dark); font-weight: 700; }
-.card-name { display: block; font-size: 14px; font-weight: 700; line-height: 1.5; }
-.card-title { display: block; margin: 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
-.card-characters { display: block; font-size: 10px; margin: 3px 0 0; line-height: 1.5; }
+.card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-bottom: 6px; }
+.card-type-label, .rarity-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1.5; font-weight: 600; border-radius: 4px; padding: 2px 6px; }
+.card-type-label { background: light-dark(#f3f3f6, #36363c); }
+.card-type-label::before { content: ''; width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: var(--card-color); }
+.rarity-badge { color: light-dark(#555563, #dddded); background: light-dark(#eeeef2, #3a3a43); }
+.rarity-badge[data-rarity="3"] { color: light-dark(#205780, #badbff); background: light-dark(#e8f1fa, #233d52); }
+.rarity-badge[data-rarity="4"] { color: light-dark(#76530c, #f5d78f); background: light-dark(#fcf0d1, #493a1e); }
+.rarity-badge[data-rarity="10"] { color: light-dark(#86384c, #ffc5d4); background: light-dark(#faeaf0, #4c2938); }
+.rarity-badge[data-rarity="20"] { color: light-dark(#27685a, #aee9d5); background: light-dark(#e5f3ed, #24443a); }
+.card-id { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.ownership-badge { margin-inline-start: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.is-owned .ownership-badge { color: light-dark(#454553, #e1e1ea); font-weight: 700; }
+.card-name { overflow-wrap: anywhere; display: block; font-size: 14px; font-weight: 700; line-height: 1.5; }
+.card-title { display: block; margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.card-characters { overflow-wrap: anywhere; display: block; font-size: 11px; margin: 3px 0 0; line-height: 1.5; }
 .collection-card form { min-width: 0; cursor: default; }
 .card-growth { border: 0; padding: 0; margin: 0; min-width: 0; }
 .collection-card .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.collection-card[data-snap-card]:not([data-snap-card=""]) .form-grid { grid-template-columns: 160px; }
+/* Snap has one primary edit field; it does not need the member row's width. */
+.snap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; align-items: start; }
+.snap-grid .collection-card { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
+.snap-grid .collection-card .form-grid { grid-template-columns: minmax(0, 1fr); }
+.snap-grid .card-growth { border-top: 1px solid var(--line); padding-top: 10px; }
+.snap-grid form:has(.card-growth[hidden]):not(:has(.card-input-state:not(:empty))) { display: none; }
 .collection-card .field { margin: 0; gap: 3px; }
 .card-details { margin-top: 5px; }
-.card-details summary { font-size: 10px; }
+.card-details summary { font-size: 12px; min-height: 44px; padding-block: 10px; }
 .collection-card .preview-line { padding: 6px 9px; margin: 6px 0 0; font-size: 11px; }
 .card-input-state { font-size: 11px; line-height: 1.5; margin: 6px 0 0; }
 .card-input-state:empty { display: none; }
 .stage-field { border: 0; padding: 0; min-width: 0; }
-.stage-field legend { font-size: 10px; line-height: 1.5; color: light-dark(#5a5b70, #c1c1cd); margin-bottom: 3px; padding: 0; }
+.stage-field legend { font-size: 12px; line-height: 1.5; color: light-dark(#5a5b70, #c1c1cd); margin-bottom: 3px; padding: 0; }
 .stage-options { display: flex; }
 .stage-options label { position: relative; flex: 1; min-width: 0; cursor: pointer; }
 .stage-options input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; min-height: 0; padding: 0; }
-.stage-options span { display: grid; place-items: center; height: 32px; border: 1px solid light-dark(#dcdbe6, #2c2a3d); border-right: 0; font-size: 12px; color: var(--muted); background: light-dark(#fff, #292929); }
+.stage-options span { display: grid; place-items: center; min-height: 44px; border: 1px solid light-dark(#dcdbe6, #2c2a3d); border-right: 0; font-size: 12px; color: var(--muted); background: light-dark(#fff, #292929); }
 .stage-options label:first-child span { border-radius: 5px 0 0 5px; }
 .stage-options label:last-child span { border-right: 1px solid light-dark(#dcdbe6, #2c2a3d); border-radius: 0 5px 5px 0; }
-.stage-options input:checked + span { background: var(--accent); color: #fff; font-weight: 700; border-color: var(--accent); }
+.stage-options input:checked + span { background: light-dark(#6550bd, #b8a5ff); color: light-dark(#fff, #20153e); font-weight: 700; border-color: var(--accent); }
 .stage-options input:focus-visible + span { outline: 2px solid var(--accent-dark); outline-offset: 2px; position: relative; z-index: 1; }
 .stage-options input:disabled + span { opacity: .5; }
-.derived-level { margin: 0 0 7px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.derived-level { margin: 0 0 7px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 
 @media (max-width: 1150px) {
   .collection-card { grid-template-columns: minmax(170px, .8fr) minmax(0, 1.5fr); gap: 16px; }
@@ -242,11 +254,12 @@ footer p { margin-bottom: 4px; }
   .catalog-tools { padding: 12px; gap: 8px 12px; }
   .catalog-toolbar { grid-template-columns: minmax(0, 1fr) 130px; gap: 10px; }
   .catalog-search { grid-column: 1 / -1; }
-  .filter-options span { min-height: 36px; padding: 7px 8px; }
+  .filter-options span { min-height: 44px; padding: 11px 8px; }
   .catalog-help { flex-basis: 100%; }
   .collection-card { grid-template-columns: 1fr; padding: 10px 12px; gap: 8px; }
   .collection-card form:has(.card-growth[hidden]) { display: none; }
-  .stage-options span { height: 36px; }
+  .catalog-tools input[type=search], .catalog-tools select { min-height: 44px; font-size: 16px; }
+  .snap-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .band-result > .panel-heading { margin-bottom: 14px; }
 .color-result { border: 1px solid var(--line); border-inline-start: 3px solid var(--card-color); border-radius: 8px; margin-top: 10px; overflow: hidden; }
@@ -370,13 +383,6 @@ footer { overflow-wrap: anywhere; }
 
 /* Compact, independently scrollable forms on both desktop and touch screens. */
 .progress-section { min-width: 0; margin-top: 24px; }
-.bond-theory { margin-top: 24px; min-width: 0; }
-.bond-theory h2 { font-size: 18px; }
-.bond-theory p { font-size: 12px; overflow-wrap: anywhere; }
-.bond-theory table { width: 100%; table-layout: fixed; font-size: 12px; }
-.bond-theory th, .bond-theory td { padding: 8px 3px; overflow-wrap: anywhere; }
-.bond-theory td { text-align: center; font-variant-numeric: tabular-nums; }
-.bond-theory small { display: block; color: var(--muted); font-size: 10px; font-weight: normal; }
 .progress-section > h2 { font-size: 18px; margin-bottom: 12px; }
 .progress-targets { padding-bottom: 6px; }
 .progress-scroll-hint { font-size: 12px; margin: 8px 0; }
@@ -428,3 +434,17 @@ footer { overflow-wrap: anywhere; }
 .progress-cards .band-items.panel { flex: 0 0 auto; width: max-content; min-width: 100%; }
 .progress-cards .band-items > .rank-list { flex-direction: row; }
 .progress-cards .band-items .inline-field { flex: 1 0 168px; width: 168px; }
+
+/* Optional settings retain a readable summary when the controls are closed. */
+.training-disclosure { border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; margin-bottom: 14px; background: light-dark(#fff, #292929); }
+.training-disclosure > summary { padding-block: 10px; min-height: 44px; font-weight: 600; color: inherit; }
+.training-disclosure > summary span { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 4px; overflow-wrap: anywhere; }
+.training-disclosure .training-settings { margin-top: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
+.training-disclosure p { font-size: 12px; margin-bottom: 6px; }
+.rank-help { margin-bottom: 12px; }
+.rank-help > summary { min-height: 44px; padding-block: 10px; color: var(--accent-dark); }
+.rank-help p { font-size: 12px; margin-bottom: 8px; max-width: 75ch; }
+.bond-rank { font-size: 12px; line-height: 1.7; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.bond-rank strong { color: inherit; font-weight: 600; }
+.bond-rank small { display: block; font-size: 11px; }
+.progress-targets button[aria-pressed="true"] { color: light-dark(white, #20153e); }

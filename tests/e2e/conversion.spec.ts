@@ -66,6 +66,8 @@ test('catalog drift and missing item facts block downloads',async({page})=>{
 
 test('shared training controls retain focus and share values with rating across navigation',async({page})=>{
   await page.locator('nav [data-tab=rating]').click();
+  await page.locator('[name=rating-mode][value=potential]').check();
+  await page.locator('[data-training-disclosure] > summary').click();
   await page.locator('[data-training=awakeningStage]').focus();
   await page.locator('[data-training=awakeningStage]').selectOption('2');
   await expect(page.locator('[data-training=awakeningStage]')).toBeFocused();
