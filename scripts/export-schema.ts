@@ -20,6 +20,7 @@ const catalog = {
   title:'atsudori-tools catalog v1',
   description:'Structural schema only. See docs/import-format.md for references, completeness, units and arithmetic constraints.',
   ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,rankDefinition:rankDefinitionSchema,materialDefinition:materialDefinitionSchema,
+    skillCategories:array(object({id:int,kind:{enum:['live','gekisou','support','gekisouSupport']},name:text})),
     songClearCounts:{type:'object',maxProperties:20000,propertyNames:{pattern:'^[1-9][0-9]*$'},additionalProperties:zero},
     stamps:array(object({id:int,name:text,characterIds:{type:'array',maxItems:10000,uniqueItems:true,items:int}})),
     ...Object.fromEntries(Object.entries(tableFields).map(([table,fields]) => [table,array(table==='characterRankLevels'?int:object(Object.fromEntries(Object.entries(fields).map(([key,kind])=>[key,kinds[kind]])),Object.keys(fields).filter(key=>!optionalTableFields[table as CatalogTable]?.includes(key))))]))},['format','schemaVersion','catalogId','revision',...Object.keys(tableFields)])

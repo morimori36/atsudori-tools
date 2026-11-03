@@ -483,11 +483,15 @@ footer { overflow-wrap: anywhere; }
 .training-dialog select { width: 100%; }
 .training-dialog-actions { display: flex; justify-content: end; margin-top: 1rem; }
 
-.bond-heading, .growth-page .bond-summary { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr)); gap: 8px; align-items: center; }
-.bond-heading { font-size: 12px; color: var(--muted); margin-top: 16px; }
-.bond-summary span:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; }
-.bond-summary span:first-child::before { content: '▸ '; }
-details[open] > .bond-summary span:first-child::before { content: '▾ '; }
+ .bond-cards { display: grid; grid-template-columns: repeat(5, minmax(168px, 1fr)); gap: 12px; overflow-x: auto; align-items: start; padding-bottom: 14px; }
+.bond-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
+.growth-page .bond-card > summary { padding: 0; }
+.bond-card h4 { display: inline; font-size: 14px; }
+.bond-card summary > span { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; }
+.bond-pairs { width: 100%; font-size: 12px; margin-top: 12px; }
+.bond-pairs th { text-align: left; font-weight: normal; }
+.bond-pairs td, .bond-pairs th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
 .material-consumers { padding-left: 20px; }
 .material-consumers > li { padding: 8px 0; }
 

@@ -12,10 +12,14 @@ export interface MemberMaster {
   levelGroup: number;
   trainingGroup: number;
   awakeningGroup: number;
+  liveSkillCategoryIds?: number[];
+  gekisouSkillCategoryIds?: number[];
   liveSkillLevels: number[];
   gekisouSkillLevels: number[];
 }
 export interface SnapMaster {
+  supportSkillCategoryIds?: number[];
+  gekisouSupportSkillCategoryIds?: number[];
   id: number;
   characterIds: number[];
   cardType: number;
@@ -52,7 +56,10 @@ export interface SkillTarget {
 }
 export interface CharacterMaster { id: number; bandId: number; name: string; displayOrder?: number }
 export interface StampMaster { id: number; name: string; characterIds: number[] }
+export type SkillKind = 'live' | 'gekisou' | 'support' | 'gekisouSupport';
+export interface SkillCategory { id: number; kind: SkillKind; name: string }
 export interface Masterdata {
+  skillCategories?: SkillCategory[];
   /** Final per-character counts supplied by the catalog producer. */
   songClearCounts?: Record<string, number>;
   stamps?: StampMaster[];

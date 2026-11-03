@@ -34,7 +34,7 @@ const identity = (v: unknown, path: string): string => {
 /** Structure validation permits an explicit draft. Missing relationships are never filled in. */
 export function validateCatalog(value: unknown): Masterdata {
   const keys = ['format','schemaVersion','catalogId','revision', ...Object.keys(tableFields)];
-  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','songClearCounts','stamps'],keys);
+  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','songClearCounts','stamps','skillCategories'],keys);
   if (root.format !== 'atsudori-tools/catalog') fail('$.format', 'catalog形式ではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の形式です。明示的な変換が必要です');
   identity(root.catalogId, '$.catalogId'); identity(root.revision, '$.revision');
@@ -52,6 +52,19 @@ export function validateCatalog(value: unknown): Masterdata {
       if (ids.has(key)) fail(p, '複合キーが重複しています: ' + key);
       ids.add(key);
       return table === 'characterRankLevels' ? row.value : row;
+    });
+  }
+  if (root.skillCategories !== undefined) {
+    if (!Array.isArray(root.skillCategories) || root.skillCategories.length > 20000 || (total += root.skillCategories.length) > 50000) fail('$.skillCategories', 'カテゴリ配列が必要です（表20000行、全体50000行以内）');
+    const ids = new Set<number>();
+    result.skillCategories = root.skillCategories.map((value, i) => {
+      const path = '$.skillCategories[' + i + ']';
+      const row = strictObject(value, path, ['id','kind','name']);
+      const id = integer(row.id, path + '.id', 1);
+      if (ids.has(id)) fail(path, 'カテゴリIDが重複しています');
+      ids.add(id);
+      if (!['live','gekisou','support','gekisouSupport'].includes(String(row.kind))) fail(path, '未対応のスキル系統です');
+      return {id, kind: row.kind, name: read(row.name, path + '.name', 'text')};
     });
   }
   if (root.songClearCounts !== undefined) {
@@ -91,6 +104,13 @@ export function catalogIssues(m: Masterdata): string[] {
   const issues: string[] = materialIssues(m);
   const need = (ok: boolean, p: string, text: string): void => { if (!ok && issues.length < 100) issues.push(p + ': ' + text); };
   const exists = (rows: readonly {id:number}[], id: number) => rows.some(r => r.id === id);
+  for (const [rows, fields] of [
+    [m.members, [['liveSkillCategoryIds','live'],['gekisouSkillCategoryIds','gekisou']]],
+    [m.snaps, [['supportSkillCategoryIds','support'],['gekisouSupportSkillCategoryIds','gekisouSupport']]],
+  ] as const) for (const row of rows) for (const [field, kind] of fields) {
+    const ids = (row as unknown as Record<string, number[] | undefined>)[field];
+    for (const id of ids ?? []) need(Boolean(m.skillCategories?.some(c => c.id === id && c.kind === kind)), field + '/' + row.id, '同じ系統の参照スキルカテゴリがありません');
+  }
   for (const id of Object.keys(m.songClearCounts ?? {})) need(exists(m.characters, Number(id)), 'songClearCounts/' + id, '参照キャラクターがありません');
   for (const stamp of m.stamps ?? []) for (const id of stamp.characterIds) need(exists(m.characters, id), 'stamps/' + stamp.id, '参照キャラクターがありません');
   for (const c of m.characters) need(exists(m.bands,c.bandId), 'characters/' + c.id, '参照バンドがありません');
