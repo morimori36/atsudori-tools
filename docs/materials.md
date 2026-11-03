@@ -4,7 +4,7 @@
 
 ## 目標状態と育成成果
 
-`src/app/maximum-training.ts`の`maximumTrainingTarget`は検証済みcollectionから独立した計算用コピーを作ります。
+`src/app/maximum-training.ts`の`maximumTrainingTarget`は、[共通育成条件API](training-simulation.md)の凸なし最大プリセットを使って検証済みcollectionから独立した計算用コピーを作ります。
 
 - 所持カード・Memberの覚醒段階・Snapの上限解放段階は維持します。
 - Memberの特訓・ライブ／撃奏スキルは対応group／スキル配列の合法な最大値、Lvは最大特訓段階のrarity別上限へ設定します。特訓が既に最大でもLvを上限へ設定します。

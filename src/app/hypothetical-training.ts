@@ -1,3 +1,5 @@
+import { applyTrainingConditions, KEEP_TRAINING } from './training-conditions';
+import type { TrainingConditions } from './training-conditions';
 import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
 
@@ -16,23 +18,12 @@ export function validateTrainingSettings(value: unknown): TrainingSettings {
   if (Object.keys(record).length !== keys.length || keys.some(k => !Object.hasOwn(record,k) || ![null,2,3,4,5].includes(record[k] as TrainingTarget))) throw new Error('仮育成設定が不正です');
   return Object.fromEntries(keys.map(k=>[k,record[k]])) as unknown as TrainingSettings;
 }
-const raise = (current:number, target:TrainingTarget, legal:number[]) => target === null ? current : Math.max(current,...legal.filter(n=>n<=target));
-/** Temporary projection shared by rating and export. Never mutates ownership or catalog. */
-export function applyHypotheticalTraining(master:Masterdata, collection:Collection, supplied:TrainingSettings): Collection {
-  const settings=validateTrainingSettings(supplied);
-  return {...collection,members:collection.members.map(owned=>{
-    const card=master.members.find(c=>c.id===owned.cardId);
-    if(!card) throw new Error(`unknown member ${owned.cardId}`);
-    const trainingStage=raise(owned.trainingStage,settings.trainingStage,master.memberTraining.filter(t=>t.group===card.trainingGroup).map(t=>t.stage));
-    let level=owned.level;
-    if(trainingStage>owned.trainingStage) {
-      const limit=master.memberLevelLimits.find(l=>l.rarity===card.rarity && l.trainingStage===trainingStage);
-      if(!limit || !master.memberLevels.some(l=>l.group===card.levelGroup && l.level===limit.limitLevel)) throw new Error(`missing level limit for member ${owned.cardId}`);
-      level=limit.limitLevel;
-    }
-    return {...owned,trainingStage,level,
-      awakeningStage:raise(owned.awakeningStage,settings.awakeningStage,master.memberAwakening.filter(a=>a.group===card.awakeningGroup).map(a=>a.stage)),
-      liveSkillLevel:raise(owned.liveSkillLevel,settings.liveSkillLevel,card.liveSkillLevels),
-      gekisouSkillLevel:raise(owned.gekisouSkillLevel,settings.gekisouSkillLevel,card.gekisouSkillLevels)};
-  })};
+/** Explicit v1 adapter: absent axes stay fixed; Lv changes only when training rises. */
+export function legacyTrainingConditions(supplied: TrainingSettings): TrainingConditions {
+  const settings = validateTrainingSettings(supplied);
+  return {member:{...settings,level:'maxIfTrainingRaised'},snap:{...KEEP_TRAINING.snap}};
+}
+/** Rating and JSON export retain their current-rank semantics at their callers. */
+export function applyHypotheticalTraining(master: Masterdata, collection: Collection, supplied: TrainingSettings): Collection {
+  return applyTrainingConditions(master, collection, legacyTrainingConditions(supplied));
 }
