@@ -42,6 +42,23 @@ for (const width of [1280,390,320]) for (const theme of ['light','dark'] as cons
     await first.locator('[data-ownership-toggle]').tap();
     await expect(first.locator('[data-owned-label]')).toHaveText('✓ 所持');
     expect(await first.evaluate(el=>getComputedStyle(el).borderInlineStartColor)).toBe(accent);
+    for (const [index, rarity] of [2,3,4].entries()) {
+      const card=cards.nth(index+1);
+      if(await card.locator('[data-ownership-toggle]').getAttribute('aria-pressed')==='false') await card.locator('[data-ownership-toggle]').click();
+      const badge=card.locator('.rarity-badge');
+      if(rarity===4) {
+        expect(await badge.evaluate(el=>getComputedStyle(el).backgroundImage)).toContain('linear-gradient');
+        expect(await card.evaluate(el=>getComputedStyle(el,'::before').backgroundImage)).toContain('linear-gradient');
+        await card.locator('[data-ownership-toggle]').click();
+        expect(await card.evaluate(el=>getComputedStyle(el,'::before').content)).toBe('none');
+        await expect(badge).toHaveCSS('background-image','none');
+        await card.locator('[data-ownership-toggle]').click();
+      } else {
+        await expect(card).toHaveCSS('border-inline-start-color',rarity===2 ? (theme==='dark'?'rgb(127, 198, 250)':'rgb(52, 138, 199)') : (theme==='dark'?'rgb(233, 195, 100)':'rgb(188, 138, 32)'));
+        await expect(badge).toHaveCSS('background-color',rarity===2 ? (theme==='dark'?'rgb(35, 61, 82)':'rgb(232, 241, 250)') : (theme==='dark'?'rgb(73, 58, 30)':'rgb(252, 240, 209)'));
+      }
+      expect(await card.locator('.card-type-label').evaluate(el=>getComputedStyle(el,'::before').backgroundColor)).toBe(await card.evaluate(el=>{const probe=document.createElement('span');probe.style.color='var(--card-color)';el.append(probe);const color=getComputedStyle(probe).color;probe.remove();return color;}));
+    }
     const stage=first.locator('.stage-options span').first();
     expect((await stage.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

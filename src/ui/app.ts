@@ -262,7 +262,7 @@ export function mountApp(root: HTMLElement): void {
           const id = `${kind}-${row.id}-${key}-${level}`;
           return `<label for="${id}"><input type="radio" id="${id}" name="${key}" value="${level}" required ${String(value(key, saved)) === String(level) ? 'checked' : ''}><span>${level}</span></label>`;
         }).join('')}</div></fieldset>`;
-      return `<article style="--card-color: ${cardTypeAccent(row.cardType)}" class="panel collection-card ${owned ? 'is-owned' : ''}" data-catalog-id="${row.id}" data-member-card="${members ? row.id : ''}" data-snap-card="${members ? '' : row.id}">
+      return `<article style="--card-color: ${cardTypeAccent(row.cardType)}" data-rarity="${row.rarity}" class="panel collection-card ${owned ? 'is-owned' : ''}" data-catalog-id="${row.id}" data-member-card="${members ? row.id : ''}" data-snap-card="${members ? '' : row.id}">
         <button type="button" class="card-identity" data-ownership-toggle aria-pressed="${checked('owned', Boolean(owned))}" aria-label="${escape(row.name)}［${escape(row.title)}］の所持を切り替え">
           <span class="card-meta"><span class="rarity-badge" data-rarity="${row.rarity}">${rarity(row.rarity)}</span><span class="card-type-label">${cardTypeName(row.cardType)}</span><span class="card-id">ID ${row.id}</span><span class="ownership-badge" data-owned-label>${checked('owned', Boolean(owned)) ? '✓ 所持' : '未所持'}</span></span>
           <span class="card-name">${escape(row.name)}</span><span class="card-title">［${escape(row.title)}］</span>
