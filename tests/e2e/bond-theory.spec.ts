@@ -43,7 +43,7 @@ for (const width of [1280, 390, 320]) test(`bond theory is independent, readable
   if (width === 390) await result.screenshot({ path: 'test-results/bond-theory-390.png' });
   // The theory uses other progress after the ordinary explicit save action.
   await page.locator('nav [data-tab=stamps]').click();
-  await page.locator('[data-stamp-owned="9100"]').check();
+  await page.locator('[data-stamp-owned="9100"]').click();
   await page.locator('nav [data-tab=progress]').click();
   await expect(result.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('2');
   await page.reload(); await page.locator('nav [data-tab=progress]').click();
