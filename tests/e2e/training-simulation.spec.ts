@@ -40,8 +40,12 @@ for(const width of [1280,390,320])test(`five shared targets, modal keyboard, rec
   expect(await dialog.evaluate(d=>d.scrollWidth<=d.clientWidth)).toBe(true);
   if(width!==320)await page.screenshot({path:`test-results/training-dialog-${width}.png`});
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(page.getByRole('button',{name:'育成条件を変更'})).toBeFocused();
-  const trained=await rating.innerText();
-  await nav(page,'materials');await expect(page.locator('[data-growth-overview]')).toContainText(`645 → ${trained}`);
+  await nav(page,'materials');
+  await expect(page.locator('[data-growth-overview]')).toHaveCount(0);
+  await expect(page.locator('[data-material-total]')).toContainText('架空の折紙');
+  await page.locator('[data-growth-band="8101"] > summary').click();
+  await page.locator('[data-growth-character="8201"] > summary').click();
+  await expect(page.locator('[data-growth-character="8201"]')).toContainText('キャラランク（現在 → 絆理論値）：1 → 4');
   dialog=await open(page);await expect(dialog.locator('[data-training=snapRank]')).toHaveValue('5');
   for(const key of Object.keys(keep))await dialog.locator(`[data-training=${key}]`).selectOption('');
   await dialog.getByRole('button',{name:'閉じる',exact:true}).click();
@@ -82,7 +86,9 @@ test('unavailable theory is pending in both pages and ordinary export remains av
   await expect(page.locator('.band-result .rating-total strong')).not.toHaveText('—');
   await page.getByRole('radio',{name:'育成後',exact:true}).check();await expect(page.locator('.band-result .rating-total strong')).toHaveText('—');
   await page.getByRole('button',{name:'計算待ちの理由'}).click();await expect(page.getByRole('tooltip').filter({hasText:'絆理論値は保留'})).toBeVisible();
-  await nav(page,'materials');await expect(page.locator('[data-growth-overview]')).toContainText('→ 保留');await page.locator('[data-growth-band] > summary').click();await page.getByText('評価値の保留理由・暫定選出規則',{exact:true}).click();await expect(page.locator('[data-growth-band]')).toContainText('絆理論値は保留');
+  await nav(page,'materials');await page.locator('[data-growth-band] > summary').click();
+  await page.locator('[data-growth-character="8201"] > summary').click();
+  await expect(page.locator('[data-growth-character="8201"]')).toContainText('絆理論値は保留');
   await nav(page,'exchange');await page.getByLabel('育成条件を適用する',{exact:true}).check();expect((await output(page)).total).toBe(7);
 });
 

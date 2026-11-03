@@ -3,7 +3,7 @@ import { maximumTrainingFixture } from '../helpers/maximum-training';
 import { CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
 import { TRAINING_STORAGE_KEY } from '../../src/storage/training-settings';
 
-for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)test(`growth overview, disclosures and preservation at ${width}px ${theme}`,async({page})=>{
+for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)test(`materials disclosures and preservation at ${width}px ${theme}`,async({page})=>{
   const {m,c}=maximumTrainingFixture();
   m.materialDefinition!.resources.push({id:'currency',name:'架空コイン',unit:'item'});
   m.materialDefinition!.schedules.find(s=>s.id==='train')!.stages[1]!.amounts.push({resourceId:'currency',quantity:23});
@@ -15,17 +15,18 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   await page.getByLabel('表示テーマ').selectOption(theme);
   const saved=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,CATALOG_STORAGE_KEY,TRAINING_STORAGE_KEY]);
   await page.getByRole('button',{name:'育成余地・素材',exact:true}).click();
-  const overview=page.locator('[data-growth-overview]'),total=page.locator('[data-material-total]');
-  await expect(overview).toContainText('育成後の変化');await expect(overview).toContainText('645 → 1,276');
-  await expect(overview).toContainText('2 → 5');
+  const total=page.locator('[data-material-total]');
+  await expect(page.locator('.training-settings')).toContainText('育成条件を変更');
+  await expect(page.locator('[data-growth-overview]')).toHaveCount(0);
+  await expect(page.locator('.growth-page')).not.toContainText(/評価値|暫定選出|総合ランクボーナス|育成後の変化|上がるキャラ/);
+  await expect(page.locator('.growth-page > section > h2')).toHaveText(['育成条件までの必要素材','バンド・キャラ別の内訳']);
   await expect(total).toContainText('架空の折紙20 個');await expect(total).toContainText('43 EXP');await expect(total).toContainText('126 EXP');
   await expect(total).toContainText('架空コイン23 個');await expect(total).not.toContainText('複製');await expect(total).toContainText('未計算項目');
   await expect(page.locator('[data-material-card]:visible')).toHaveCount(0);
   await expect(page.locator('[data-growth-band][open]')).toHaveCount(0);
   if(width===1280||width===390)await page.screenshot({path:`test-results/growth-overview-${width}-${theme}.png`,fullPage:true});
   const band=page.locator('[data-growth-band="8101"]');await band.locator(':scope > summary').press('Enter');
-  await expect(band).toContainText('バンド評価値：645 → 1,276');await expect(band).toContainText('素材（Member分）');
-  await expect(band).toContainText('暫定選出規則');
+  await expect(band).toContainText('素材（Member分）');
   const bond=band.locator(':scope > .growth-content > [data-bond-band]');await bond.locator('summary').first().click();
   await expect(bond).toContainText('上限 1');await expect(bond).toContainText('実際のペアランクは未登録');
   await bond.getByText('絆最大時の理論キャラランク',{exact:true}).click();
@@ -59,15 +60,25 @@ test('missing definitions and manual overrides stay distinct in the growth view'
   const open=async()=>{await page.getByRole('button',{name:'育成余地・素材',exact:true}).click();await page.locator('[data-growth-band="8101"] > summary').click();await page.locator('[data-growth-character="8201"] > summary').click();};
   await open();const char=page.locator('[data-growth-character="8201"]');
   await expect(char).toContainText('現在の手入力ランク：3');await expect(char).toContainText('参考・通常推定：1 → 4');
-  await page.locator('[data-growth-overview] > details > summary').click();await expect(page.locator('[data-growth-overview]')).toContainText('総合ランクボーナス：0 → 0');
   delete m.rankDefinition;delete m.materialDefinition;c.characterRanks={};delete c.totalRankBonus;
   await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();await open();
-  await expect(page.locator('[data-growth-overview]')).toContainText('保留 → 保留');await expect(page.locator('[data-growth-overview]')).not.toContainText('（0）');
-  await expect(page.locator('[data-growth-overview]')).toContainText('理論ランクが上がるキャラ：保留');
-  await expect(page.locator('[data-growth-overview]')).toContainText('推定比較保留：2人');
   await expect(page.locator('[data-material-total]')).toContainText('素材マスタ未登録・未計算');
   await expect(char).toContainText('絆理論値は保留');
   await char.locator('[data-bond-character] > summary').click();await expect(char.locator('[data-bond-output]')).toContainText('絆理論値は保留');
-  await page.locator('[data-growth-band="8101"] > .growth-content > details').first().locator('summary').click();
-  await expect(page.locator('[data-growth-band="8101"]')).toContainText('計算済み小計：0（確定合計は保留）');
+});
+
+test('shared conditions update material totals and theory ranks',async({page})=>{
+  const {m,c}=maximumTrainingFixture();
+  await page.goto('./');await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();
+  await page.getByRole('button',{name:'育成余地・素材',exact:true}).click();
+  const expand=async()=>{await page.locator('[data-growth-band="8101"] > summary').click();await page.locator('[data-growth-character="8201"] > summary').click();};
+  await expand();await expect(page.locator('[data-growth-character="8201"]')).toContainText('キャラランク（現在 → 絆理論値）：1 → 4');
+  await page.getByRole('button',{name:'育成条件を変更'}).click();
+  const dialog=page.getByRole('dialog',{name:'育成条件'});
+  for(const select of await dialog.locator('select').all())await select.selectOption('');
+  await dialog.getByRole('button',{name:'閉じる',exact:true}).click();
+  await expect(page.locator('[data-material-total]')).not.toContainText('架空の折紙');
+  await expect(page.locator('[data-material-total]')).toContainText('126 EXP');
+  await expect(page.locator('[data-growth-character="8201"]')).toBeVisible();
+  await expect(page.locator('[data-growth-character="8201"]')).toContainText('キャラランク（現在 → 絆理論値）：1 → 1');
 });
