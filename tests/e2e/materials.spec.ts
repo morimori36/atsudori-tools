@@ -79,5 +79,6 @@ test('shared conditions update material totals and theory ranks',async({page})=>
   await dialog.getByRole('button',{name:'閉じる',exact:true}).click();
   await expect(page.locator('[data-material-total]')).not.toContainText('架空の折紙');
   await expect(page.locator('[data-material-total]')).toContainText('126 EXP');
-  await expand();await expect(page.locator('[data-growth-character="8201"]')).toContainText('キャラランク（現在 → 絆理論値）：1 → 1');
+  await expect(page.locator('[data-growth-character="8201"]')).toBeVisible();
+  await expect(page.locator('[data-growth-character="8201"]')).toContainText('キャラランク（現在 → 絆理論値）：1 → 1');
 });
