@@ -202,6 +202,11 @@ footer p { margin-bottom: 4px; }
 .catalog-grid { display: flex; flex-direction: column; gap: 6px; }
 .collection-card { display: grid; grid-template-columns: minmax(200px, .9fr) minmax(0, 2fr); gap: 20px; align-items: center; margin: 0; padding: 10px 14px; border-radius: 6px; box-shadow: none; cursor: pointer; }
 .collection-card:hover { background: light-dark(#fafafa, #303030); }
+.collection-card:not(.is-owned) { color: light-dark(#707078, #a5a5ae); background: light-dark(#f0f0f2, #242426); border-color: light-dark(#dedee2, #3b3b40); }
+.collection-card:not(.is-owned):hover { background: light-dark(#e8e8ec, #303034); }
+.collection-card:not(.is-owned) .rarity-badge,
+.collection-card:not(.is-owned) .card-type-label { color: light-dark(#707078, #a5a5ae); background: light-dark(#e3e3e7, #36363b); }
+.collection-card:not(.is-owned) .card-type-label::before { background: light-dark(#96969e, #85858f); }
 .card-identity { background: transparent; padding: 0; text-align: left; color: inherit; min-width: 0; width: 100%; border-radius: 3px; }
 .card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-bottom: 6px; }
 .card-type-label, .rarity-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1.5; font-weight: 600; border-radius: 4px; padding: 2px 6px; }

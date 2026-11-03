@@ -33,13 +33,15 @@ for (const width of [1280,390,320]) for (const theme of ['light','dark'] as cons
     await expect(cards.locator('.rarity-badge')).toHaveText([kind==='members'?'SSR':'SR', 'R','SR','SSR','EX','BD','レアリティ99']);
     await expect(cards.locator('.card-type-label')).toHaveText(['色 7','紅赤','紺碧','翡翠','山吹','紫苑','色 6']);
     expect(await cards.last().evaluate(el=>getComputedStyle(el).getPropertyValue('--card-color').trim())).toBe('#6d6e81');
-    // Ownership uses words/checks while the type keeps its own accent.
+    // Unowned cards are neutral; owning them restores their accent.
     const first=cards.first(), accent=await first.evaluate(el=>getComputedStyle(el).borderInlineStartColor);
     await first.locator('[data-ownership-toggle]').press('Enter');
     await expect(first.locator('[data-owned-label]')).toHaveText('未所持');
-    expect(await first.evaluate(el=>getComputedStyle(el).borderInlineStartColor)).toBe(accent);
+    await expect(first).toHaveCSS('border-inline-start-color', theme === 'dark' ? 'rgb(59, 59, 64)' : 'rgb(222, 222, 226)');
+    await expect(first.locator('.rarity-badge')).toHaveCSS('background-color', theme === 'dark' ? 'rgb(54, 54, 59)' : 'rgb(227, 227, 231)');
     await first.locator('[data-ownership-toggle]').tap();
     await expect(first.locator('[data-owned-label]')).toHaveText('✓ 所持');
+    expect(await first.evaluate(el=>getComputedStyle(el).borderInlineStartColor)).toBe(accent);
     const stage=first.locator('.stage-options span').first();
     expect((await stage.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
