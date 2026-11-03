@@ -85,3 +85,46 @@ test('unavailable theory is pending in both pages and ordinary export remains av
   await nav(page,'materials');await expect(page.locator('[data-growth-overview]')).toContainText('→ 保留');await page.locator('[data-growth-band] > summary').click();await page.getByText('評価値の保留理由・暫定選出規則',{exact:true}).click();await expect(page.locator('[data-growth-band]')).toContainText('絆理論値は保留');
   await nav(page,'exchange');await page.getByLabel('育成条件を適用する',{exact:true}).check();expect((await output(page)).total).toBe(7);
 });
+
+for(const [width,touch] of [[1280,false],[390,true],[320,true]] as const)test.describe(`floating training explanation at ${width}px`,()=>{
+  test.use({viewport:{width,height:720},hasTouch:touch});
+  test('shows beside the title across all three pages without moving the summary or results',async({page})=>{
+    await seed(page);
+    for(const tab of ['rating','materials','exchange']) {
+      await nav(page,tab);
+      const info=page.getByRole('button',{name:'育成シミュレーションの説明',exact:true});
+      const tip=page.locator('#training-info-tooltip');
+      const layout=()=>page.locator('.training-settings').evaluate(e=>{
+        const panel=e.getBoundingClientRect(),summary=e.querySelector('.training-summary')!.getBoundingClientRect();
+        const next=e.nextElementSibling?.getBoundingClientRect();
+        return {x:panel.x,y:panel.y+scrollY,height:panel.height,summaryY:summary.y+scrollY,nextY:next?next.y+scrollY:undefined};
+      });
+      await expect(tip).toBeHidden();await info.scrollIntoViewIfNeeded();
+      const before=await layout();
+      if(touch)await info.tap();else await info.hover();
+      await expect(tip).toBeVisible();await expect(tip).toHaveCSS('position','fixed');
+      await expect(tip).toContainText('所持データは変更しません');expect(await layout()).toEqual(before);
+      const box=await tip.boundingBox(),anchor=await info.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(width);
+      expect(box!.y).toBeGreaterThanOrEqual(0);expect(box!.y+box!.height).toBeLessThanOrEqual(720);
+      expect(Math.abs(box!.y-anchor!.y)).toBeLessThan(160);
+      if(!touch) {
+        // Moving from the icon onto the bubble keeps the text available.
+        await tip.hover();await expect(tip).toBeVisible();
+        await page.mouse.move(0,0);await expect(tip).toBeHidden();
+        await info.click();await expect(tip).toBeVisible();
+      }
+      if(tab==='rating')await page.screenshot({path:`test-results/training-tooltip-${width}.png`});
+      await page.keyboard.press('Escape');await expect(tip).toBeHidden();expect(await layout()).toEqual(before);
+      if(touch)await info.tap();else await info.click();
+      await expect(tip).toBeVisible();
+      await page.locator('h1').click();await expect(tip).toBeHidden();
+      await page.mouse.move(0,0);await info.focus();await expect(tip).toBeVisible();
+      await page.keyboard.press('Escape');await expect(tip).toBeHidden();
+      await info.press('Enter');await expect(tip).toBeVisible();
+      await info.press('Space');await expect(tip).toBeHidden();
+      await page.locator('h1').click();
+      expect(await layout()).toEqual(before);
+    }
+  });
+});
