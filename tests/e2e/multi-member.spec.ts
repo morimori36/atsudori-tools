@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { fictionalCatalog } from '../helpers/rank-rules';
 import { multiMemberFixture } from '../helpers/multi-member';
 import { fictionalProfile } from '../helpers/conversion';
 import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
@@ -12,7 +13,7 @@ for (const width of [1280,390]) for (const snapCount of [1,3,4]) {
     master.members.reverse(); master.snaps.reverse(); collection.members.reverse(); collection.snaps.reverse();
     await page.setViewportSize({width,height:844}); await page.goto('./');
     await page.locator('nav [data-tab=exchange]').click();
-    await page.locator('#catalog-import').setInputFiles(file(master));
+    await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master)));
     await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
     await page.locator('#import-file').setInputFiles(file(collection));
     await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
@@ -43,7 +44,7 @@ for (const width of [1280,390]) for (const snapCount of [1,3,4]) {
     }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.locator('input[name=rating-mode][value=potential]').check();
-    await expect(page.locator('.band-result .rating-total strong')).toHaveText(snapCount===1 ? '3,386' : '3,642');
+    await expect(page.locator('.band-result .rating-total strong')).toHaveText(snapCount===1 ? '3,576' : '3,846');
     await expect(rows).toHaveCount(3);
     expect(await bytes()).toEqual(before);
     await page.reload(); await expect(page.locator('.band-result .rating-total strong')).toHaveText(snapCount===1 ? '2,391' : '2,571');

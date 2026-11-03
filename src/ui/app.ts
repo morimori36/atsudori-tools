@@ -1,7 +1,7 @@
 import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
 import { createMaterialsPage } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
-import { trainingSettingsMarkup, trainingSettingsSummary, bindTrainingSettings, preserveTrainingView } from './training-settings';
+import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
 type Theme = 'light' | 'dark' | 'system';
 const themeKey = 'atsudori-theme';
 function getTheme(): Theme {
@@ -32,7 +32,7 @@ import type { RatingInput, Stats } from '../domain/rating/calculate';
 import type { Choice, MemberCandidate, SnapCandidate } from '../domain/selection/select';
 import { cardTypeName, cardTypeAccent } from '../data/catalog/card-types';
 import { summarizeBands, summarizeCharacters, evaluateCollection } from '../app/evaluate-collection';
-import { potentialCollection } from '../app/potential-collection';
+import { simulateTrainingEvaluation } from '../app/training-simulation';
 import { emptyCollection, validateCollection, importCollection, exportCollection } from '../storage/collection';
 import type { Collection, OwnedMember } from '../storage/collection';
 import { prepareCollectionImport } from '../storage/collection-import';
@@ -46,7 +46,7 @@ type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'progress' | 'items' |
 const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
   ['materials', '育成余地・素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
-  materials: ['育成余地・素材', '追加ガチャ・凸なしで、所持カードの成長余地と必要素材を比較します。'],
+  materials: ['育成余地・素材', '共通の育成条件で、所持カードの成長余地と必要素材を比較します。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
@@ -102,7 +102,6 @@ export function mountApp(root: HTMLElement): void {
   const trainingSettings = createTrainingSettings(storage);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
-  let trainingExpanded = false;
   let noteListenerController = new AbortController();
   let notice: { error: boolean; text: string } | undefined;
   const drafts = new Map<string, Record<string, string>>();
@@ -200,9 +199,9 @@ export function mountApp(root: HTMLElement): void {
     });
   }
   function ratingPage(): string {
-    const controls = `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '仮育成']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset></div>${ratingMode === 'potential' ? `<details class="training-disclosure" data-training-disclosure ${trainingExpanded ? 'open' : ''}><summary>仮育成設定 <span>${trainingSettingsSummary(trainingSettings)}</span></summary>${trainingSettingsMarkup(trainingSettings)}</details>` : ''}`;
+    const controls = `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '育成後']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset></div>${trainingSettingsMarkup(trainingSettings)}`;
     if (!master.members.length || catalogIssues(master).length) return controls + missingCatalog();
-    const bands = summarizeBands(evaluateCollection(master, ratingMode === 'potential' ? potentialCollection(master, collection, trainingSettings.current()) : collection, collection,rankRules.current()));
+    const bands = ratingMode === 'potential' ? simulateTrainingEvaluation(master,collection,trainingSettings.current()).after.bands : summarizeBands(evaluateCollection(master,collection,collection,rankRules.current()));
     const colors = bands.flatMap(b => b.colors);
     if (!colors.length) return `${controls}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
       <p>メンバーとSnapを登録し、キャラクターランク・アイテムを設定すると、登録分の評価値を確認できます。</p>
@@ -364,7 +363,7 @@ export function mountApp(root: HTMLElement): void {
   function pageBody(): string {
     materialsView=undefined;
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return catalogIssues(master).length && ['members','snaps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : (materialsView=createMaterialsPage(master,collection)).html) : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return catalogIssues(master).length && ['members','snaps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : (materialsView=createMaterialsPage(master,collection,trainingSettings)).html) : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -397,16 +396,13 @@ export function mountApp(root: HTMLElement): void {
       }
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
-    if (active === 'rating') {
-      bindTrainingSettings(root,trainingSettings);
-      root.querySelector<HTMLDetailsElement>('[data-training-disclosure]')?.addEventListener('toggle', event => { trainingExpanded = (event.currentTarget as HTMLDetailsElement).open; });
-    }
+    if (active === 'rating' || active === 'materials') bindTrainingSettings(root,trainingSettings);
     if (active === 'materials') materialsView?.bind(root);
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
   }
-  trainingSettings.subscribe(()=>{if(active==='rating') preserveTrainingView(root,render);});
+  trainingSettings.subscribe(()=>{if(active==='rating'||active==='materials') preserveTrainingView(root,render);});
   function memberFormValue(form: HTMLFormElement): OwnedMember {
     const data = new FormData(form);
     const result: OwnedMember = { cardId: Number(data.get('cardId')), level: Number(data.get('memberLevel')),

@@ -1,11 +1,12 @@
 import {test,expect} from '@playwright/test';
+import {fictionalCatalog} from '../helpers/rank-rules';
 import {snapOptimizationFixture} from '../helpers/snap-optimization';
 const file=(value:unknown)=>({name:'fictional.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
 for(const width of [1280,390])test(`optimizes shared and dedicated Snaps and preserves owned JSON at ${width}px`,async({page})=>{
   const {master,collection}=snapOptimizationFixture();
   await page.setViewportSize({width,height:844});await page.goto('./');
   await page.locator('nav [data-tab=exchange]').click();
-  await page.locator('#catalog-import').setInputFiles(file(master));
+  await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master)));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
@@ -22,9 +23,9 @@ for(const width of [1280,390])test(`optimizes shared and dedicated Snaps and pre
   await page.locator('input[name=rating-mode][value=potential]').check();
   await expect(rows.nth(0).locator('td').nth(1)).toContainText('架空専用Snap');
   await expect(rows.nth(1).locator('td').nth(1)).toContainText('架空共有Snap');
-  await expect(rows.nth(0).locator('.slot-rating')).toHaveText('1,124');
-  await expect(rows.nth(1).locator('.slot-rating')).toHaveText('1,214');
-  await expect(page.locator('.color-total strong')).toHaveText('2,338');
+  await expect(rows.nth(0).locator('.slot-rating')).toHaveText('1,187');
+  await expect(rows.nth(1).locator('.slot-rating')).toHaveText('1,282');
+  await expect(page.locator('.color-total strong')).toHaveText('2,469');
   expect(await bytes()).toEqual(before);
   await page.reload();
   await expect(page.locator('.color-total strong')).toHaveText('1,650');
@@ -38,7 +39,7 @@ test('E chooses Snap score over member rating and keeps allocation when rating i
   master.members[1]!.maxStats={performance:303,technic:609,visual:921};
   await page.goto('./');
   await page.locator('nav [data-tab=exchange]').click();
-  await page.locator('#catalog-import').setInputFiles(file(master));
+  await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master)));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
@@ -52,7 +53,7 @@ test('E chooses Snap score over member rating and keeps allocation when rating i
     await expect(rows.locator('.slot-rating')).toHaveCount(2);
   }
   expect(await page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)))).toEqual(before);
-  delete collection.characterRanks['8202'];
+  collection.bandItems={};
   await page.locator('nav [data-tab=exchange]').click();
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
