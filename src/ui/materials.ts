@@ -4,55 +4,56 @@ import { simulateTrainingEvaluation } from '../app/training-simulation';
 import type { TrainingSettingsStore } from '../storage/training-settings';
 import { trainingSettingsMarkup } from './training-settings';
 import type { CardRequirement } from '../domain/materials/calculate';
-import type { MaterialAmount, MaterialAxis } from '../domain/materials/model';
-import { characterRowsForDisplay } from './character-order';
+import type { MaterialAxis } from '../domain/materials/model';
+import { progressCharacters } from './character-order';
 const escape=(v:unknown):string=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 const number=(v:number|null|undefined):string=>v==null?'保留':v.toLocaleString('ja-JP');
-const comparison=(from:number|null|undefined,to:number|null|undefined):string=>`<strong>${number(from)} → ${number(to)}</strong>${from!=null&&to!=null?` <small>（${to-from>0?'+':''}${number(to-from)}）</small>`:''}`;
 const labels:Record<MaterialAxis,string>={trainingStage:'特訓',awakeningStage:'覚醒',liveSkillLevel:'ライブスキル',gekisouSkillLevel:'撃奏スキル',level:'レベル',rank:'Snap上限解放'};
 type Simulation=ReturnType<typeof simulateTrainingEvaluation>;
 
 export function createMaterialsPage(master:Masterdata,collection:Collection,settings:TrainingSettingsStore) {
   const result=simulateTrainingEvaluation(master,collection,settings.current());
-  return { html:trainingSettingsMarkup(settings)+materialsPage(master,result), bind:(root:HTMLElement)=>bindMaterialsPage(root,master,result) };
+  return { html:trainingSettingsMarkup(settings)+materialsPage(master,result) };
+}
+
+/** Reverse-index existing axis results; no cost calculation occurs here. */
+export function materialConsumers(materials:Simulation['materials']) {
+  const consumers=new Map<string,{card:CardRequirement;axis:CardRequirement['axes'][number];quantity:number}[]>();
+  for(const card of materials.cards) for(const axis of card.axes) for(const amount of axis.amounts) {
+    if(!consumers.has(amount.resourceId)) consumers.set(amount.resourceId,[]);
+    consumers.get(amount.resourceId)!.push({card,axis,quantity:amount.quantity});
+  }
+  return consumers;
 }
 
 function materialsPage(master:Masterdata,result:Simulation):string {
-  const list=(amounts:MaterialAmount[],incomplete=false):string=>{
-    const group=(exp:boolean)=>amounts.filter(a=>(result.materials.resources.find(r=>r.id===a.resourceId)!.unit==='exp')===exp);
-    const rows=(values:MaterialAmount[])=>`<ul class="material-list">${values.map(a=>{
-      const r=result.materials.resources.find(r=>r.id===a.resourceId)!;
-      return `<li><span>${escape(r.name)}</span><span><strong>${number(a.quantity)}</strong> ${r.unit==='exp'?'EXP':r.unit==='card'?'枚':'個'}</span></li>`;
-    }).join('')}</ul>`;
-    return `${incomplete?'<p class="warning">未計算項目あり・計算済み分の小計</p>':''}${group(false).length?rows(group(false)):''}${group(true).length?`<p class="muted material-exp-note">EXP要求量（Lv途中EXP不明のため上限）</p>${rows(group(true))}`:''}${!amounts.length?`<p class="muted">${incomplete?'要求量は未確定です。カードの詳細で理由を確認できます。':'追加の要求量なし'}</p>`:''}`;
-  };
-  const cardView=(card:CardRequirement):string=>{
+  const consumers=materialConsumers(result.materials);
+  const cardName=(card:CardRequirement)=>{
     const row=card.kind==='member'?master.members.find(m=>m.id===card.cardId)!:master.snaps.find(s=>s.id===card.cardId)!;
-    const changed=card.axes.filter(a=>a.target!==a.current),unchanged=card.axes.filter(a=>a.target===a.current);
-    const axisView=(a:CardRequirement['axes'][number])=>`<div class="material-axis"><h4>${labels[a.axis]}：${number(a.current)} → ${number(a.target)}</h4>${a.status==='unavailable'?'<p class="warning">未計算</p>':a.status==='complete'?'<p class="muted">現在段階を維持</p>':list(a.amounts)}${a.status==='bounded'?'':a.reason?`<p>${escape(a.reason)}</p>`:''}${a.basis?`<details><summary>計算根拠</summary><p>${escape(a.basis)}</p></details>`:''}</div>`;
-    return `<details class="growth-detail" data-material-card="${card.kind}-${card.cardId}"><summary>${escape(row.name)}［${escape(row.title)}］</summary><div class="growth-content">${list(card.amounts,card.axes.some(a=>a.status==='unavailable'))}${changed.map(axisView).join('')}${unchanged.length?`<details><summary>維持・達成済みの項目（${unchanged.length}）</summary>${unchanged.map(axisView).join('')}</details>`:''}</div></details>`;
+    return `${card.kind==='member'?'Member':'Snap'} ${escape(row.name)}［${escape(row.title)}］`;
   };
-  const rankView=(character:Simulation['bands'][number]['characters'][number])=>{
-    const a=character.before,b=character.after;
-    return `<p>キャラランク（現在 → 絆理論値）：${comparison(a.effectiveRank,b.effectiveRank)}</p>${a.overrideRank!==undefined?`<p class="muted">現在の手入力ランク：${number(a.overrideRank)}。育成後は手入力ランク・絆合計の上書きを除外します。</p>`:''}<p>参考・通常推定：${comparison(a.estimatedRank,b.estimatedRank)}</p>${a.reason||b.reason?`<p class="warning">${escape(b.reason??a.reason!)}</p>`:''}${a.missingProgress.length||b.missingProgress.length?'<p class="muted">絆以外の未入力進捗は加算していません。</p>':''}`;
-  };
-  const bondLink=(bandId:number,characterId?:number)=>`<details class="growth-detail" data-bond-band="${bandId}" ${characterId===undefined?'':`data-bond-character="${characterId}"`}><summary>${characterId===undefined?'育成後のペア別絆上限':'関係する絆の理論上限'}</summary><div data-bond-output class="growth-content"></div></details>`;
-  return `<div class="growth-page">
-    <section class="panel" data-material-total><h2>育成条件までの必要素材</h2><p class="muted">各Memberと所持Snapの費用を一度ずつ合算。</p><details><summary>素材計算の注意</summary><p>素材マスタ未登録・費用定義欠落・根拠未確認は未計算です。EXPは現在Lv開始時点からの要求量の上限で、アイテム個数へ換算しません。素材の所持数・不足数は計算しません。</p><p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/materials.md" target="_blank" rel="noreferrer">計算と表示の詳細</a></p></details>${!master.materialDefinition?'<p class="warning">素材マスタ未登録・未計算です。</p>':''}${list(result.materials.totals,result.materials.incomplete)}</section>
-    ${!result.materials.cards.length?'<section class="panel"><p>所持カードがありません。メンバー・Snap画面で登録してください。</p></section>':''}
-    <section class="panel"><h2>バンド・キャラ別の内訳</h2><p class="muted">全所持カードを育成する同じシナリオの内訳です。素材小計はMember分のみ。</p>${result.bands.map(band=>`<details class="growth-detail" data-growth-band="${band.id}"><summary>${escape(band.name)}</summary><div class="growth-content"><h3>必要素材（Member分）</h3>${list(band.materials.totals,band.materials.incomplete)}${bondLink(band.id)}<h3>キャラランク・Member内訳</h3>${characterRowsForDisplay(band.characters,master.characters,c=>c.id).map(character=>`<details class="growth-detail" data-growth-character="${character.id}"><summary>${escape(character.name)} <small>ランク ${number(character.before.effectiveRank)} → ${number(character.after.effectiveRank)}</small></summary><div class="growth-content">${rankView(character)}${bondLink(band.id,character.id)}<h4>必要素材（Member分）</h4>${list(character.materials.totals,character.materials.incomplete)}${character.cards.map(cardView).join('')||'<p class="muted">所持Memberなし</p>'}</div></details>`).join('')}</div></details>`).join('')}</section>
-    <section class="panel"><details data-snap-materials><summary>Snapの必要素材・カード内訳（${result.snaps.length}枚）</summary><p class="muted">共有Snapもここで一度だけ計上。対応キャラへ費用を重複加算しません。</p>${list(result.snapMaterials.totals,result.snapMaterials.incomplete)}${result.snaps.map(cardView).join('')}</details></section></div>`;
-}
-
-/** Reuse the exact theory used for the displayed rating. */
-function bindMaterialsPage(root:HTMLElement,master:Masterdata,result:Simulation):void {
-  root.querySelectorAll<HTMLDetailsElement>('[data-bond-band]').forEach(details=>details.addEventListener('toggle',()=>{
-    if(!details.open||details.dataset.loaded)return;
-    const bandId=Number(details.dataset.bondBand),characterId=details.dataset.bondCharacter===undefined?undefined:Number(details.dataset.bondCharacter);
-    const theory=result.bondTheory(bandId);
-    const name=(id:number)=>escape(master.characters.find(c=>c.id===id)!.name);
-    const output=details.querySelector('[data-bond-output]')!;
-    output.innerHTML=theory.status==='pending'?`<p class="warning">絆理論値は保留：${escape(theory.reason)}</p>`:`<p class="muted">絆EXP獲得後の理論上限です。実際のペアランクは未登録です。手入力ランク・絆合計の上書きは使いません。</p>${theory.characters.some(c=>c.missingProgress.length)?'<p class="muted">絆以外の未入力進捗による不確実性があります。</p>':''}<ul class="bond-pairs">${theory.pairs.filter(p=>characterId===undefined||p.characterA===characterId||p.characterB===characterId).map(p=>`<li>${name(p.characterA)} × ${name(p.characterB)}：<strong>上限 ${number(p.rank)}</strong></li>`).join('')||'<li>対象ペアなし</li>'}</ul><details><summary>絆最大時の理論キャラランク</summary><ul>${theory.characters.filter(c=>characterId===undefined||c.id===characterId).map(c=>`<li>${name(c.id)}：${number(c.finalRank)}</li>`).join('')}</ul><p class="muted">ペア上限とキャラランクが安定するまで既存の絆理論値計算で反復します。実際のキャラランク・獲得済み絆ランクとは別の参考値です。</p></details>`;
-    details.dataset.loaded='true';
-  }));
+  const evidence=(axis:CardRequirement['axes'][number])=>`<details><summary>計算詳細</summary><p>${labels[axis.axis]}：${number(axis.current)} → ${number(axis.target)}</p>${axis.reason?`<p>${escape(axis.reason)}</p>`:''}${axis.basis?`<p>計算根拠：${escape(axis.basis)}</p>`:''}</details>`;
+  const resources=(exp:boolean)=>result.materials.totals.filter(a=>(result.materials.resources.find(r=>r.id===a.resourceId)!.unit==='exp')===exp).map(a=>{
+    const resource=result.materials.resources.find(r=>r.id===a.resourceId)!;
+    const unit=resource.unit==='exp'?'EXP':resource.unit==='card'?'枚':'個';
+    return `<details class="growth-detail" data-material-resource="${escape(a.resourceId)}"><summary><span>${escape(resource.name)}</span>：<strong>${number(a.quantity)}</strong> ${unit}${exp?'（上限）':''}</summary><ul class="material-consumers">${(consumers.get(a.resourceId)??[]).map(({card,axis,quantity})=>`<li data-material-consumer="${card.kind}-${card.cardId}" data-axis="${axis.axis}" data-quantity="${quantity}">${cardName(card)}／${labels[axis.axis]}：<strong>${number(quantity)}</strong> ${unit}${evidence(axis)}</li>`).join('')}</ul></details>`;
+  }).join('');
+  const unavailable=result.materials.cards.flatMap(card=>card.axes.filter(a=>a.status==='unavailable').map(axis=>`<li>${cardName(card)}／${labels[axis.axis]}：未計算${evidence(axis)}</li>`));
+  const theories=new Map(master.bands.map(b=>[b.id,result.bondTheory(b.id)]));
+  const name=(id:number)=>escape(master.characters.find(c=>c.id===id)!.name);
+  return `<div class="growth-page"><section class="panel" data-material-total><h2>必要素材</h2>
+    ${result.materials.incomplete?'<p class="warning">未計算項目あり・計算済み分の小計</p>':''}
+    ${!master.materialDefinition?'<p class="warning">素材マスタ未登録・未計算です。</p>':''}
+    ${resources(false)}${result.materials.totals.some(a=>result.materials.resources.find(r=>r.id===a.resourceId)!.unit==='exp')?'<h3>育成EXP（上限）</h3>':''}${resources(true)}
+    ${!result.materials.totals.length?`<p>${result.materials.incomplete?'要求量は未確定です。':'追加の要求量なし'}</p>`:''}
+    ${unavailable.length?`<details data-material-unavailable><summary>未計算項目（${unavailable.length}）</summary><ul>${unavailable.join('')}</ul></details>`:''}
+    <details><summary>素材計算の注意</summary><p>全所持Member・Snapの費用を一度ずつ合算します。共有SnapをMember側へ重複加算しません。費用定義の欠落は0として扱いません。素材の所持数・不足数は対象外です。EXPは現在Lv内の途中EXPが不明なため必要量の上限です。アイテム個数へ換算しません。</p></details>
+    </section><section class="panel" data-bond-theory><h2>絆理論値</h2><p class="muted">理論上の到達値です。実際の獲得済み絆ランクとは異なります。</p><details><summary>計算条件</summary><p>手入力キャラランク・絆合計の上書きを除外し、既存の収束計算を使用します。</p></details>
+    <div class="bond-heading" aria-hidden="true"><span>キャラ</span><span>最終キャラランク</span><span>最終絆合計</span></div>
+    ${progressCharacters(master.characters).map(character=>{
+      const theory=theories.get(character.bandId)!;
+      if(theory.status==='pending')return `<div class="bond-pending" data-bond-character="${character.id}"><strong>${escape(character.name)}</strong><p class="warning">未算出：${escape(theory.reason)}</p></div>`;
+      const row=theory.characters.find(c=>c.id===character.id)!;
+      return `<details class="growth-detail" data-bond-character="${row.id}"><summary class="bond-summary"><span>${escape(character.name)}</span><span aria-label="最終キャラランク">${number(row.finalRank)}</span><span aria-label="最終絆合計">${number(row.bondRankTotal)}</span></summary>${row.missingProgress.length?'<p class="muted">絆以外の未入力進捗による不確実性があります。</p>':''}<ul class="bond-pairs">${theory.pairs.filter(p=>p.characterA===row.id||p.characterB===row.id).map(p=>`<li data-bond-rank="${p.rank}">${name(p.characterA)} × ${name(p.characterB)}：<strong>${number(p.rank)}</strong></li>`).join('')||'<li>対象ペアなし</li>'}</ul></details>`;
+    }).join('')}</section></div>`;
 }

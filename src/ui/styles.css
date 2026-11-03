@@ -459,14 +459,6 @@ footer { overflow-wrap: anywhere; }
 .growth-page .growth-detail { border-top: 1px solid var(--line); margin-top: 12px; }
 .growth-page summary { padding: 12px 0; font-size: 13px; min-height: 44px; }
 .growth-page .growth-detail > summary { font-weight: 600; color: inherit; }
-.growth-page .growth-content { padding: 4px 0 12px 14px; min-width: 0; }
-.growth-page .growth-content p, .growth-page li { font-size: 13px; }
-.growth-page h4 { font-size: 13px; margin: 18px 0 10px; }
-.growth-page .material-list { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 8px 24px; }
-.growth-page .material-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line); padding: 6px 0; }
-.growth-page .material-list li > span:last-child { flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.growth-page .material-exp-note { margin: 18px 0 4px; }
-.growth-page .material-axis { border-top: 1px solid var(--line); margin-top: 16px; }
 
 /* Shared training controls and native modal: scroll inside narrow/short viewports. */
 .training-settings { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
@@ -481,3 +473,11 @@ footer { overflow-wrap: anywhere; }
 .training-dialog .training-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
 .training-dialog select { width: 100%; }
 .training-dialog-actions { display: flex; justify-content: end; margin-top: 1rem; }
+
+.bond-heading, .growth-page .bond-summary { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr)); gap: 8px; align-items: center; }
+.bond-heading { font-size: 12px; color: var(--muted); margin-top: 16px; }
+.bond-summary span:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; }
+.bond-summary span:first-child::before { content: '▸ '; }
+details[open] > .bond-summary span:first-child::before { content: '▾ '; }
+.material-consumers { padding-left: 20px; }
+.material-consumers > li { padding: 8px 0; }
