@@ -15,7 +15,9 @@ export function bindTrainingSettings(host:HTMLElement,store:TrainingSettingsStor
   const tip=host.querySelector<HTMLElement>('#training-info-tooltip');
   if(info&&tip) {
     let pinned=false;
-    const hide=()=>{pinned=false;if(tip.matches(':popover-open'))tip.hidePopover();};
+    let leaveTimer:ReturnType<typeof setTimeout>|undefined;
+    const cancelLeave=()=>{clearTimeout(leaveTimer);leaveTimer=undefined;};
+    const hide=()=>{cancelLeave();pinned=false;if(tip.matches(':popover-open'))tip.hidePopover();};
     const position=()=>{
       const anchor=info.getBoundingClientRect(),rect=tip.getBoundingClientRect();
       tip.style.left=`${Math.max(8,Math.min(anchor.left,window.innerWidth-rect.width-8))}px`;
@@ -24,20 +26,26 @@ export function bindTrainingSettings(host:HTMLElement,store:TrainingSettingsStor
     let dismissal:AbortController|undefined;
     tip.addEventListener('toggle',()=>{
       dismissal?.abort();
-      if(!tip.matches(':popover-open')){pinned=false;return;}
+      if(!tip.matches(':popover-open')){cancelLeave();pinned=false;return;}
       position();dismissal=new AbortController();
       window.addEventListener('scroll',hide,{capture:true,signal:dismissal.signal});
       window.addEventListener('resize',hide,{signal:dismissal.signal});
     });
-    const show=()=>{if(!tip.matches(':popover-open'))tip.showPopover();position();};
+    const show=()=>{cancelLeave();if(!tip.matches(':popover-open'))tip.showPopover();position();};
     info.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')show();});
+    tip.addEventListener('pointerenter',cancelLeave);
     info.addEventListener('focus',show);
     info.addEventListener('click',event=>{
       // A click after hover pins the explanation instead of immediately hiding it.
       event.preventDefault();
       if(pinned&&tip.matches(':popover-open'))hide();else{pinned=true;show();}
     });
-    const leave=()=>{if(!pinned&&document.activeElement!==info&&!info.matches(':hover')&&!tip.matches(':hover'))hide();};
+    const canDismiss=()=>!pinned&&document.activeElement!==info&&!info.matches(':hover')&&!tip.matches(':hover');
+    const leave=()=>{
+      cancelLeave();
+      // Give the pointer time to cross the 6px gap in either direction.
+      if(canDismiss())leaveTimer=setTimeout(()=>{if(canDismiss())hide();},250);
+    };
     info.addEventListener('pointerleave',leave);tip.addEventListener('pointerleave',leave);
     info.addEventListener('blur',leave);
   }

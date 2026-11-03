@@ -100,6 +100,7 @@ for(const [width,touch] of [[1280,false],[390,true],[320,true]] as const)test.de
         return {x:panel.x,y:panel.y+scrollY,height:panel.height,summaryY:summary.y+scrollY,nextY:next?next.y+scrollY:undefined};
       });
       await expect(tip).toBeHidden();await info.scrollIntoViewIfNeeded();
+      await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
       const before=await layout();
       if(touch)await info.tap();else await info.hover();
       await expect(tip).toBeVisible();await expect(tip).toHaveCSS('position','fixed');
@@ -119,7 +120,9 @@ for(const [width,touch] of [[1280,false],[390,true],[320,true]] as const)test.de
       if(touch)await info.tap();else await info.click();
       await expect(tip).toBeVisible();
       await page.locator('h1').click();await expect(tip).toBeHidden();
-      await page.mouse.move(0,0);await info.focus();await expect(tip).toBeVisible();
+      await page.mouse.move(0,0);await info.scrollIntoViewIfNeeded();
+      await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+      await info.focus();await expect(tip).toBeVisible();
       await page.keyboard.press('Escape');await expect(tip).toBeHidden();
       await info.press('Enter');await expect(tip).toBeVisible();
       await info.press('Space');await expect(tip).toBeHidden();
@@ -127,4 +130,31 @@ for(const [width,touch] of [[1280,false],[390,true],[320,true]] as const)test.de
       expect(await layout()).toEqual(before);
     }
   });
+});
+
+test('a hovering pointer crosses the real tooltip gap in both directions before dismissal',async({page})=>{
+  await page.setViewportSize({width:1280,height:720});await seed(page);
+  for(const tab of ['rating','materials','exchange']) {
+    await nav(page,tab);
+    const info=page.getByRole('button',{name:'育成シミュレーションの説明',exact:true}),tip=page.locator('#training-info-tooltip');
+    await info.scrollIntoViewIfNeeded();
+    await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    await info.hover();await expect(info).not.toBeFocused();await expect(tip).toBeVisible();
+    const anchor=(await info.boundingBox())!,bubble=(await tip.boundingBox())!;
+    const x=anchor.x+anchor.width/2;
+    // Stop halfway across the actual gap, with neither the icon nor the tooltip hovered.
+    const below=bubble.y>=anchor.y+anchor.height;
+    const gapY=below?(anchor.y+anchor.height+bubble.y)/2:(bubble.y+bubble.height+anchor.y)/2;
+    expect(below?bubble.y-(anchor.y+anchor.height):anchor.y-(bubble.y+bubble.height)).toBe(6);
+    await page.mouse.move(x,gapY);await page.waitForTimeout(100);await expect(tip).toBeVisible();
+    await page.mouse.move(x,below?bubble.y+8:bubble.y+bubble.height-8);await page.waitForTimeout(350);await expect(tip).toBeVisible();
+    // Crossing back also cancels dismissal when the pointer returns to the icon.
+    await page.mouse.move(x,gapY);await page.waitForTimeout(100);await expect(tip).toBeVisible();
+    await page.mouse.move(x,anchor.y+anchor.height/2);await page.waitForTimeout(350);await expect(tip).toBeVisible();
+    // Leaving both elements still dismisses the hover-only explanation.
+    await page.mouse.move(0,0);await expect(tip).toBeHidden();
+    // Esc while dismissal is pending must remain effective after the timer's deadline.
+    await info.hover();await page.mouse.move(x,gapY);await page.keyboard.press('Escape');
+    await page.waitForTimeout(350);await expect(tip).toBeHidden();
+  }
 });
