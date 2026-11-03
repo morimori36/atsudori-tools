@@ -11,7 +11,7 @@ import {exportCollection,importCollection} from '../../src/storage/collection';
 import {assertProfileCatalog} from '../../src/app/export-conversion';
 
 it('round trips one catalog containing ranks, progression and total-rank bonuses without the legacy envelope',async()=>{
-  const m=syntheticCatalog(),c=syntheticCollection(m);c.characterRanks={};c.characterProgress={8201:{stamps:9}};
+  const m=syntheticCatalog(),c=syntheticCollection(m);c.characterRanks={};m.stamps=Array.from({length:9},(_,i)=>({id:9100+i,name:`架空紙片${i}`,characterIds:[8201]}));c.ownedStampIds=m.stamps.map(s=>s.id);c.characterProgress={8201:{stamps:999,songClears:999}};
   const raw=exportCollection(c,m),legacy=await fictionalRules(m),before=JSON.stringify({m,c,legacy});
   const unified=await fictionalCatalog(m),restored=importCatalog(exportCatalog(unified));
   expect(restored.rankDefinition).not.toHaveProperty('catalog');expect(restored.rankDefinition).not.toHaveProperty('format');

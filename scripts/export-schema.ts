@@ -20,6 +20,8 @@ const catalog = {
   title:'atsudori-tools catalog v1',
   description:'Structural schema only. See docs/import-format.md for references, completeness, units and arithmetic constraints.',
   ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,rankDefinition:rankDefinitionSchema,materialDefinition:materialDefinitionSchema,
+    songClearCounts:{type:'object',maxProperties:20000,propertyNames:{pattern:'^[1-9][0-9]*$'},additionalProperties:zero},
+    stamps:array(object({id:int,name:text,characterIds:{type:'array',maxItems:10000,uniqueItems:true,items:int}})),
     ...Object.fromEntries(Object.entries(tableFields).map(([table,fields]) => [table,array(table==='characterRankLevels'?int:object(Object.fromEntries(Object.entries(fields).map(([key,kind])=>[key,kinds[kind]])),Object.keys(fields).filter(key=>!optionalTableFields[table as CatalogTable]?.includes(key))))]))},['format','schemaVersion','catalogId','revision',...Object.keys(tableFields)])
 };
 const member=object({cardId:int,level:int,trainingStage:int,awakeningStage:int,liveSkillLevel:int,gekisouSkillLevel:int,displayedStatsOverride:stats},['cardId','level','trainingStage','awakeningStage','liveSkillLevel','gekisouSkillLevel']);
@@ -29,7 +31,7 @@ const collection={
   $id:'https://morimori36.github.io/atsudori-tools/schemas/collection-v1.schema.json',
   title:'atsudori-tools collection v1',
   ...object({format:{const:'atsudori-tools/collection'},schemaVersion:{const:1},catalogId:identity,members:array(member),
-    snaps:array(object({supportCardId:int,level:int,rank:int})),characterRanks:record(int),tgwRank:int,totalRankBonus:zero,characterProgress:record(object(Object.fromEntries(Object.keys(storedProgressFields).map(key=>[key,zero])),[])),bandItems:record({anyOf:[int,{type:'null'}]})},['format','schemaVersion','catalogId','members','snaps','characterRanks','bandItems'])
+    snaps:array(object({supportCardId:int,level:int,rank:int})),characterRanks:record(int),ownedStampIds:{type:'array',maxItems:20000,uniqueItems:true,items:int},tgwRank:int,totalRankBonus:zero,characterProgress:record(object(Object.fromEntries(Object.keys(storedProgressFields).map(key=>[key,zero])),[])),bandItems:record({anyOf:[int,{type:'null'}]})},['format','schemaVersion','catalogId','members','snaps','characterRanks','bandItems'])
 };
 writeFileSync('public/schemas/character-rank-rules-v1.schema.json',JSON.stringify(characterRankRulesSchema,null,2)+'\n');
 mkdirSync('public/schemas',{recursive:true});

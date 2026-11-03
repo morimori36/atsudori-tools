@@ -1,3 +1,4 @@
+import { automaticCharacterProgress } from './automatic-progress';
 import type { Masterdata } from '../../data/catalog/model';
 import type { Collection } from '../../storage/collection';
 import type { AchievementDefinition, ManualProgressKey } from './definitions';
@@ -13,6 +14,7 @@ function estimate(master:Masterdata,collection:Collection,characterId:number,rul
   const overrideRank=collection.characterRanks[characterId];
   const details:AchievementResult[]=[];
   const manual=collection.characterProgress?.[characterId];
+  const automatic=automaticCharacterProgress(master,collection,characterId);
   if(rules) {
     const members=collection.members.filter(m=>master.members.some(row=>row.id===m.cardId&&row.characterId===characterId));
     const snaps=collection.snaps.filter(s=>master.snaps.some(row=>row.id===s.supportCardId&&row.characterIds.includes(characterId)));
@@ -23,7 +25,7 @@ function estimate(master:Masterdata,collection:Collection,characterId:number,rul
         :kind==='awakening'?members.filter(m=>m.awakeningStage>=stage!).length
         :kind==='snapRank'?snaps.filter(s=>s.rank>=stage!).length
         :kind==='skills'?members.reduce((sum,m)=>sum+[m.awakeningStage,m.liveSkillLevel,m.gekisouSkillLevel].filter(level=>level>=stage!).length,0)
-        :manual?.[kind];
+        :kind==='stamps'||kind==='songClears'?automatic[kind]:manual?.[kind];
       const completed=value===undefined?0:definition.thresholds.filter(t=>value>=t).length;
       details.push({definition,value,completed,exp:completed*definition.exp});
     }
@@ -35,7 +37,7 @@ function estimate(master:Masterdata,collection:Collection,characterId:number,rul
   const effectiveRank=chosen!==null&&master.characterRankLevels.includes(chosen)?chosen:null;
   return {exp,estimatedRank,overrideRank,effectiveRank,details,
     reason:effectiveRank===null?(chosen===null?'ランク定義を含むマスタをImportするか手入力ランクを設定してください':'マスタに対応するランク行がありません'):null,
-    missingProgress:(rules?.document.manualProgress.map(p=>p.key)??[] as ManualProgressKey[]).filter(key=>manual?.[key]===undefined)};
+    missingProgress:(rules?.document.manualProgress.map(p=>p.key)??[] as ManualProgressKey[]).filter(key=>key!=='stamps'&&key!=='songClears'&&manual?.[key]===undefined)};
 }
 export function estimateCharacterRank(master:Masterdata,collection:Collection,characterId:number,rules?:BoundRankRules) {
   rules ??= catalogRankRules(master);

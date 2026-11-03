@@ -1,3 +1,5 @@
+import { stampsMarkup, bindStamps } from './stamps';
+import { automaticCharacterProgress } from '../domain/character-rank/automatic-progress';
 import { cardBadges, cardIdentity, rarity } from './card-identity';
 import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
 import { createMaterialsPage } from './materials';
@@ -23,7 +25,7 @@ setTheme(getTheme(), false);
 import { resolveTotalRankBonus } from '../domain/character-rank/bonus';
 import { estimateCharacterRank, estimateCharacterRanks, sumCharacterRanks } from '../domain/character-rank/estimate';
 import { estimateBondRankTheory } from '../domain/character-rank/bond-theory';
-import { manualProgressKeys } from '../domain/character-rank/definitions';
+import { editableProgressKeys }  from '../domain/character-rank/definitions';
 import type { CharacterProgress } from '../domain/character-rank/definitions';
 import type { Masterdata } from '../data/catalog/model';
 import { emptyCatalog, validateCatalog, catalogIssues, importCatalog, exportCatalog, CATALOG_LIMIT } from '../data/catalog/validate';
@@ -43,8 +45,8 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'スナップ'],
+type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
+const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ管理'],
   ['materials', '育成余地・素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
   materials: ['育成余地・素材', '共通の育成条件で、所持カードの成長余地と必要素材を比較します。'],
@@ -52,6 +54,7 @@ const headings: Record<Tab, [string, string]> = {
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
   snaps: ['所持スナップ', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
+  stamps: ['スタンプ管理', '所持スタンプを登録すると、対象キャラ全員のランク推定に反映します。'],
   progress: ['キャラランク', 'バンドを選び、進捗とランク上書きを編集します。変更はこの画面で保存してください。'],
   items: ['バンドアイテム', '各バンドのアイテムLvを編集します。変更はこの画面で保存してください。'],
   exchange: ['JSON Import / Export', 'JSONファイルを取り込み・保存します。'],
@@ -93,7 +96,7 @@ export function mountApp(root: HTMLElement): void {
   let active: Tab = 'rating';
   const eventPlanner = createEventPlanner(storage, syncSaveState);
   const rankRules = createRankRules(()=>master);
-  const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(manualProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
+  const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(editableProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
@@ -110,6 +113,7 @@ export function mountApp(root: HTMLElement): void {
   }
   const filters = { members: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' },
     snaps: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' } };
+  const stampFilters = {query:'',character:'',ownership:''};
   let importReadId = 0;
   let catalogReadId = 0;
 
@@ -315,10 +319,11 @@ export function mountApp(root: HTMLElement): void {
       <p class="muted progress-scroll-hint">横にスクロールして編集できます</p>
       <div class="progress-cards" data-progress-scroll="characters" role="region" aria-label="キャラクターランクの編集欄" tabindex="0">${characters.map(c => {
         const rank = ranks.find(r=>r.id===c.id)!;
+        const automatic = automaticCharacterProgress(master,collection,c.id);
         const theoretical = theory.status === 'ready' ? theory.characters.find(r => r.id === c.id) : undefined;
         const uncertain = theory.status === 'ready' && theory.characters.some(r => r.missingProgress.length);
         return `<article class="panel progress-card character-rank" data-character-rank="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary>${rankSummary(rank)} <span>使用ランク <strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span></div><div class="bond-rank" data-bond-character="${c.id}">絆最大時 <strong data-bond-final>${theoretical ? number(theoretical.finalRank) : '未算出'}</strong>${uncertain ? '<small>バンド内の進捗に未入力あり</small>' : ''}<small>保存済み条件</small></div>
-          <div class="rank-editor"><section><h3>進捗入力</h3>
+          <div class="rank-editor"><section class="automatic-progress"><h3>自動算出</h3><p>楽曲クリア種類数：<strong data-automatic-songs>${automatic.songClears}</strong><small>（マスタから算出）</small></p><p>スタンプ所持種類数：<strong data-automatic-stamps>${automatic.stamps}</strong><small>（スタンプ管理から算出）</small></p><button class="secondary" type="button" data-tab="stamps">スタンプ管理を開く</button></section><section><h3>進捗入力</h3>
           <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue(`progress-${c.id}-${key}`, collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress])}"></label>`).join('')}</div></section>
           <section class="rank-override"><h3>ランク上書き</h3>
           <label class="inline-field" for="rank-${c.id}"><span>手動で使用するランク</span><input name="rank-${c.id}" id="rank-${c.id}" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="自動" value="${draftValue(`rank-${c.id}`, rank.overrideRank)}"></label>
@@ -329,16 +334,16 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function exchangePage(): string {
-    return `<div class="json-exchange"><section class="exchange-section"><h2>所持・育成データ</h2><span class="muted">${collection.members.length || collection.snaps.length ? '登録済み' : '未登録'}</span>
+    return `<div class="json-exchange"><section class="exchange-section"><h2>所持・育成データ</h2><span class="muted">${collection.members.length || collection.snaps.length || collection.ownedStampIds?.length ? '登録済み' : '未登録'}</span>
       <div class="exchange-actions"><button class="primary" data-file="import-file">Import</button><input hidden type="file" id="import-file" accept=".json,application/json"><button class="secondary" id="export-button">Export</button></div></section>
       <section class="exchange-section"><h2>マスタデータ</h2><span class="muted">${master.members.length ? '登録済み' : '未登録'}</span>
       <div class="exchange-actions"><button class="primary" data-file="catalog-import">Import</button><input hidden type="file" id="catalog-import" accept=".json,application/json"><button class="secondary" id="catalog-export">Export</button></div></section>
       <div id="conversion-export"></div>
-      <details><summary>詳細情報</summary><p>catalogId: ${escape(master.catalogId)} / revision: ${escape(master.revision)}</p><p>ファイルにないキャラクター進捗・TGWランクは現在の値を保持します。</p>
+      <details><summary>詳細情報</summary><p>catalogId: ${escape(master.catalogId)} / revision: ${escape(master.revision)}</p><p>ファイルにないキャラクター進捗・TGWランク・スタンプ所持は現在の値を保持します。スタンプ所持の空配列は全解除です。</p>
       ${damagedBackup !== undefined ? '<button class="secondary" id="damaged-backup">元の保存JSONをダウンロード</button>' : ''}
       ${damagedCatalog !== undefined ? '<button class="secondary" id="catalog-original">元の保存マスタをExport</button>' : ''}</details>
       <details id="data-reset"><summary>データの初期化</summary>
-      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・スナップ、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
+      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・スナップ・スタンプ、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
       <section class="exchange-section"><h2>マスタデータを初期化</h2><p>マスタと内包されるランク定義を削除します。所持・育成データが参照している場合は、先にそちらを初期化してください。</p><button class="secondary danger" id="catalog-clear">マスタデータを初期化</button></section>
       </details></div>`;
   }
@@ -357,7 +362,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return catalogIssues(master).length && ['members','snaps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : createMaterialsPage(master,collection,trainingSettings).html) : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return catalogIssues(master).length && ['members','snaps','stamps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'stamps' ? stampsMarkup(master,collection,stampFilters) : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : createMaterialsPage(master,collection,trainingSettings).html) : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -393,6 +398,13 @@ export function mountApp(root: HTMLElement): void {
     if (active === 'rating' || active === 'materials') bindTrainingSettings(root,trainingSettings);
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
+    bindStamps(root,master,collection,stampFilters, ids => {
+      const previous=collection;
+      try { persist({...collection,ownedStampIds:ids}); }
+      catch (error) { collection=previous;storageMessage=errorMessage(error);saved=false; }
+      if (!saved) collection=previous;
+      syncSaveState();return saved;
+    });
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
   }
   trainingSettings.subscribe(()=>{if(active==='rating'||active==='materials') preserveTrainingView(root,render);});

@@ -490,3 +490,12 @@ footer { overflow-wrap: anywhere; }
 details[open] > .bond-summary span:first-child::before { content: '▾ '; }
 .material-consumers { padding-left: 20px; }
 .material-consumers > li { padding: 8px 0; }
+
+.stamp-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: .75rem; }
+.stamp-card { padding: 0; min-width: 0; }
+.stamp-card[hidden] { display: none; }
+.stamp-toggle { display: flex; gap: .75rem; align-items: center; min-height: 4.5rem; padding: 1rem; cursor: pointer; overflow-wrap: anywhere; }
+.stamp-toggle input { width: 1.4rem; height: 1.4rem; flex-shrink: 0; }
+.stamp-toggle span { flex: 1; min-width: 0; }
+.stamp-toggle small { display: block; margin-top: .35rem; }
+.automatic-progress p { margin-block: .5rem; }

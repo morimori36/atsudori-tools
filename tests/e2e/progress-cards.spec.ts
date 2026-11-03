@@ -57,7 +57,7 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   }
   expect(await items.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(width < 700);
   await page.locator('nav [data-tab=progress]').click();
-  const numeric = page.locator('#progress-8201-stamps');
+  const numeric = page.locator('#progress-8201-bondRankTotal');
   await expect(numeric).toHaveAttribute('inputmode', 'numeric');
   const inputSize = await numeric.evaluate(el => ({ font: parseFloat(getComputedStyle(el).fontSize), height: el.getBoundingClientRect().height }));
   expect(inputSize.font).toBeGreaterThanOrEqual(16);
@@ -75,7 +75,7 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     await page.locator('nav [data-tab=progress]').click();
   }
   await page.locator('#rank-8201').fill('');
-  await page.locator('#progress-8201-stamps').fill('9');
+  await page.locator('#progress-8201-bondRankTotal').fill('9');
   await expect(page.locator('[data-character-rank="8201"] [data-estimated-rank]')).toHaveText('2');
   await page.locator('#rank-8202').fill('3');
   await page.locator('#rank-8203').fill('7');
@@ -89,7 +89,7 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await expect(page.locator('[data-progress-band="8102"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#rank-8222').fill('2');
   await page.locator('[data-progress-band="8101"]').click();
-  await expect(page.locator('#progress-8201-stamps')).toHaveValue('9');
+  await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('9');
   await expect(page.locator('#rank-8202')).toHaveValue('3');
   await page.locator('nav [data-tab=items]').click();
   await expect(page.locator('#item-9014')).toHaveValue('1');
@@ -102,10 +102,10 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.locator('#progress-form button[type=submit]').click();
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), STORAGE_KEY);
   expect(saved.bandItems).toEqual({ 8601:2, 8602:2, 8603:3, 8604:4, 8605:5, 9014:1 });
-  expect(saved.characterProgress).toEqual({8201:{stamps:9}});
+  expect(saved.characterProgress).toEqual({8201:{bondRankTotal:9}});
   expect(saved.characterRanks).toEqual({8202:3,8203:7,8222:2});
   await page.reload(); await page.locator('nav [data-tab=progress]').click();
-  await expect(page.locator('#progress-8201-stamps')).toHaveValue('9');
+  await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('9');
   await page.locator('nav [data-tab=exchange]').click();
   const downloadPromise = page.waitForEvent('download'); await page.locator('#export-button').click();
   const exported = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));

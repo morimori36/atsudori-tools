@@ -39,10 +39,13 @@ it('adds independent stage and skill counts, ignores legacy skill progress, and 
   expect(JSON.stringify(c)).toBe(before);
 });
 it('uses explicit nonuniform count thresholds with caps and unknown/manual-zero distinction',async()=>{
-  const m=syntheticCatalog(),c=syntheticCollection(m),rules=await bindRankRules(await fictionalRules(m),m);
-  expect(estimateCharacterRank(m,c,8201,rules).missingProgress).toHaveLength(4);
+  const m=syntheticCatalog(),c=syntheticCollection(m);
+  m.stamps=Array.from({length:18},(_,i)=>({id:9100+i,name:`架空紙片${i}`,characterIds:[8201]}));
+  const rules=await bindRankRules(await fictionalRules(m),m);
+  expect(estimateCharacterRank(m,c,8201,rules).missingProgress).toHaveLength(2);
   for(const [n,award] of [[0,0],[2,7],[8,7],[9,14],[18,21]]) {
-    c.characterProgress={8201:{stamps:n!}};
+    c.ownedStampIds=m.stamps!.slice(0,n).map(s=>s.id);
+    c.characterProgress={8201:{stamps:999,songClears:999}};
     expect(estimateCharacterRank(m,c,8201,rules).details.find(d=>d.definition.kind==='stamps')?.exp).toBe(award);
   }
   expect(estimateCharacterRank(m,c,8201,rules).effectiveRank).toBe(3);
@@ -54,10 +57,11 @@ it('uses imported cumulative EXP boundaries without assuming consecutive ranks',
 });
 it('uses the real-ownership rank for rating, total and hypothetical cultivation',async()=>{
   const m=syntheticCatalog(),c=syntheticCollection(m);c.snaps=[];c.bandItems={8601:null};c.characterRanks={};
+  m.stamps=Array.from({length:9},(_,i)=>({id:9100+i,name:`架空紙片${i}`,characterIds:[8201]}));
   const rules=await bindRankRules(await fictionalRules(m),m);
   // P/T/V65/171/321, h=.04, C50 => floor117/227/383 =727.
   expect(evaluateCollection(m,c,c,rules)[0]!.slots[0]!.result?.bandRating).toBe(727);
-  c.characterProgress={8201:{stamps:9}}; //3+14=17 EXP => rank2.
+  c.ownedStampIds=m.stamps.map(s=>s.id); //3+14=17 EXP => rank2.
   expect(totalCharacterRank(m,c,rules)).toBe(2);
   expect(evaluateCollection(m,c,c,rules)[0]!.slots[0]!.result?.bandRating).toBe(742);
   const before=JSON.stringify(c),p=potentialCollection(m,c);

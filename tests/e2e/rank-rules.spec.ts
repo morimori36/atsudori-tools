@@ -39,11 +39,11 @@ test('imports, backs up and restores all static definitions with catalog alone',
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBeNull();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
   await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
-  await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
+  await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('1');
   await tab(page,'exchange');await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
 
   await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(backup));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
-  await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('2');
+  await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('1');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('saved legacy definitions remain untouched and do not enable estimation or migration UI',async({page})=>{

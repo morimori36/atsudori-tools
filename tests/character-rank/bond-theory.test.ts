@@ -20,13 +20,14 @@ it('starts from one, traverses multiple feedback steps and stops at the imported
   expect(new Set(result.pairs.map(p => `${p.characterA}:${p.characterB}`)).size).toBe(10);
   expect(result.pairs.every(p => p.characterA !== p.characterB && p.rank === 5)).toBe(true);
   expect(result.characters.map(c => [c.baseRank, c.finalRank, c.bondRankTotal])).toEqual(Array.from({ length: 5 }, () => [1, 5, 20]));
-  expect(result.characters.every(c => c.missingProgress.join() === 'stamps')).toBe(true);
+  expect(result.characters.every(c => c.missingProgress.length === 0)).toBe(true);
 });
 
 it('caps each pair at the lower character rank, with no cross-band pairs', () => {
   const { master, collection } = bondTheoryFixture();
   master.rankDefinition!.achievements[0]!.thresholds = [1000];
-  collection.characterProgress = Object.fromEntries(master.characters.map((c, i) => [c.id, { stamps: i === 0 ? 1 : 4 }]));
+  master.stamps=Array.from({length:4},(_,i)=>({id:9100+i,name:`架空紙片${i}`,characterIds:master.characters.filter((_,j)=>i===0||j>0).map(c=>c.id)}));
+  collection.ownedStampIds=master.stamps.map(s=>s.id);
   master.bands.push({ id: 8190, name: '架空の別紙バンド' });
   master.characters.push({ id: 8290, bandId: 8190, name: '架空の別紙奏者' });
   const result = ready(estimateBondRankTheory(master, collection, 8101));
@@ -89,6 +90,7 @@ it('keeps every nonbond ownership, cultivation and progress condition in the exi
   Object.assign(collection.members[0]!, { level: 2, trainingStage: 2, awakeningStage: 2, liveSkillLevel: 2, gekisouSkillLevel: 2 });
   Object.assign(collection.snaps[0]!, { level: 2, rank: 2 });
   collection.characterProgress = { 8201: { stamps: 1, songClears: 1, liveClears: 1, bondRankTotal: 9999, skillLevel5: 9999 } };
+  master.stamps=[{id:9100,name:"架空紙片",characterIds:[8201]}];collection.ownedStampIds=[9100];master.songClearCounts={8201:1};
   // All nine independent conditions award once: 9*3=27 =>rank10.
   expect(ready(estimateBondRankTheory(master, collection, 8101)).characters[0]).toEqual({ id: 8201, baseRank: 10, finalRank: 10, bondRankTotal: 4, missingProgress: [] });
 });

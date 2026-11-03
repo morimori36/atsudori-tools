@@ -51,7 +51,11 @@ export interface SkillTarget {
   tagId: number;
 }
 export interface CharacterMaster { id: number; bandId: number; name: string; displayOrder?: number }
+export interface StampMaster { id: number; name: string; characterIds: number[] }
 export interface Masterdata {
+  /** Final per-character counts supplied by the catalog producer. */
+  songClearCounts?: Record<string, number>;
+  stamps?: StampMaster[];
   materialDefinition?: import('../../domain/materials/model').MaterialDefinition;
   /** Static progression definitions and total-rank bonus table, supplied with this catalog. */
   rankDefinition?: RankDefinition;

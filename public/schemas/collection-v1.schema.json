@@ -130,6 +130,16 @@
         "maximum": 9007199254740991
       }
     },
+    "ownedStampIds": {
+      "type": "array",
+      "maxItems": 20000,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      }
+    },
     "tgwRank": {
       "type": "integer",
       "minimum": 1,
