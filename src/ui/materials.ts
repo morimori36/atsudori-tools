@@ -1,3 +1,5 @@
+import { createResourceInventoryView } from './resource-inventory';
+import type { ResourceInventory } from '../domain/materials/inventory';
 import { createCharacterExpView } from './character-exp';
 import type { ExpView } from './character-exp';
 import { cardIdentity } from './card-identity';
@@ -17,7 +19,12 @@ type Simulation=ReturnType<typeof simulateTrainingEvaluation>;
 export function createMaterialsPage(master:Masterdata,collection:Collection,settings:TrainingSettingsStore,expState:ExpView={targetRank:30}) {
   const result=simulateTrainingEvaluation(master,collection,settings.current());
   const expView=createCharacterExpView(master,collection,settings.current(),result.target,expState);
-  return { html:trainingSettingsMarkup(settings)+materialsPage(master,result,expView), bind:expView.bind };
+  const inventoryView=createResourceInventoryView(collection,result.materials);
+  return { html:trainingSettingsMarkup(settings)+materialsPage(master,result,expView,inventoryView.html),
+    bind(host:HTMLElement,rerender:()=>void,saveInventory:(inventory:ResourceInventory)=>boolean) {
+      expView.bind(host,rerender);inventoryView.bind(host,rerender,saveInventory);
+    },
+  };
 }
 
 /** Reverse-index existing axis results; no cost calculation occurs here. */
@@ -30,7 +37,7 @@ export function materialConsumers(materials:Simulation['materials']) {
   return consumers;
 }
 
-function materialsPage(master:Masterdata,result:Simulation,expView:ReturnType<typeof createCharacterExpView>):string {
+function materialsPage(master:Masterdata,result:Simulation,expView:ReturnType<typeof createCharacterExpView>,inventoryHtml:string):string {
   const consumers=materialConsumers(result.materials);
   const cardName=(card:CardRequirement)=>cardIdentity(card.kind==='member'?master.members.find(m=>m.id===card.cardId)!:master.snaps.find(s=>s.id===card.cardId)!);
   const stage=(axis:CardRequirement['axes'][number])=>`${labels[axis.axis]}${number(axis.current)}→${number(axis.target)}`;
@@ -63,6 +70,6 @@ function materialsPage(master:Masterdata,result:Simulation,expView:ReturnType<ty
   return `<div class="growth-page"><section class="panel" data-material-total><h2>必要素材</h2>
     ${result.materials.incomplete?'<p class="warning">未計算項目あり・計算済み分の小計</p>':''}
     ${!master.materialDefinition?'<p class="warning">素材マスタ未登録・未計算です。</p>':''}
-    ${sections}
+    ${inventoryHtml}${sections}
     </section><section class="panel" data-bond-theory><h2>絆理論値</h2><p class="muted">理論上の到達値です。実際の獲得済み絆ランクとは異なります。</p>${expView.targetMarkup}${bands}</section></div>`;
 }

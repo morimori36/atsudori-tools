@@ -512,3 +512,17 @@ footer { overflow-wrap: anywhere; }
 .exp-row h3 { font-size: 1rem; }
 .exp-filters label:has(input[type=checkbox]) { display: flex; align-items: center; gap: .5rem; }
 .exp-filters input[type=checkbox] { flex: 0 0 auto; width: 1.15rem; height: 1.15rem; min-height: 0; padding: 0; margin: 0; }
+
+.inventory-totals { margin-top: 20px; }
+.inventory-total { border-top: 1px solid var(--line); padding: 12px 0; overflow-wrap: anywhere; }
+.inventory-total h4 { margin: 0 0 8px; }
+.inventory-total dl { margin: 0; font-size: .9rem; }
+.inventory-total dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin: 6px 0; }
+.inventory-total dd { margin: 0; font-variant-numeric: tabular-nums; }
+.inventory-dialog { width: min(44rem, calc(100vw - 2rem)); overflow-wrap: anywhere; }
+.inventory-dialog label { display: block; margin: 8px 0; }
+.inventory-dialog input { width: 100%; min-width: 0; }
+.inventory-dialog .training-dialog-actions { flex-wrap: wrap; gap: 8px; }
+.inventory-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0 12px; }
+.inventory-row { border-top: 1px solid var(--line); padding: 12px 0; }
+.inventory-row h3 { font-size: 1rem; }

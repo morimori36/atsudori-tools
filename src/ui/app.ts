@@ -350,7 +350,7 @@ export function mountApp(root: HTMLElement): void {
       ${damagedBackup !== undefined ? '<button class="secondary" id="damaged-backup">元の保存JSONをダウンロード</button>' : ''}
       ${damagedCatalog !== undefined ? '<button class="secondary" id="catalog-original">元の保存マスタをExport</button>' : ''}</details>
       <details id="data-reset"><summary>データの初期化</summary>
-      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・スナップ・スタンプ、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
+      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・スナップ・スタンプ、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値、素材在庫を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
       <section class="exchange-section"><h2>マスタデータを初期化</h2><p>マスタと内包されるランク定義を削除します。所持・育成データが参照している場合は、先にそちらを初期化してください。</p><button class="secondary danger" id="catalog-clear">マスタデータを初期化</button></section>
       </details></div>`;
   }
@@ -403,7 +403,13 @@ export function mountApp(root: HTMLElement): void {
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
     if (active === 'rating' || active === 'materials') bindTrainingSettings(root,trainingSettings);
-    if (active === 'materials') materialsView?.bind(root,()=>preserveTrainingView(root,render));
+    if (active === 'materials') materialsView?.bind(root,()=>preserveTrainingView(root,render), inventory=>{
+      const previous=collection;
+      try { persist({...collection,resourceInventory:inventory}); }
+      catch (error) { collection=previous;storageMessage=errorMessage(error);saved=false; }
+      if(!saved)collection=previous;
+      syncSaveState();return saved;
+    });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindStamps(root,master,collection,stampFilters, ids => {
