@@ -102,7 +102,7 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     const r = object(value, path, ['supportCardId', 'level', 'rank']);
     const snap = { supportCardId: integer(r.supportCardId, `${path}.supportCardId`), level: integer(r.level, `${path}.level`), rank: integer(r.rank, `${path}.rank`) };
     try { deriveSnapDisplay(master, snap); }
-    catch (error) { fail(path, `Snapの育成状態が不正です（${error instanceof Error ? error.message : String(error)}）`); }
+    catch (error) { fail(path, `スナップの育成状態が不正です（${error instanceof Error ? error.message : String(error)}）`); }
     return snap;
   });
   unique(snaps.map(r => r.supportCardId), '$.snaps');

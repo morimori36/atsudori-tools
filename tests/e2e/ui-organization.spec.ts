@@ -98,7 +98,7 @@ for (const width of [1280,390]) test(`optional training settings preserve values
   const setting=dialog.locator('[data-training=liveSkillLevel]');
   await setting.focus();await setting.selectOption('3');await expect(setting).toBeFocused();
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(open).toBeFocused();
-  await expect(page.locator('.training-summary')).toContainText('ライブスキルLv 3');
+  await expect(page.locator('[data-training-summary=liveSkillLevel] dd')).toHaveText('3');
   const trainingBytes=await page.evaluate(k=>localStorage.getItem(k),TRAINING_STORAGE_KEY);
   await page.locator('[name=rating-mode][value=current]').check();await expect(page.locator('[data-training]')).toHaveCount(0);
   await page.locator('[name=rating-mode][value=potential]').check();

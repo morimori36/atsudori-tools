@@ -1,6 +1,7 @@
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   color: light-dark(#25263a, #babcd3); background: light-dark(#f5f5fa, #1e1e39); font-synthesis: none; text-rendering: optimizeLegibility;
+  --rarity-rainbow: linear-gradient(135deg, #ffb8cd, #ffdaac, #fff0ab, #b5e6bd, #afe3fa, #c5bcf5, #edb9ed);
   --accent: #6550bd; --accent-dark: #4e3b9d; --line: #e6e5ef; --muted: #6d6e81;
 }
 * { box-sizing: border-box; }
@@ -278,7 +279,7 @@ footer p { margin-bottom: 4px; }
 .color-total { text-align: right; font-variant-numeric: tabular-nums; }
 .color-total > span, .color-total small { font-size: 11px; display: block; color: var(--muted); }
 .color-total strong { font-size: 22px; }
-.collection-card { position: relative; --rarity-accent: #6d6e81; --rarity-rainbow: linear-gradient(135deg, #ffb8cd, #ffdaac, #fff0ab, #b5e6bd, #afe3fa, #c5bcf5, #edb9ed); border-inline-start: 3px solid var(--rarity-accent); }
+.collection-card { position: relative; --rarity-accent: #6d6e81; border-inline-start: 3px solid var(--rarity-accent); }
 .collection-card[data-rarity="2"] { --rarity-accent: light-dark(#348ac7, #7fc6fa); }
 .collection-card[data-rarity="3"] { --rarity-accent: light-dark(#bc8a20, #e9c364); }
 .collection-card[data-rarity="4"] { --rarity-accent: #b499de; }
@@ -437,7 +438,7 @@ footer { overflow-wrap: anywhere; }
 .character-total { font-variant-numeric: tabular-nums; }
 .character-total > span, .character-total > small { display: block; font-size: 11px; color: var(--muted); }
 .character-total > strong { font-size: 16px; }
-.rating-page .rarity-label { display: inline; font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+
 .rating-candidate { display: block; }
 
 /* Keep band cards, stacking bands vertically and their item fields horizontally. */
@@ -464,7 +465,15 @@ footer { overflow-wrap: anywhere; }
 .training-settings { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
 .training-heading { display: flex; gap: .25rem; align-items: center; }
 .training-info { font-size: 14px; padding: 0; }
-.training-summary { font-size: .85rem; overflow-wrap: anywhere; }
+.training-summary { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; margin-block: .75rem; font-size: .85rem; }
+.training-summary-group { min-width: 0; }
+.training-summary-group h3 { font-size: inherit; margin: 0 0 .35rem; }
+.training-summary-group dl { display: flex; flex-wrap: wrap; gap: .35rem .5rem; margin: 0; }
+.training-summary-group dl > div { display: flex; align-items: baseline; gap: .5rem; padding: .2rem .5rem; border-radius: 5px; background: light-dark(#f3f3f6, #36363c); border: 1px solid var(--line); }
+.training-summary-group dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.card-badges { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+.card-badges > span { white-space: nowrap; }
+.card-reference { overflow-wrap: anywhere; }
 .training-help { font-size: .85rem; }
 .training-help summary { cursor: pointer; }
 .training-help p { max-width: 55ch; }

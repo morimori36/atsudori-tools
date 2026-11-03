@@ -53,12 +53,12 @@ export function deriveSnapDisplay(master: Masterdata, owned: SnapProgression): {
 } {
   for (const key of ['supportCardId', 'level', 'rank'] as const) requireInteger(owned[key], key, 1);
   const snap = master.snaps.find(r => r.id === owned.supportCardId);
-  if (!snap) throw new Error(`unknown Snap ${owned.supportCardId}`);
+  if (!snap) throw new Error(`未登録のスナップ ${owned.supportCardId}`);
   const level = master.snapLevels.find(r => r.group === snap.levelGroup && r.level === owned.level);
   const rank = master.snapRanks.find(r => r.group === snap.rankGroup && r.rank === owned.rank);
-  if (!level || !rank) throw new Error(`Snap ${snap.id}: missing growth row`);
-  if (owned.level > rank.limitLevel) throw new Error(`Snap ${snap.id}: level exceeds rank cap ${rank.limitLevel}`);
-  if (!rank.supportSkillLevels.every(l => l === owned.rank)) throw new Error('unverified Snap rank/support/U linkage');
+  if (!level || !rank) throw new Error(`スナップ ${snap.id}: missing growth row`);
+  if (owned.level > rank.limitLevel) throw new Error(`スナップ ${snap.id}: level exceeds rank cap ${rank.limitLevel}`);
+  if (!rank.supportSkillLevels.every(l => l === owned.rank)) throw new Error('未検証のスナップ rank/support/U 連動');
   return {
     percentBp: {
       performance: productTerm(snap.maxPercentBp.performance, level.rates.performance),

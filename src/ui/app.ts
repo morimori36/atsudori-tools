@@ -1,3 +1,4 @@
+import { cardBadges, cardIdentity, rarity } from './card-identity';
 import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
 import { createMaterialsPage } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
@@ -43,14 +44,14 @@ import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
 type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'Snap'],
+const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'スナップ'],
   ['materials', '育成余地・素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
   materials: ['育成余地・素材', '共通の育成条件で、所持カードの成長余地と必要素材を比較します。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
-  snaps: ['所持Snap', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
+  snaps: ['所持スナップ', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
   progress: ['キャラランク', 'バンドを選び、進捗とランク上書きを編集します。変更はこの画面で保存してください。'],
   items: ['バンドアイテム', '各バンドのアイテムLvを編集します。変更はこの画面で保存してください。'],
   exchange: ['JSON Import / Export', 'JSONファイルを取り込み・保存します。'],
@@ -60,7 +61,6 @@ const escape = (value: unknown): string => String(value).replace(/[&<>"']/g, c =
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const number = (value: number): string => value.toLocaleString('ja-JP');
 const pct = (value: number): string => (value / 100).toFixed(2);
-const rarity = (value: number): string => ({ 2: 'R', 3: 'SR', 4: 'SSR', 10: 'EX', 20: 'BD' } as Record<number, string>)[value] ?? `レアリティ${value}`;
 const field = (name: string, label: string, value: number | string = '', min = 1, max?: number): string =>
   `<label class="field" for="${name}"><span>${label}</span><input id="${name}" name="${name}" type="number" min="${min}" ${max ? `max="${max}"` : ''} step="1" value="${escape(value)}" required></label>`;
 function fixed(value: FormDataEntryValue | null, digits: number, label: string): number {
@@ -82,10 +82,6 @@ export function mountApp(root: HTMLElement): void {
   let catalogSaved = loadedCatalog.status === 'loaded' || loadedCatalog.status === 'empty';
   const damagedCatalog = loadedCatalog.status === 'invalid' ? loadedCatalog.raw : undefined;
   let catalogStorageMessage = loadedCatalog.status === 'invalid' ? '保存マスタが破損しています。元JSONを保護中です。JSON Import / ExportでExport・Importまたは初期化してください。' : loadedCatalog.status === 'unavailable' ? loadedCatalog.error : '';
-  const memberName = (id: number): string => {
-  const m = master.members.find(m => m.id === id)!;
-  return `${m.name}［${m.title}］`;
-};
 
   const loaded = loadCollection(storage, master);
   let collection: Collection = loaded.status === 'loaded' ? loaded.collection : emptyCollection(master);
@@ -166,9 +162,9 @@ export function mountApp(root: HTMLElement): void {
     catch (error) { notice = { error: true, text: errorMessage(error) }; }
     render();
   }
-  function choice<T extends MemberCandidate | SnapCandidate>(value: Choice<T>, name: (id: number) => string): string {
+  function choice<T extends MemberCandidate | SnapCandidate>(value: Choice<T>, card: (id: number) => Masterdata['members'][number] | Masterdata['snaps'][number]): string {
     if (value.status === 'none') return '<span class="muted">なし</span>';
-    const label = (candidate: T) => `<span class="rating-candidate"><small class="rarity-label">${escape(rarity(candidate.rarity))}</small> ${escape(name(candidate.id))}</span>`;
+    const label = (candidate: T) => `<span class="rating-candidate">${cardIdentity(card(candidate.id))}</span>`;
     const candidates = value.status === 'selected' ? [value.candidate] : value.candidates;
     return `<span class="rating-choices">${candidates.map(label).join('')}</span>`;
   }
@@ -203,7 +199,7 @@ export function mountApp(root: HTMLElement): void {
     const bands = ratingMode === 'potential' ? simulateTrainingEvaluation(master,collection,trainingSettings.current()).after.bands : summarizeBands(evaluateCollection(master,collection,collection,rankRules.current()));
     const colors = bands.flatMap(b => b.colors);
     if (!colors.length) return `${controls}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
-      <p>メンバーとSnapを登録し、キャラクターランク・アイテムを設定すると、登録分の評価値を確認できます。</p>
+      <p>メンバーとスナップを登録し、キャラクターランク・アイテムを設定すると、登録分の評価値を確認できます。</p>
       <button class="primary" data-tab="members">メンバーを登録</button><button class="secondary" data-tab="manual">表示値で試す</button></section>`;
     return `${controls}${bands.map(band => `<section class="panel band-result" data-band="${band.bandId}">
         <div class="panel-heading"><div><h2>${escape(master.bands.find(b => b.id === band.bandId)!.name)}</h2></div>
@@ -212,14 +208,14 @@ export function mountApp(root: HTMLElement): void {
         ${band.colors.map(color => `<details class="color-result" data-band="${color.bandId}" data-color="${color.cardType}" style="--card-color: ${cardTypeAccent(color.cardType)}" ${band.colors.length === 1 ? 'open' : ''}>
         <summary class="color-summary"><span class="color-label">${cardTypeName(color.cardType)}</span>
         <span class="color-total"><span>${color.rating === null ? '合計は保留' : ''}</span><strong>${color.rating === null ? '—' : number(color.rating)}</strong>${color.rating === null ? `<small>計算済み小計 ${number(color.subtotal)}</small>` : ''}</span></summary>
-        <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>Snap</th><th class="numeric">評価値</th></tr></thead><tbody>
+        <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>スナップ</th><th class="numeric">評価値</th></tr></thead><tbody>
         ${characterRowsForDisplay(summarizeCharacters(color), master.characters.filter(c => c.bandId === band.bandId), c => c.characterId).map(character => `<tr class="character-heading" data-rating-character="${character.characterId}"><th scope="rowgroup" colspan="${character.slots.length === 1 ? 3 : 2}">${escape(master.characters.find(c => c.id === character.characterId)!.name)}</th>${character.slots.length === 1 ? '' : `<td class="numeric character-total">${character.rating === null ? `<span>合計は保留</span><strong>—</strong><small>計算済み小計 ${number(character.subtotal)}</small>` : `<span>合計</span><strong>${number(character.rating)}</strong>`}</td>`}</tr>
         ${character.slots.map(slot => {
           const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${slot.selection.characterId}`;
           const key = `note-${band.bandId}-${color.cardType}-${memberKey}`;
           const note = noteMarker(slot.selection.notices, key, '暫定選出の注記');
-          return `<tr data-rating-slot="${memberKey}"><td><div class="candidate">${choice(slot.selection.member, memberName)}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
-          <td><div class="candidate">${choice(slot.selection.snap, id => master.snaps.find(s => s.id === id)!.title)}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
+          return `<tr data-rating-slot="${memberKey}"><td><div class="candidate">${choice(slot.selection.member, id => master.members.find(m => m.id === id)!)}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
+          <td><div class="candidate">${choice(slot.selection.snap, id => master.snaps.find(s => s.id === id)!)}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
           <td class="numeric">${slot.result ? `<strong class="slot-rating">${number(slot.result.bandRating)}</strong>`
             : `<span class="pending-pill">${slot.selection.status === 'resolved' ? '入力待ち' : '選出未確定'}</span>${noteMarker(slot.reasons, key + '-pending', '計算待ちの理由')}`}</td></tr>`;
         }).join('')}`).join('</tbody><tbody>')}
@@ -262,7 +258,7 @@ export function mountApp(root: HTMLElement): void {
         }).join('')}</div></fieldset>`;
       return `<article style="--card-color: ${cardTypeAccent(row.cardType)}" data-rarity="${row.rarity}" class="panel collection-card ${owned ? 'is-owned' : ''}" data-catalog-id="${row.id}" data-member-card="${members ? row.id : ''}" data-snap-card="${members ? '' : row.id}">
         <button type="button" class="card-identity" data-ownership-toggle aria-pressed="${checked('owned', Boolean(owned))}" aria-label="${escape(row.name)}［${escape(row.title)}］の所持を切り替え">
-          <span class="card-meta"><span class="rarity-badge" data-rarity="${row.rarity}">${rarity(row.rarity)}</span><span class="card-type-label">${cardTypeName(row.cardType)}</span><span class="card-id">ID ${row.id}</span><span class="ownership-badge" data-owned-label>${checked('owned', Boolean(owned)) ? '✓ 所持' : '未所持'}</span></span>
+          <span class="card-meta">${cardBadges(row)}<span class="card-id">ID ${row.id}</span><span class="ownership-badge" data-owned-label>${checked('owned', Boolean(owned)) ? '✓ 所持' : '未所持'}</span></span>
           <span class="card-name">${escape(row.name)}</span><span class="card-title">［${escape(row.title)}］</span>
           ${!members ? `<span class="muted card-characters">${characterRowsForDisplay(characters.map(id => master.characters.find(c => c.id === id)!), master.characters, c => c.id).map(c => escape(c.name)).join(' / ')}</span>` : ''}
         </button>
@@ -322,7 +318,7 @@ export function mountApp(root: HTMLElement): void {
         const theoretical = theory.status === 'ready' ? theory.characters.find(r => r.id === c.id) : undefined;
         const uncertain = theory.status === 'ready' && theory.characters.some(r => r.missingProgress.length);
         return `<article class="panel progress-card character-rank" data-character-rank="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary>${rankSummary(rank)} <span>使用ランク <strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span></div><div class="bond-rank" data-bond-character="${c.id}">絆最大時 <strong data-bond-final>${theoretical ? number(theoretical.finalRank) : '未算出'}</strong>${uncertain ? '<small>バンド内の進捗に未入力あり</small>' : ''}<small>保存済み条件</small></div>
-          <div class="rank-editor"><section><h3>手入力進捗</h3>
+          <div class="rank-editor"><section><h3>進捗入力</h3>
           <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue(`progress-${c.id}-${key}`, collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress])}"></label>`).join('')}</div></section>
           <section class="rank-override"><h3>ランク上書き</h3>
           <label class="inline-field" for="rank-${c.id}"><span>手動で使用するランク</span><input name="rank-${c.id}" id="rank-${c.id}" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="自動" value="${draftValue(`rank-${c.id}`, rank.overrideRank)}"></label>
@@ -342,7 +338,7 @@ export function mountApp(root: HTMLElement): void {
       ${damagedBackup !== undefined ? '<button class="secondary" id="damaged-backup">元の保存JSONをダウンロード</button>' : ''}
       ${damagedCatalog !== undefined ? '<button class="secondary" id="catalog-original">元の保存マスタをExport</button>' : ''}</details>
       <details id="data-reset"><summary>データの初期化</summary>
-      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・Snap、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
+      <section class="exchange-section"><h2>所持・育成データを初期化</h2><p>所持メンバー・スナップ、育成情報、進捗、ランク・TGWランク、アイテムとボーナスの手入力値を削除します。</p><button class="secondary danger" id="reset-button">所持・育成データを初期化</button></section>
       <section class="exchange-section"><h2>マスタデータを初期化</h2><p>マスタと内包されるランク定義を削除します。所持・育成データが参照している場合は、先にそちらを初期化してください。</p><button class="secondary danger" id="catalog-clear">マスタデータを初期化</button></section>
       </details></div>`;
   }
@@ -352,10 +348,10 @@ export function mountApp(root: HTMLElement): void {
       <form id="manual-form"><div class="form-grid">${field('manualP', 'Performance', '', 0)}${field('manualT', 'Technic', '', 0)}${field('manualV', 'Visual', '', 0)}
       ${field('manualA', '式の覚醒 A', 1)}${field('manualL', 'Live Lv', 1)}${field('manualG', '撃奏 Lv', 1)}${field('manualR', 'キャラクターランク', 1)}${field('manualTotalRankBonus', '総合ランクボーナス（各パラメータへの加算値）', '', 0)}
       <label class="field" for="manualItem"><span>バンドアイテム補正（%）</span><input type="number" id="manualItem" name="manualItem" min="0" step="0.1" value="0" required></label></div>
-      <label class="check"><input type="checkbox" name="noSnap" id="noSnap" checked>Snapなし</label>
-      <div class="form-grid manual-snap"><label class="field" for="snapP"><span>Snap Performance（%）</span><input id="snapP" name="snapP" type="number" min="0" step="0.01" value="0"></label>
-        <label class="field" for="snapT"><span>Snap Technic（%）</span><input id="snapT" name="snapT" type="number" min="0" step="0.01" value="0"></label>
-        <label class="field" for="snapV"><span>Snap Visual（%）</span><input id="snapV" name="snapV" type="number" min="0" step="0.01" value="0"></label>${field('manualU', 'Snap上限解放 U', 1)}</div>
+      <label class="check"><input type="checkbox" name="noSnap" id="noSnap" checked>スナップなし</label>
+      <div class="form-grid manual-snap"><label class="field" for="snapP"><span>スナップ Performance（%）</span><input id="snapP" name="snapP" type="number" min="0" step="0.01" value="0"></label>
+        <label class="field" for="snapT"><span>スナップ Technic（%）</span><input id="snapT" name="snapT" type="number" min="0" step="0.01" value="0"></label>
+        <label class="field" for="snapV"><span>スナップ Visual（%）</span><input id="snapV" name="snapV" type="number" min="0" step="0.01" value="0"></label>${field('manualU', 'スナップ上限解放 U', 1)}</div>
       <button type="submit" class="primary">個別評価値を計算</button></form>
       <output id="manual-output" class="manual-output" aria-live="polite"></output><p class="muted">この計算は所持データの登録内容を変更しません。評価値式は観測範囲で検証した推定式です。</p></section>`;
   }
@@ -719,7 +715,7 @@ export function mountApp(root: HTMLElement): void {
         const stats: Stats = { performance: value('manualP'), technic: value('manualT'), visual: value('manualV') };
         const input: RatingInput = { memberDisplayedStats: stats, awakeLevel: value('manualA'), liveSkillLevel: value('manualL'), gekisouSkillLevel: value('manualG'),
           characterRank: value('manualR'), totalRankBonus: value('manualTotalRankBonus'), bandItemTenthPercent: fixed(data.get('manualItem'), 1, 'item補正'), snapLimitBreak: noSnap.checked ? 0 : value('manualU'),
-          snapPercentBp: noSnap.checked ? { performance: 0, technic: 0, visual: 0 } : { performance: fixed(data.get('snapP'), 2, 'Snap P'), technic: fixed(data.get('snapT'), 2, 'Snap T'), visual: fixed(data.get('snapV'), 2, 'Snap V') } };
+          snapPercentBp: noSnap.checked ? { performance: 0, technic: 0, visual: 0 } : { performance: fixed(data.get('snapP'), 2, 'スナップ P'), technic: fixed(data.get('snapT'), 2, 'スナップ T'), visual: fixed(data.get('snapV'), 2, 'スナップ V') } };
         const result = calculateRating(input);
         root.querySelector('#manual-output')!.innerHTML = `<span>個別バンド評価値</span><strong>${number(result.bandRating)}</strong><p>B ${number(result.memberBase)} · K ${(result.snapMultiplierBp / 10000).toFixed(4)}</p>`;
       } catch (error) { root.querySelector('#manual-output')!.innerHTML = `<p class="error-text">${escape(errorMessage(error))}</p>`; }

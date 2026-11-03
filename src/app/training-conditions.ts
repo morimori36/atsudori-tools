@@ -56,7 +56,7 @@ export function applyTrainingConditions(master: Masterdata, input: Collection, s
     const trainingStage = raise(owned.trainingStage, settings.member.trainingStage,
       master.memberTraining.filter(r => r.group === card.trainingGroup).map(r => r.stage));
     const cap = master.memberLevelLimits.find(r => r.rarity === card.rarity && r.trainingStage === trainingStage);
-    if (!cap) throw new Error('Memberの合法Lv上限を確定できません');
+    if (!cap) throw new Error('メンバーの合法Lv上限を確定できません');
     const levelTarget = settings.member.level === 'maxIfTrainingRaised'
       ? (trainingStage > owned.trainingStage ? 'max' : null) : settings.member.level;
     return {...owned, trainingStage,
@@ -70,7 +70,7 @@ export function applyTrainingConditions(master: Masterdata, input: Collection, s
     const ranks = master.snapRanks.filter(r => r.group === card.rankGroup);
     const rank = raise(owned.rank, settings.snap.rank, ranks.map(r => r.rank));
     const cap = ranks.find(r => r.rank === rank);
-    if (!cap) throw new Error('Snapの合法Lv上限を確定できません');
+    if (!cap) throw new Error('スナップの合法Lv上限を確定できません');
     return {...owned,rank,level:raise(owned.level, settings.snap.level,
       master.snapLevels.filter(r => r.group === card.levelGroup && r.level <= cap.limitLevel).map(r => r.level))};
   });

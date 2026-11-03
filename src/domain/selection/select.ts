@@ -35,7 +35,7 @@ function choose<T extends { id: number; rarity: number }>(candidates: readonly T
   if (result.reason !== 'equal-rarity') return { status: 'ambiguous', candidates: result.candidates, reason: result.reason };
   return { status: 'selected', candidate: [...result.candidates].sort(provisionalCardOrder)[0]!, provisional: true };
 }
-export const snapScoreNotice = 'Snapはバンド・色ごとのSnap実効補正合計最大化（仮説E）で選出する試験仕様です。同点ID順も含め実機観測からの暫定仮説で、ゲーム内仕様は未確定です。';
+export const snapScoreNotice = 'スナップはバンド・色ごとのスナップ実効補正合計最大化（仮説E）で選出する試験仕様です。同点ID順も含め実機観測からの暫定仮説で、ゲーム内仕様は未確定です。';
 export interface SelectedSlot {
   characterId: number;
   member: Choice<MemberCandidate>;
@@ -62,7 +62,7 @@ export function selectByColor(
   if (new Set(members.map(m => m.id)).size !== members.length || new Set(snaps.map(s => s.id)).size !== snaps.length) {
     throw new Error('duplicate owned card identities');
   }
-  for (const snap of snaps) requireInteger(snap.scoreBp, 'Snap scoreBp');
+  for (const snap of snaps) requireInteger(snap.scoreBp, 'スナップ scoreBp');
   const groups = [...new Set(members.map(m => `${m.bandId}:${m.cardType}`))]
     .map(key => key.split(':').map(Number) as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return groups.map(([bandId, cardType]) => {
@@ -76,7 +76,7 @@ export function selectByColor(
       for (let seat = 0; seat < 3 && candidates.length; seat++) {
         const member = choose(candidates, policy);
         const notices = member.status === 'selected' && member.provisional ? [equalRarityNotice] : [];
-        if (characterMembers.length > 1) notices.push('同一キャラクター・同色はメンバーとSnapを各最大3枚とする試験仕様です。');
+        if (characterMembers.length > 1) notices.push('同一キャラクター・同色はメンバーとスナップを各最大3枚とする試験仕様です。');
         if (candidates.some(c => usesProvisionalRarity(c.rarity))) notices.push(provisionalRarityNotice);
         slots.push({ characterId, member, snap: { status: 'none' }, issues: [], notices,
           status: member.status === 'ambiguous' ? 'ambiguous' : 'resolved' });
@@ -98,7 +98,7 @@ export function selectByColor(
     if (pending) {
       for (const slot of slots) {
         slot.status = slot.member.status === 'ambiguous' ? 'ambiguous' : 'unresolved';
-        slot.allocationReason = 'バンド・色内のメンバー選出が未確定のためSnap割り当てを保留しています';
+        slot.allocationReason = 'バンド・色内のメンバー選出が未確定のためスナップ割り当てを保留しています';
       }
     } else {
       const assignment = maximumAssignment(weights);

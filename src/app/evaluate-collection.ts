@@ -80,17 +80,17 @@ export function evaluateCollection(master: Masterdata, collection: Collection, r
   });
   const snaps = collection.snaps.map(owned => {
     const row = master.snaps.find(s => s.id === owned.supportCardId);
-    if (!row) throw new Error(`unknown Snap ${owned.supportCardId}`);
+    if (!row) throw new Error(`未登録のスナップ ${owned.supportCardId}`);
     const display = deriveSnapDisplay(master, owned);
     const { performance, technic, visual } = display.percentBp;
     const scoreBp = performance + technic + visual + 200 * display.snapLimitBreak;
-    requireInteger(scoreBp, 'Snap scoreBp');
+    requireInteger(scoreBp, 'スナップ scoreBp');
     return { id: row.id, characterIds: row.characterIds, cardType: row.cardType, rarity: row.rarity, scoreBp };
   });
   const evaluateSlot = (selection: SelectedSlot): EvaluatedSlot => {
     const reasons: string[] = [];
     if (selection.member.status === 'ambiguous') reasons.push('メンバーの同枠候補を確定できません');
-    if (selection.snap.status === 'ambiguous') reasons.push('Snapの同枠候補を確定できません');
+    if (selection.snap.status === 'ambiguous') reasons.push('スナップの同枠候補を確定できません');
     if (selection.allocationReason) reasons.push(selection.allocationReason);
     if (selection.status !== 'resolved' || selection.member.status !== 'selected') {
       return { selection, status: 'pending', reasons };
