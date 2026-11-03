@@ -20,6 +20,7 @@ for (const width of [1280,390,320]) test(`stamp ownership, automatic counts and 
   await page.getByRole('button', {name:'架空の折り紙の所持を切り替え'}).click();
   await page.locator('[data-stamp-owned="9102"]').click();
   await page.locator('[data-stamp-owned="9103"]').click();
+  await expect(page.locator('[data-stamp-state]')).toBeEmpty();
   await expect(page.locator('[data-stamp-count]')).toContainText('所持 3種類');
   await page.locator('.catalog-filters summary').click();await page.locator('[data-stamp-character][value="8202"]').check();
   await expect(page.locator('[data-stamp-id]:visible')).toHaveCount(1);
@@ -78,6 +79,10 @@ test('failed stamp save and damaged collection protect original bytes and owners
   await page.locator('nav [data-tab=stamps]').click();await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
   await page.locator('[data-stamp-owned="9102"]').click();await expect(page.locator('[data-stamp-owned="9102"]')).toHaveAttribute('aria-pressed','false');await expect(page.locator('[data-stamp-state]')).toContainText('保存できません');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.reload();await page.locator('nav [data-tab=stamps]').click();
+  await page.locator('[data-stamp-owned="9102"]').click();
+  await expect(page.locator('[data-stamp-state]')).toBeEmpty();
+  await expect(page.locator('[data-stamp-owned="9102"]')).toHaveAttribute('aria-pressed','true');
   await page.reload();await page.evaluate(k=>localStorage.setItem(k,'{broken'),STORAGE_KEY);await page.reload();await page.locator('nav [data-tab=stamps]').click();
   await page.locator('[data-stamp-owned="9102"]').click();await expect(page.locator('[data-stamp-owned="9102"]')).toHaveAttribute('aria-pressed','false');expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe('{broken');
 });
