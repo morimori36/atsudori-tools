@@ -84,9 +84,11 @@ export function bindTrainingSettings(host:HTMLElement,store:TrainingSettingsStor
 }
 /** Keep open details and scroll position through a page update. The modal owns its focus. */
 export function preserveTrainingView(host:HTMLElement,render:()=>void):void {
+  const key=(d:HTMLDetailsElement)=>d.dataset.materialResource!==undefined?'material:'+d.dataset.materialResource:d.dataset.bondCharacter!==undefined?'bond:'+d.dataset.bondCharacter:undefined;
+  const keyed=new Map([...host.querySelectorAll('details')].filter(d=>key(d)!==undefined).map(d=>[key(d),d.open]));
   const opened=[...host.querySelectorAll('details')].map(d=>d.open);
   const x=window.scrollX,y=window.scrollY;
   render();
-  host.querySelectorAll('details').forEach((d,i)=>{if(opened[i]!==undefined)d.open=opened[i]!;});
+  host.querySelectorAll('details').forEach((d,i)=>{const value=key(d)===undefined?opened[i]:keyed.get(key(d));if(value!==undefined)d.open=value;});
   window.scrollTo(x,y);
 }
