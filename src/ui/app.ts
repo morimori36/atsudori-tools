@@ -100,6 +100,8 @@ export function mountApp(root: HTMLElement): void {
   const trainingSettings = createTrainingSettings(storage);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
+  const expView={targetRank:30};
+  let materialsView:ReturnType<typeof createMaterialsPage>|undefined;
   let noteListenerController = new AbortController();
   let notice: { error: boolean; text: string } | undefined;
   const drafts = new Map<string, Record<string, string>>();
@@ -367,7 +369,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
-    try { return catalogIssues(master).length && ['members','snaps','stamps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'stamps' ? stampsMarkup(master,collection,stampFilters) : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : createMaterialsPage(master,collection,trainingSettings).html) : active === 'exchange' ? exchangePage() : manualPage(); }
+    try { return catalogIssues(master).length && ['members','snaps','stamps','progress','items','materials'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'stamps' ? stampsMarkup(master,collection,stampFilters) : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : (materialsView=createMaterialsPage(master,collection,trainingSettings,expView)).html) : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
   function render(): void {
@@ -401,6 +403,7 @@ export function mountApp(root: HTMLElement): void {
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
     if (active === 'rating' || active === 'materials') bindTrainingSettings(root,trainingSettings);
+    if (active === 'materials') materialsView?.bind(root,()=>preserveTrainingView(root,render));
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindStamps(root,master,collection,stampFilters, ids => {

@@ -498,3 +498,17 @@ footer { overflow-wrap: anywhere; }
 .material-consumers > li { padding: 8px 0; }
 
 .stamp-card .card-identity { min-height: 44px; }
+
+.bond-card summary > .exp-overview { display: block; padding-top: 8px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.exp-overview > span, .exp-overview > strong { display: block; }
+.exp-overview > strong { margin-top: 3px; }
+.exp-detail-button { width: 100%; margin-top: 12px; white-space: normal; }
+.exp-target { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.exp-dialog { width: min(48rem, calc(100vw - 2rem)); overflow-wrap: anywhere; }
+.exp-dialog label { display: block; margin: 8px 0; }
+.exp-dialog input[type=search] { width: 100%; min-width: 0; }
+.exp-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0 12px; }
+.exp-row { border-top: 1px solid var(--line); padding: 12px 0; }
+.exp-row h3 { font-size: 1rem; }
+.exp-filters label:has(input[type=checkbox]) { display: flex; align-items: center; gap: .5rem; }
+.exp-filters input[type=checkbox] { flex: 0 0 auto; width: 1.15rem; height: 1.15rem; min-height: 0; padding: 0; margin: 0; }
