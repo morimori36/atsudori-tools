@@ -111,8 +111,8 @@ export function mountApp(root: HTMLElement): void {
     for (const pending of pendingSaves.values()) clearTimeout(pending.timer);
     pendingSaves.clear();
   }
-  const filters = { members: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' },
-    snaps: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' } };
+  const filters = { members: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', skill: '', secondarySkill: '', sort: 'id' },
+    snaps: { query: '', band: '', character: '', type: '', rarity: '', ownership: '', skill: '', secondarySkill: '', sort: 'id' } };
   const stampFilters = {query:'',character:'',ownership:''};
   let importReadId = 0;
   let catalogReadId = 0;
@@ -230,6 +230,9 @@ export function mountApp(root: HTMLElement): void {
     const members = kind === 'members';
     const rows = members ? master.members : master.snaps;
     const filter = filters[kind];
+    for (const [key, skillKind] of [['skill',members ? 'live' : 'support'],['secondarySkill',members ? 'gekisou' : 'gekisouSupport']] as const) {
+      if (filter[key] && !master.skillCategories?.some(c => c.kind === skillKind && String(c.id) === filter[key])) filter[key] = '';
+    }
     const toggles = (key: keyof typeof filter, label: string, values: [string | number, string][]): string =>
       `<fieldset class="filter-group"><legend>${label}</legend><div class="filter-options">${[['', 'すべて'], ...values].map(([id, text], index) => {
         const controlId = `filter-${kind}-${key}-${index}`;
@@ -239,10 +242,12 @@ export function mountApp(root: HTMLElement): void {
       <label class="field catalog-search"><span>名前・タイトル・IDで検索</span><input type="search" data-filter="query" value="${escape(filter.query)}" placeholder="名前やタイトルを入力"></label>
       ${toggles('ownership', '所持状況', [['owned', '所持'], ['unowned', '未所持']])}
       <div class="field"><label for="filter-${kind}-sort">並び替え</label><select id="filter-${kind}-sort" data-filter="sort">${[['id', 'ID順'], ['name', '名前順'], ['rarity', 'レアリティ順'], ['level', 'Lvが高い順'], ['owned', '所持を先に']].map(([id, label]) => `<option value="${id}" ${filter.sort === id ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
-      </div><details class="catalog-filters" ${filter.band || filter.character || filter.type || filter.rarity ? 'open' : ''}><summary>詳細フィルタ</summary><div class="catalog-filter-grid">      ${toggles('band', 'バンド', master.bands.map(b => [b.id, b.name]))}
+      </div><details class="catalog-filters" ${filter.band || filter.character || filter.type || filter.rarity || filter.skill || filter.secondarySkill ? 'open' : ''}><summary>詳細フィルタ</summary><div class="catalog-filter-grid">      ${toggles('band', 'バンド', master.bands.map(b => [b.id, b.name]))}
       ${toggles('character', 'キャラクター', characterDisplayOrder(master.characters).map(c => [c.id, c.name]))}
       ${toggles('type', '色', [...new Set(rows.map(r => r.cardType))].sort((a,b) => a-b).map(t => [t, cardTypeName(t)]))}
       ${toggles('rarity', 'レアリティ', [...new Set(rows.map(r => r.rarity))].sort((a,b) => b-a).map(r => [r, rarity(r)]))}
+      ${toggles('skill', members ? 'ライブスキル種別' : 'サポートスキル種別', (master.skillCategories ?? []).filter(c => c.kind === (members ? 'live' : 'support')).map(c => [c.id, c.name]))}
+      ${toggles('secondarySkill', members ? '撃奏スキル種別' : '撃奏サポートスキル種別', (master.skillCategories ?? []).filter(c => c.kind === (members ? 'gekisou' : 'gekisouSupport')).map(c => [c.id, c.name]))}
       </div></details>
       <button class="secondary small" type="button" data-reset-filters>絞り込みを解除</button>
       <p class="muted catalog-count" role="status"></p>
@@ -448,6 +453,8 @@ export function mountApp(root: HTMLElement): void {
         card.hidden = !(text.includes(filter.query.trim().normalize('NFKC').toLocaleLowerCase('ja')) &&
           (!filter.band || names.some(c => c.bandId === Number(filter.band))) && (!filter.character || ids.includes(Number(filter.character))) &&
           (!filter.type || row.cardType === Number(filter.type)) && (!filter.rarity || row.rarity === Number(filter.rarity)) &&
+          (!filter.skill || ('characterId' in row ? row.liveSkillCategoryIds : row.supportSkillCategoryIds)?.includes(Number(filter.skill))) &&
+          (!filter.secondarySkill || ('characterId' in row ? row.gekisouSkillCategoryIds : row.gekisouSupportSkillCategoryIds)?.includes(Number(filter.secondarySkill))) &&
           (!filter.ownership || owned(id) === (filter.ownership === 'owned')));
         if (!card.hidden) count++;
       });
@@ -462,7 +469,7 @@ export function mountApp(root: HTMLElement): void {
       filter[input.dataset.filter as keyof typeof filter] = input.value; applyFilters();
     }));
     root.querySelector('[data-reset-filters]')!.addEventListener('click', () => {
-      Object.assign(filter, { query: '', band: '', character: '', type: '', rarity: '', ownership: '', sort: 'id' });
+      Object.assign(filter, { query: '', band: '', character: '', type: '', rarity: '', ownership: '', skill: '', secondarySkill: '', sort: 'id' });
       root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-filter]').forEach(input => {
         const value = filter[input.dataset.filter as keyof typeof filter];
         if (input instanceof HTMLInputElement && input.type === 'radio') input.checked = input.value === value; else input.value = value;

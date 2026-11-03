@@ -2,8 +2,8 @@ export type FieldKind = 'integer' | 'zeroInteger' | 'text' | 'ids' | 'pair' | 's
 export const tableFields = {
   bands: { id: 'integer', name: 'text' },
   characters: { id: 'integer', bandId: 'integer', name: 'text', displayOrder: 'zeroInteger' },
-  members: { id: 'integer', characterId: 'integer', cardType: 'integer', rarity: 'integer', name: 'text', title: 'text', maxStats: 'stats', levelGroup: 'integer', trainingGroup: 'integer', awakeningGroup: 'integer', liveSkillLevels: 'ids', gekisouSkillLevels: 'ids' },
-  snaps: { id: 'integer', characterIds: 'ids', cardType: 'integer', rarity: 'integer', name: 'text', title: 'text', maxPercentBp: 'stats', levelGroup: 'integer', rankGroup: 'integer' },
+  members: { id: 'integer', characterId: 'integer', cardType: 'integer', rarity: 'integer', name: 'text', title: 'text', maxStats: 'stats', levelGroup: 'integer', trainingGroup: 'integer', awakeningGroup: 'integer', liveSkillLevels: 'ids', gekisouSkillLevels: 'ids', liveSkillCategoryIds: 'ids', gekisouSkillCategoryIds: 'ids' },
+  snaps: { id: 'integer', characterIds: 'ids', cardType: 'integer', rarity: 'integer', name: 'text', title: 'text', maxPercentBp: 'stats', levelGroup: 'integer', rankGroup: 'integer', supportSkillCategoryIds: 'ids', gekisouSupportSkillCategoryIds: 'ids' },
   characterRankLevels: { value: 'integer' },
   memberLevels: { group: 'integer', level: 'integer', rates: 'stats' },
   memberTraining: { group: 'integer', stage: 'integer', rates: 'stats' },
@@ -32,4 +32,4 @@ export const tableKeys: Record<CatalogTable, string[]> = {
 };
 
 /** Optional row fields; shared by the parser and generated structural schema. */
-export const optionalTableFields: Partial<Record<CatalogTable, readonly string[]>> = { characters: ['displayOrder'] };
+export const optionalTableFields: Partial<Record<CatalogTable, readonly string[]>> = { characters: ['displayOrder'], members: ['liveSkillCategoryIds','gekisouSkillCategoryIds'], snaps: ['supportSkillCategoryIds','gekisouSupportSkillCategoryIds'] };

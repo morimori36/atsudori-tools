@@ -37,17 +37,20 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   }
   await expect(page.locator('[data-bond-theory] .card-badges')).toHaveCount(0);
   expect(await paper.locator('[data-material-consumer]').evaluateAll(rows=>rows.reduce((n,r)=>n+Number((r as HTMLElement).dataset.quantity),0))).toBe(20);
-  await paper.locator('li details > summary').first().click();await expect(paper).toContainText('独立に設計した架空費用表');
+  await expect(total.locator('summary').filter({hasText:/計算詳細|素材計算の注意/})).toHaveCount(0);
+  await expect(paper.locator('[data-axis=trainingStage]')).toContainText('特訓1→2');
+  await expect(total.locator('[data-material-kind=member] [data-material-consumer^=snap]')).toHaveCount(0);
+  await expect(total.locator('[data-material-kind=snap] [data-material-consumer^=member]')).toHaveCount(0);
   const character=page.locator('[data-bond-character="8201"]');
   await expect(character.locator('[aria-label="最終キャラランク"]')).toHaveText('4');
   await expect(character.locator('[aria-label="最終絆合計"]')).toHaveText('1');
-  await character.locator(':scope > summary').click();await expect(character.locator('[data-bond-rank]')).toHaveText('架空奏者A × 架空の紙笛奏者：1');
+  await character.locator(':scope > summary').click();await expect(character.locator('[data-bond-rank]')).toHaveText('架空の紙笛奏者1');
   await page.locator('[data-bond-character="8202"] > summary').click();
-  await expect(page.locator('[data-bond-character="8202"] [data-bond-rank]')).toHaveText('架空奏者A × 架空の紙笛奏者：1');
+  await expect(page.locator('[data-bond-character="8202"] [data-bond-rank]')).toHaveText('架空奏者A1');
   const exp=page.locator('[data-material-resource="snap-exp"]');await exp.locator(':scope > summary').click();
   await expect(exp.locator(':scope > summary')).toContainText('126 EXP（上限）');
   await expect(exp.locator('[data-material-consumer]')).toHaveCount(2);
-  await page.locator('[data-material-unavailable] > summary').click();await expect(page.locator('[data-material-unavailable]')).toContainText('未計算');
+  await page.locator('[data-material-unavailable] > summary').first().click();await expect(page.locator('[data-material-unavailable]').first()).toContainText('未計算');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await expect(page.locator('.growth-page .panel').first()).toHaveCSS('background-color',theme==='dark'?'rgb(41, 41, 41)':'rgb(255, 255, 255)');
   if(width===390)await page.screenshot({path:`test-results/growth-390-${theme}.png`,fullPage:true});
@@ -87,4 +90,15 @@ test('shared conditions update material totals and theory ranks',async({page})=>
   await expect(page.locator('[data-material-total]')).not.toContainText('架空の折紙');
   await expect(page.locator('[data-material-total]')).toContainText('126 EXP');
   await expect(page.locator('[data-bond-character="8201"] [aria-label="最終キャラランク"]')).toHaveText('1');
+});
+
+test('a shared resource has independent member and Snap subtotals whose sum is the existing total',async({page})=>{
+  const {m,c}=maximumTrainingFixture();
+  for(const stage of m.materialDefinition!.schedules.find(s=>s.id==='snap-lv')!.stages)for(const amount of stage.amounts)amount.resourceId='member-exp';
+  await page.goto('./');await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();
+  await page.getByRole('button',{name:'育成余地・素材',exact:true}).click();
+  const resources=page.locator('[data-material-resource="member-exp"]');await expect(resources).toHaveCount(2);
+  await expect(page.locator('[data-material-kind=member] [data-material-resource="member-exp"] > summary')).toContainText('43 EXP');
+  await expect(page.locator('[data-material-kind=snap] [data-material-resource="member-exp"] > summary')).toContainText('126 EXP');
+  expect(await resources.locator('[data-material-consumer]').evaluateAll(rows=>rows.reduce((sum,row)=>sum+Number((row as HTMLElement).dataset.quantity),0))).toBe(169);
 });

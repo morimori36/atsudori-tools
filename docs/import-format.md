@@ -177,3 +177,11 @@ catalogの任意フィールド`songClearCounts`は、既存キャラID文字列
 collectionの`ownedStampIds`は初期未記載（所持なし）で、新マスタ追加分もOFFです。同一IDの所持はrevision更新後も保持し、参照するスタンプを削除するマスタ更新・初期化は拒否します。先に所持を解除するか、対応マスタを使用してください。所持・育成データの初期化ではスタンプ所持も解除します。
 
 日常の所持Importでは`ownedStampIds`の**省略時だけ**現在の登録を保持します。明示した配列は置き換え、`[]`は全解除です。旧ファイルの数値進捗からIDを復元しません。保存に成功した場合だけImportを反映し、保存失敗・破損保護は既存の所持データと共通です。旧`characterProgress.stamps`と`characterProgress.songClears`は読込・往復のため保持しますが、通常推定・絆理論値・育成後・外部JSONで一切使いません。ランク定義なしの未算出は維持します。
+
+## 任意のスキルカテゴリ
+
+`skillCategories?: { id: 正整数, kind: "live" | "gekisou" | "support" | "gekisouSupport", name: 文字列 }[]`をcatalog v1へ任意追加できます。IDは表内で一意、表示順は定義配列順です。
+
+メンバーの`liveSkillCategoryIds?`・`gekisouSkillCategoryIds?`、スナップの`supportSkillCategoryIds?`・`gekisouSupportSkillCategoryIds?`は、対応する系統のカテゴリIDを参照する空でない重複なし整数配列です。複数スキルのカテゴリをまとめて指定でき、いずれかの一致で表示します。未定義・異なる系統への参照はImportを拒否します。原本のスキルIDや分類ロジックはcatalogに含めません。
+
+分類不明の場合は参照フィールドを省略します。定義のない旧catalogもImportできます。カード名や育成値からの分類推定はしません。詳細フィルタは系統ごとに単一選択、系統間・既存フィルタ間はAND条件です。「すべて」と全解除で解除でき、マスタ更新で選択カテゴリが消えた場合も解除します。collection・育成条件の保存形式と数値計算は変更しません。
