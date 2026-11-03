@@ -17,7 +17,7 @@ for(const legacy of [false,true])for(const width of [1280,390,320])test(`growth 
       const card=section.locator(`[data-bond-character="${char.id}"]`);await card.locator(':scope > summary').click();
       await expect(card.locator('tbody th')).toHaveText(chars.filter(c=>c.id!==char.id).map(c=>c.name));
       await expect(card.locator('[data-bond-rank]')).toHaveCount(chars.length-1);
-      await expect(card.locator('tbody td')).toHaveText(Array(chars.length-1).fill('1'));
+      await expect(card.locator('tbody td')).toHaveText(Array(chars.length-1).fill(chars.length===5?'5':'1'));
       await expect(card.locator('ul')).toHaveCount(0);
     }
   }

@@ -91,3 +91,14 @@ test('shared conditions update material totals and theory ranks',async({page})=>
   await expect(page.locator('[data-material-total]')).toContainText('126 EXP');
   await expect(page.locator('[data-bond-character="8201"] [aria-label="最終キャラランク"]')).toHaveText('1');
 });
+
+test('a shared resource has independent member and Snap subtotals whose sum is the existing total',async({page})=>{
+  const {m,c}=maximumTrainingFixture();
+  for(const stage of m.materialDefinition!.schedules.find(s=>s.id==='snap-lv')!.stages)for(const amount of stage.amounts)amount.resourceId='member-exp';
+  await page.goto('./');await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();
+  await page.getByRole('button',{name:'育成余地・素材',exact:true}).click();
+  const resources=page.locator('[data-material-resource="member-exp"]');await expect(resources).toHaveCount(2);
+  await expect(page.locator('[data-material-kind=member] [data-material-resource="member-exp"] > summary')).toContainText('43 EXP');
+  await expect(page.locator('[data-material-kind=snap] [data-material-resource="member-exp"] > summary')).toContainText('126 EXP');
+  expect(await resources.locator('[data-material-consumer]').evaluateAll(rows=>rows.reduce((sum,row)=>sum+Number((row as HTMLElement).dataset.quantity),0))).toBe(169);
+});
