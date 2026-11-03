@@ -63,7 +63,7 @@ export function validateCatalog(value: unknown): Masterdata {
       const id = integer(row.id, path + '.id', 1);
       if (ids.has(id)) fail(path, 'カテゴリIDが重複しています');
       ids.add(id);
-      if (!['live','gekisou','support','gekisouSupport'].includes(String(row.kind))) fail(path, '未対応のスキル系統です');
+      if (typeof row.kind !== 'string' || !['live','gekisou','support','gekisouSupport'].includes(row.kind)) fail(path, '未対応のスキル系統です');
       return {id, kind: row.kind, name: read(row.name, path + '.name', 'text')};
     });
   }

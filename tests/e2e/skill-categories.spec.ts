@@ -39,3 +39,17 @@ for(const width of [1280,390,320])test(`four independent skill filters at ${widt
   await expect(page.locator('[data-filter=skill]')).toHaveCount(1);
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(saved);
 });
+
+test('invalid unreferenced category kinds are refused without replacing the saved catalog',async({page})=>{
+  const m=skillCategoryFixture();
+  await page.goto('./');
+  await page.locator('nav [data-tab=exchange]').click();
+  const upload=async(value:unknown)=>page.locator('#catalog-import').setInputFiles({name:'fictional-catalog.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
+  await upload(m);await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+  const saved=await page.evaluate(key=>localStorage.getItem(key),CATALOG_STORAGE_KEY);
+  await upload({...m,skillCategories:[...m.skillCategories!,{id:999,kind:['live'],name:'架空の未参照分類'}]});
+  await expect(page.locator('[role=alert]:visible')).toContainText('スキル系統');
+  expect(await page.evaluate(key=>localStorage.getItem(key),CATALOG_STORAGE_KEY)).toBe(saved);
+  await page.locator('nav [data-tab=members]').click();
+  await expect(page.locator('[data-filter=skill]')).toHaveCount(3);
+});

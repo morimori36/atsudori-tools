@@ -26,3 +26,18 @@ it.each(['missing','wrong-kind','duplicate-id','duplicate-ref','invalid-kind','e
   expect(()=>importCatalog(JSON.stringify(m))).toThrow();
   if(['duplicate-ref','invalid-kind','empty-refs'].includes(kind)){expect(structural(m)).toBe(false);expect(()=>validateCatalog(m)).toThrow();}
 });
+
+it.each([['live'],['gekisou'],['support'],['gekisouSupport'],null,0,true,{},[]].map(kind=>({kind})))('rejects non-string category kind $kind even when unreferenced',({kind})=>{
+  const m=syntheticCatalog();
+  const bad={...m,skillCategories:[{id:91,kind,name:'架空の分類'}]};
+  expect(structural(bad)).toBe(false);
+  expect(()=>validateCatalog(bad)).toThrow('スキル系統');
+  expect(()=>importCatalog(JSON.stringify(bad))).toThrow('スキル系統');
+});
+
+it.each(['live','gekisou','support','gekisouSupport'] as const)('round trips supported unreferenced category kind %s consistently with Schema',kind=>{
+  const m={...syntheticCatalog(),skillCategories:[{id:91,kind,name:'架空の分類'}]};
+  const imported=importCatalog(JSON.stringify(m));
+  expect(imported).toEqual(m);
+  expect(structural(JSON.parse(exportCatalog(imported)))).toBe(true);
+});
