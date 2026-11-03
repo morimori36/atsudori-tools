@@ -213,10 +213,11 @@ footer p { margin-bottom: 4px; }
 .card-type-label { background: light-dark(#f3f3f6, #36363c); }
 .card-type-label::before { content: ''; width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: var(--card-color); }
 .rarity-badge { color: light-dark(#555563, #dddded); background: light-dark(#eeeef2, #3a3a43); }
-.rarity-badge[data-rarity="3"] { color: light-dark(#205780, #badbff); background: light-dark(#e8f1fa, #233d52); }
-.rarity-badge[data-rarity="4"] { color: light-dark(#76530c, #f5d78f); background: light-dark(#fcf0d1, #493a1e); }
-.rarity-badge[data-rarity="10"] { color: light-dark(#86384c, #ffc5d4); background: light-dark(#faeaf0, #4c2938); }
-.rarity-badge[data-rarity="20"] { color: light-dark(#27685a, #aee9d5); background: light-dark(#e5f3ed, #24443a); }
+.rarity-badge[data-rarity="2"] { color: light-dark(#205780, #badbff); background: light-dark(#e8f1fa, #233d52); }
+.rarity-badge[data-rarity="3"] { color: light-dark(#76530c, #f5d78f); background: light-dark(#fcf0d1, #493a1e); }
+.rarity-badge[data-rarity="4"] { color: #343047; background: var(--rarity-rainbow); }
+.rarity-badge[data-rarity="20"] { color: light-dark(#86384c, #ffc5d4); background: light-dark(#faeaf0, #4c2938); }
+.rarity-badge[data-rarity="10"] { color: light-dark(#27685a, #aee9d5); background: light-dark(#e5f3ed, #24443a); }
 .card-id { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
 .ownership-badge { margin-inline-start: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
 .is-owned .ownership-badge { color: light-dark(#454553, #e1e1ea); font-weight: 700; }
@@ -277,7 +278,13 @@ footer p { margin-bottom: 4px; }
 .color-total { text-align: right; font-variant-numeric: tabular-nums; }
 .color-total > span, .color-total small { font-size: 11px; display: block; color: var(--muted); }
 .color-total strong { font-size: 22px; }
-.collection-card { border-inline-start: 3px solid var(--card-color); }
+.collection-card { position: relative; --rarity-accent: #6d6e81; --rarity-rainbow: linear-gradient(135deg, #ffb8cd, #ffdaac, #fff0ab, #b5e6bd, #afe3fa, #c5bcf5, #edb9ed); border-inline-start: 3px solid var(--rarity-accent); }
+.collection-card[data-rarity="2"] { --rarity-accent: light-dark(#348ac7, #7fc6fa); }
+.collection-card[data-rarity="3"] { --rarity-accent: light-dark(#bc8a20, #e9c364); }
+.collection-card[data-rarity="4"] { --rarity-accent: #b499de; }
+.collection-card[data-rarity="20"] { --rarity-accent: light-dark(#a94d67, #e89bb6); }
+.collection-card[data-rarity="10"] { --rarity-accent: light-dark(#378b72, #83cdb4); }
+.collection-card.is-owned[data-rarity="4"]::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: -3px; width: 3px; border-radius: 6px 0 0 6px; background: var(--rarity-rainbow); pointer-events: none; }
 @media (max-width: 700px) {
   .color-summary { padding: 10px 12px; gap: 8px; }
   .color-total strong { font-size: 19px; }
