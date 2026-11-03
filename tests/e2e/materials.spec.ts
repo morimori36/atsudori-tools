@@ -14,6 +14,8 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   await page.locator('#import-file').setInputFiles({name:'fictional-collection.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(c))});
   await page.getByLabel('表示テーマ').selectOption(theme);
   const saved=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,CATALOG_STORAGE_KEY,TRAINING_STORAGE_KEY]);
+  await expect(page.locator('nav [data-tab=members]')).toContainText('メンバー');
+  await expect(page.locator('nav [data-tab=snaps]')).toContainText('スナップ');
   await page.getByRole('button',{name:'育成余地・素材',exact:true}).click();
   const total=page.locator('[data-material-total]');
   await expect(page.locator('.training-settings')).toContainText('育成条件を変更');
@@ -26,6 +28,14 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   const paper=page.locator('[data-material-resource="paper"]');
   await paper.locator(':scope > summary').press('Enter');
   await expect(paper.locator('[data-material-consumer]')).toHaveCount(2);
+  for(const consumer of await page.locator('[data-material-consumer]').all()) {
+    const [kind,id]=(await consumer.getAttribute('data-material-consumer'))!.split('-');
+    const card=(kind==='member'?m.members:m.snaps).find(c=>c.id===Number(id))!;
+    await expect(consumer.locator('.rarity-badge')).toHaveAttribute('data-rarity',String(card.rarity));
+    await expect(consumer.locator('.card-type-label')).toHaveText('色 7');
+    await expect(consumer).toContainText(`${card.name}［${card.title}］`);
+  }
+  await expect(page.locator('[data-bond-theory] .card-badges')).toHaveCount(0);
   expect(await paper.locator('[data-material-consumer]').evaluateAll(rows=>rows.reduce((n,r)=>n+Number((r as HTMLElement).dataset.quantity),0))).toBe(20);
   await paper.locator('li details > summary').first().click();await expect(paper).toContainText('独立に設計した架空費用表');
   const character=page.locator('[data-bond-character="8201"]');

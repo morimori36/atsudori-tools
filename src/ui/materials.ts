@@ -1,3 +1,4 @@
+import { cardIdentity } from './card-identity';
 import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
 import { simulateTrainingEvaluation } from '../app/training-simulation';
@@ -8,7 +9,7 @@ import type { MaterialAxis } from '../domain/materials/model';
 import { progressCharacters } from './character-order';
 const escape=(v:unknown):string=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 const number=(v:number|null|undefined):string=>v==null?'保留':v.toLocaleString('ja-JP');
-const labels:Record<MaterialAxis,string>={trainingStage:'特訓',awakeningStage:'覚醒',liveSkillLevel:'ライブスキル',gekisouSkillLevel:'撃奏スキル',level:'レベル',rank:'Snap上限解放'};
+const labels:Record<MaterialAxis,string>={trainingStage:'特訓',awakeningStage:'覚醒',liveSkillLevel:'ライブスキル',gekisouSkillLevel:'撃奏スキル',level:'レベル',rank:'スナップ上限解放'};
 type Simulation=ReturnType<typeof simulateTrainingEvaluation>;
 
 export function createMaterialsPage(master:Masterdata,collection:Collection,settings:TrainingSettingsStore) {
@@ -30,7 +31,7 @@ function materialsPage(master:Masterdata,result:Simulation):string {
   const consumers=materialConsumers(result.materials);
   const cardName=(card:CardRequirement)=>{
     const row=card.kind==='member'?master.members.find(m=>m.id===card.cardId)!:master.snaps.find(s=>s.id===card.cardId)!;
-    return `${card.kind==='member'?'Member':'Snap'} ${escape(row.name)}［${escape(row.title)}］`;
+    return `${card.kind==='member'?'メンバー':'スナップ'} ${cardIdentity(row)}`;
   };
   const evidence=(axis:CardRequirement['axes'][number])=>`<details><summary>計算詳細</summary><p>${labels[axis.axis]}：${number(axis.current)} → ${number(axis.target)}</p>${axis.reason?`<p>${escape(axis.reason)}</p>`:''}${axis.basis?`<p>計算根拠：${escape(axis.basis)}</p>`:''}</details>`;
   const resources=(exp:boolean)=>result.materials.totals.filter(a=>(result.materials.resources.find(r=>r.id===a.resourceId)!.unit==='exp')===exp).map(a=>{
@@ -47,7 +48,7 @@ function materialsPage(master:Masterdata,result:Simulation):string {
     ${resources(false)}${result.materials.totals.some(a=>result.materials.resources.find(r=>r.id===a.resourceId)!.unit==='exp')?'<h3>育成EXP（上限）</h3>':''}${resources(true)}
     ${!result.materials.totals.length?`<p>${result.materials.incomplete?'要求量は未確定です。':'追加の要求量なし'}</p>`:''}
     ${unavailable.length?`<details data-material-unavailable><summary>未計算項目（${unavailable.length}）</summary><ul>${unavailable.join('')}</ul></details>`:''}
-    <details><summary>素材計算の注意</summary><p>全所持Member・Snapの費用を一度ずつ合算します。共有SnapをMember側へ重複加算しません。費用定義の欠落は0として扱いません。素材の所持数・不足数は対象外です。EXPは現在Lv内の途中EXPが不明なため必要量の上限です。アイテム個数へ換算しません。</p></details>
+    <details><summary>素材計算の注意</summary><p>全所持メンバー・スナップの費用を一度ずつ合算します。共有スナップをメンバー側へ重複加算しません。費用定義の欠落は0として扱いません。素材の所持数・不足数は対象外です。EXPは現在Lv内の途中EXPが不明なため必要量の上限です。アイテム個数へ換算しません。</p></details>
     </section><section class="panel" data-bond-theory><h2>絆理論値</h2><p class="muted">理論上の到達値です。実際の獲得済み絆ランクとは異なります。</p><details><summary>計算条件</summary><p>手入力キャラランク・絆合計の上書きを除外し、既存の収束計算を使用します。</p></details>
     <div class="bond-heading" aria-hidden="true"><span>キャラ</span><span>最終キャラランク</span><span>最終絆合計</span></div>
     ${progressCharacters(master.characters).map(character=>{

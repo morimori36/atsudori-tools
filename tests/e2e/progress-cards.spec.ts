@@ -32,6 +32,8 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.reload(); await page.locator('nav [data-tab=progress]').click();
   const characters = page.locator('[data-progress-scroll=characters]'), items = page.locator('[data-progress-scroll=items]');
   await expect(characters.locator('article')).toHaveCount(5);
+  await expect(characters.locator('.rank-editor h3').filter({hasText:'進捗入力'})).toHaveText(Array(5).fill('進捗入力'));
+  await expect(characters.locator('.card-badges')).toHaveCount(0);
   await expect(items.locator('article')).toHaveCount(0);
   await page.locator('nav [data-tab=items]').click();
   await expect(items.locator('article')).toHaveCount(5);

@@ -1,14 +1,14 @@
 import { DEFAULT_TRAINING } from '../app/hypothetical-training';
 import type { TrainingSettings } from '../app/hypothetical-training';
 import type { TrainingSettingsStore } from '../storage/training-settings';
-const fields=[['trainingStage','Member 特訓段階'],['awakeningStage','Member 覚醒段階'],['liveSkillLevel','Member ライブスキルLv'],['gekisouSkillLevel','Member 撃奏スキルLv'],['snapRank','Snap 上限解放段階']] as const;
+const fields=[['trainingStage','メンバー 特訓段階','特訓'],['awakeningStage','メンバー 覚醒段階','覚醒'],['liveSkillLevel','メンバー ライブスキルLv','ライブ'],['gekisouSkillLevel','メンバー 撃奏スキルLv','撃奏'],['snapRank','スナップ 上限解放段階','上限解放']] as const;
 const escape=(v:string)=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 export function trainingSettingsSummary(store:TrainingSettingsStore):string {
   const settings=store.current();
-  return fields.map(([key,label])=>`${label} ${settings[key]??'変更しない'}`).join(' / ');
+  return `<div class="training-summary">${(['メンバー','スナップ'] as const).map((group,index)=>`<section class="training-summary-group" aria-label="${group}"><h3>${group}</h3><dl>${fields.slice(index===0?0:4,index===0?4:5).map(([key,,label])=>`<div data-training-summary="${key}"><dt>${label}</dt><dd>${settings[key]??'—'}</dd></div>`).join('')}</dl></section>`).join('')}</div>`;
 }
 export function trainingSettingsMarkup(store:TrainingSettingsStore):string {
-  return `<section class="training-settings" aria-label="育成シミュレーション"><div class="training-heading"><strong>育成シミュレーション</strong><button type="button" class="training-info" aria-label="育成シミュレーションの説明" aria-describedby="training-info-tooltip" popovertarget="training-info-tooltip">ⓘ</button><span id="training-info-tooltip" class="training-tooltip" popover="auto" role="tooltip">育成後は仮想の計算結果です。所持データは変更しません。評価値には絆最大時の理論キャラランクを使います。外部JSONには通常の育成後ランクを使い、絆理論値を含めません。</span></div><p class="training-summary">${escape(trainingSettingsSummary(store))}</p><button type="button" class="secondary" data-training-open>育成条件を変更</button>${store.message()?`<p role="status">${escape(store.message())}</p>`:''}</section>`;
+  return `<section class="training-settings" aria-label="育成条件"><div class="training-heading"><strong>育成条件</strong><button type="button" class="training-info" aria-label="育成条件の説明" aria-describedby="training-info-tooltip" popovertarget="training-info-tooltip">ⓘ</button><span id="training-info-tooltip" class="training-tooltip" popover="auto" role="tooltip">育成後は仮想の計算結果です。所持データは変更しません。評価値には絆最大時の理論キャラランクを使います。外部JSONには通常の育成後ランクを使い、絆理論値を含めません。</span></div>${trainingSettingsSummary(store)}<button type="button" class="secondary" data-training-open>育成条件を変更</button>${store.message()?`<p role="status">${escape(store.message())}</p>`:''}</section>`;
 }
 export function bindTrainingSettings(host:HTMLElement,store:TrainingSettingsStore):void {
   const info=host.querySelector<HTMLButtonElement>('.training-info');
@@ -55,7 +55,7 @@ export function bindTrainingSettings(host:HTMLElement,store:TrainingSettingsStor
     dialog.setAttribute('aria-labelledby','training-dialog-title');
     const render=()=>{
       const settings=store.current();
-      dialog.innerHTML=`<h2 id="training-dialog-title">育成条件</h2><div class="training-grid">${fields.map(([key,label])=>`<label>${label}<select data-training="${key}" ${store.damaged()?'disabled':''}>${[null,1,2,3,4,5].map(n=>`<option value="${n??''}" ${settings[key]===n?'selected':''}>${n??'変更しない'}</option>`).join('')}</select></label>`).join('')}</div><details class="training-help"><summary>「変更しない」とLvについて</summary><p>指定値は目標で、現在値を下げません。マスタの合法な段階だけを使います。「変更しない」はその段階・スキルLvを維持します。Member LvとSnap Lvは、段階を維持する場合も育成後の段階のLv上限まで上げます。</p></details><p class="muted">変更はすぐに3画面へ反映されます。</p><p data-training-message role="status">${escape(store.message())}</p>${store.damaged()?'<button type="button" data-training-reset>保存設定を初期設定で置き換える</button>':''}<div class="training-dialog-actions"><button type="button" class="primary" data-training-close>閉じる</button></div>`;
+      dialog.innerHTML=`<h2 id="training-dialog-title">育成条件</h2><div class="training-grid">${fields.map(([key,label])=>`<label>${label}<select data-training="${key}" ${store.damaged()?'disabled':''}>${[null,1,2,3,4,5].map(n=>`<option value="${n??''}" ${settings[key]===n?'selected':''}>${n??'変更しない'}</option>`).join('')}</select></label>`).join('')}</div><details class="training-help"><summary>「変更しない」とLvについて</summary><p>指定値は目標で、現在値を下げません。マスタの合法な段階だけを使います。「変更しない」はその段階・スキルLvを維持します。メンバー Lvとスナップ Lvは、段階を維持する場合も育成後の段階のLv上限まで上げます。</p></details><p class="muted">変更はすぐに3画面へ反映されます。</p><p data-training-message role="status">${escape(store.message())}</p>${store.damaged()?'<button type="button" data-training-reset>保存設定を初期設定で置き換える</button>':''}<div class="training-dialog-actions"><button type="button" class="primary" data-training-close>閉じる</button></div>`;
       dialog.querySelectorAll<HTMLSelectElement>('[data-training]').forEach(select=>select.addEventListener('change',()=>{
         store.update({...store.current(),[select.dataset.training!]:select.value===''?null:Number(select.value)} as TrainingSettings);
         dialog.querySelector('[data-training-message]')!.textContent=store.message();

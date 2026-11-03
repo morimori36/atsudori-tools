@@ -106,7 +106,7 @@ export function catalogIssues(m: Masterdata): string[] {
       need(r.supportSkillLevels.every(l => l === r.rank),p + '/rank/' + r.rank,'UとサポートLvの連動に未対応です');
     }
     for (const row of levels) for (const ch of ['performance','technic','visual'] as const)
-      need(Number.isSafeInteger(c.maxPercentBp[ch] * row.rates[ch]) && c.maxPercentBp[ch] * row.rates[ch] <= 2147483647,p,'Snapの積が対応数値範囲を超えます');
+      need(Number.isSafeInteger(c.maxPercentBp[ch] * row.rates[ch]) && c.maxPercentBp[ch] * row.rates[ch] <= 2147483647,p,'スナップの積が対応数値範囲を超えます');
   }
   for (const i of m.bandItems) {
     const p = 'bandItems/' + i.id;

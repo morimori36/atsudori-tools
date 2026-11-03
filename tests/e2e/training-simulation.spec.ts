@@ -23,6 +23,13 @@ const output=async(page:Page)=>{
 for(const width of [1280,390,320])test(`five shared targets, modal keyboard, recalculation and export at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:720});await seed(page);
   const saved=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[CATALOG_STORAGE_KEY,STORAGE_KEY]);
+  const conditions=page.getByRole('region',{name:'育成条件',exact:true});
+  await expect(conditions.locator('.training-heading strong')).toHaveText('育成条件');
+  await expect(conditions.locator('.training-summary-group h3')).toHaveText(['メンバー','スナップ']);
+  await expect(conditions.locator('.training-summary-group').nth(0).locator('dt')).toHaveText(['特訓','覚醒','ライブ','撃奏']);
+  await expect(conditions.locator('.training-summary-group').nth(0).locator('dd')).toHaveText(['5','—','5','5']);
+  await expect(conditions.locator('.training-summary-group').nth(1).locator('dt')).toHaveText('上限解放');
+  await expect(conditions.locator('.training-summary-group').nth(1).locator('dd')).toHaveText('—');
   const rating=page.locator('.band-result .rating-total strong');await expect(rating).toHaveText('645');
   await page.getByRole('radio',{name:'育成後',exact:true}).check();await expect(rating).toHaveText('1,304');
   let dialog=await open(page);await expect(dialog.locator('select')).toHaveCount(5);
@@ -75,7 +82,7 @@ test('damaged settings require explicit recovery; failed saves remain visible wi
   dialog=await open(page);await dialog.getByRole('button',{name:'保存設定を初期設定で置き換える'}).click();await expect(dialog.locator('select').first()).toBeEnabled();
   const saved=await page.evaluate(key=>localStorage.getItem(key),TRAINING_STORAGE_KEY);
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
-  await dialog.locator('[data-training=snapRank]').selectOption('2');await expect(dialog).toContainText('未保存');await page.keyboard.press('Escape');await expect(page.locator('.training-summary')).toContainText('Snap 上限解放段階 2');
+  await dialog.locator('[data-training=snapRank]').selectOption('2');await expect(dialog).toContainText('未保存');await page.keyboard.press('Escape');await expect(page.locator('[data-training-summary=snapRank] dd')).toHaveText('2');
   expect(await page.evaluate(key=>localStorage.getItem(key),TRAINING_STORAGE_KEY)).toBe(saved);
 });
 test('unavailable theory is pending in both pages and ordinary export remains available',async({page})=>{
@@ -95,7 +102,7 @@ for(const [width,touch] of [[1280,false],[390,true],[320,true]] as const)test.de
     await seed(page);
     for(const tab of ['rating','materials','exchange']) {
       await nav(page,tab);
-      const info=page.getByRole('button',{name:'育成シミュレーションの説明',exact:true});
+      const info=page.getByRole('button',{name:'育成条件の説明',exact:true});
       const tip=page.locator('#training-info-tooltip');
       const layout=()=>page.locator('.training-settings').evaluate(e=>{
         const panel=e.getBoundingClientRect(),summary=e.querySelector('.training-summary')!.getBoundingClientRect();
@@ -139,7 +146,7 @@ test('a hovering pointer crosses the real tooltip gap in both directions before 
   await page.setViewportSize({width:1280,height:720});await seed(page);
   for(const tab of ['rating','materials','exchange']) {
     await nav(page,tab);
-    const info=page.getByRole('button',{name:'育成シミュレーションの説明',exact:true}),tip=page.locator('#training-info-tooltip');
+    const info=page.getByRole('button',{name:'育成条件の説明',exact:true}),tip=page.locator('#training-info-tooltip');
     await info.scrollIntoViewIfNeeded();
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     await info.hover();await expect(info).not.toBeFocused();await expect(tip).toBeVisible();

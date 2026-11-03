@@ -107,7 +107,7 @@ it('ignores all Snap rarity orders, including unknown codes, and breaks score ti
   expect(selectByColor([m(101,201)],[...snaps].reverse())).toEqual(result);
 });
 it.each([undefined,NaN,Infinity,-1,0.5,Number.MAX_SAFE_INTEGER+1])('rejects invalid or missing Snap score %s', scoreBp => {
-  expect(()=>selectByColor([m(101,201)],[{...s(301,[201]),scoreBp:scoreBp as number}])).toThrow('Snap scoreBp');
+  expect(()=>selectByColor([m(101,201)],[{...s(301,[201]),scoreBp:scoreBp as number}])).toThrow('スナップ scoreBp');
 });
 
 it('E prioritizes Snap score even when C would yield a higher total member rating', () => {

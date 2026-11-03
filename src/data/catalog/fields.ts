@@ -18,10 +18,10 @@ export const tableFields = {
 } as const satisfies Record<string, Record<string, FieldKind>>;
 export type CatalogTable = keyof typeof tableFields;
 export const tableLabels: Record<CatalogTable, string> = {
-  bands: 'バンド', characters: 'キャラクター', members: 'メンバーカード', snaps: 'Snap',
+  bands: 'バンド', characters: 'キャラクター', members: 'メンバーカード', snaps: 'スナップ',
   characterRankLevels: 'キャラランクの合法値', memberLevels: 'メンバーLv率',
   memberTraining: '特訓率', memberAwakening: '覚醒率', memberLevelLimits: 'メンバーLv上限',
-  snapLevels: 'Snap Lv率', snapRanks: 'Snap上限解放',
+  snapLevels: 'スナップ Lv率', snapRanks: 'スナップ上限解放',
   bandItems: 'バンドアイテム', bandItemLevels: 'アイテムLv', bandItemEffects: 'アイテム効果', skillTargets: '効果対象',
 };
 export const tableKeys: Record<CatalogTable, string[]> = {

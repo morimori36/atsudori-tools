@@ -21,8 +21,15 @@ for (const width of [1280,390,320]) for (const count of [1,2,3]) {
     await expect(page.locator('[data-rating-character] th')).toHaveText(master.characters[0]!.name);
     const rows=page.locator('[data-rating-slot]'); await expect(rows).toHaveCount(count);
     for(let i=0;i<count;i++) {
-      await expect(rows.nth(i).locator('td').nth(0).locator('.rarity-label')).toHaveText(['EX','BD','R'][i]!);
-      await expect(rows.nth(i).locator('td').nth(1).locator('.rarity-label')).toHaveText(['EX','BD','SSR'][i]!);
+      await expect(rows.nth(i).locator('td').nth(0).locator('.rarity-badge')).toHaveText(['EX','BD','R'][i]!);
+      await expect(rows.nth(i).locator('td').nth(1).locator('.rarity-badge')).toHaveText(['EX','BD','SSR'][i]!);
+      for (const [column,card] of [master.members[i]!,master.snaps[i]!].entries()) {
+        const cell=rows.nth(i).locator('td').nth(column);
+        await expect(cell.locator('.rarity-badge')).toHaveAttribute('data-rarity',String(card.rarity));
+        await expect(cell.locator('.card-type-label')).toHaveText('色 7');
+        await expect(cell).toContainText(`${card.name}［${card.title}］`);
+      }
+      await expect(page.locator('[data-rating-character] .card-badges, .panel-heading .card-badges')).toHaveCount(0);
       await expect(rows.nth(i).locator('.slot-rating')).toHaveText('857');
       await expect(rows.nth(i)).toContainText(`架空の独立カード${i+1}`);
       await expect(rows.nth(i)).toContainText(`架空の独立Snap${i+1}`);
@@ -31,7 +38,7 @@ for (const width of [1280,390,320]) for (const count of [1,2,3]) {
     if(count>1) await expect(page.locator('.character-total strong')).toHaveText(count===2?'1,714':'2,571');
     await expect(page.locator('.color-total strong')).toHaveText(['857','1,714','2,571'][count-1]!);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    expect(await rows.first().locator('.rarity-label').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)<parseFloat(getComputedStyle(el.parentElement!).fontSize))).toBe(true);
+    expect(await rows.first().locator('.rarity-badge').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)<parseFloat(getComputedStyle(el.closest('.rating-candidate')!).fontSize))).toBe(true);
     if(count===3) await page.screenshot({path:`test-results/character-summary-${width}.png`,fullPage:true});
   });
 }
@@ -45,7 +52,7 @@ test('pending candidate rarities remain distinct and character total stays pendi
     localStorage.setItem(mk,JSON.stringify(master));localStorage.setItem(ck,JSON.stringify(collection));
   },{master,collection,mk:CATALOG_STORAGE_KEY,ck:STORAGE_KEY});
   await page.reload();
-  await expect(page.locator('[data-rating-slot] .rarity-label')).toHaveText(['レアリティ99','SR','R','R']);
+  await expect(page.locator('[data-rating-slot] .rarity-badge')).toHaveText(['レアリティ99','SR','R','R']);
   await expect(page.locator('[data-rating-character]')).toHaveCount(1);
   await expect(page.locator('.slot-rating')).toHaveCount(0);
   await expect(page.locator('.color-total')).toContainText('合計は保留');
