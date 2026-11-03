@@ -42,7 +42,7 @@ for (const width of [1280,390,320]) for (const theme of ['light','dark'] as cons
     await first.locator('[data-ownership-toggle]').tap();
     await expect(first.locator('[data-owned-label]')).toHaveText('✓ 所持');
     expect(await first.evaluate(el=>getComputedStyle(el).borderInlineStartColor)).toBe(accent);
-    for (const [index, rarity] of [2,3,4].entries()) {
+    for (const [index, rarity] of [2,3,4,10,20].entries()) {
       const card=cards.nth(index+1);
       if(await card.locator('[data-ownership-toggle]').getAttribute('aria-pressed')==='false') await card.locator('[data-ownership-toggle]').click();
       const badge=card.locator('.rarity-badge');
@@ -53,9 +53,13 @@ for (const width of [1280,390,320]) for (const theme of ['light','dark'] as cons
         expect(await card.evaluate(el=>getComputedStyle(el,'::before').content)).toBe('none');
         await expect(badge).toHaveCSS('background-image','none');
         await card.locator('[data-ownership-toggle]').click();
-      } else {
+      } else if(rarity<4) {
         await expect(card).toHaveCSS('border-inline-start-color',rarity===2 ? (theme==='dark'?'rgb(127, 198, 250)':'rgb(52, 138, 199)') : (theme==='dark'?'rgb(233, 195, 100)':'rgb(188, 138, 32)'));
         await expect(badge).toHaveCSS('background-color',rarity===2 ? (theme==='dark'?'rgb(35, 61, 82)':'rgb(232, 241, 250)') : (theme==='dark'?'rgb(73, 58, 30)':'rgb(252, 240, 209)'));
+      }
+      if(rarity===10 || rarity===20) {
+        await expect(badge).toHaveCSS('background-color',rarity===10 ? (theme==='dark'?'rgb(36, 68, 58)':'rgb(229, 243, 237)') : (theme==='dark'?'rgb(76, 41, 56)':'rgb(250, 234, 240)'));
+        await expect(card).toHaveCSS('border-inline-start-color',rarity===10 ? (theme==='dark'?'rgb(131, 205, 180)':'rgb(55, 139, 114)') : (theme==='dark'?'rgb(232, 155, 182)':'rgb(169, 77, 103)'));
       }
       expect(await card.locator('.card-type-label').evaluate(el=>getComputedStyle(el,'::before').backgroundColor)).toBe(await card.evaluate(el=>{const probe=document.createElement('span');probe.style.color='var(--card-color)';el.append(probe);const color=getComputedStyle(probe).color;probe.remove();return color;}));
     }
