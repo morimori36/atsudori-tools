@@ -133,6 +133,7 @@ export function createCharacterExpScenarios(master:Masterdata, input:Collection,
   const related=(id:number,owned:boolean)=>cards.filter(c=>c.owned===owned&&c.characterIds.includes(id));
   return {
     cards:related,
+    goal:(id:number,targetRank:number)=>target.goal(id,targetRank),
     state(card:ExpCard) {return {before:card.owned?(card.kind==='member'?input.members.find(m=>m.cardId===card.id):input.snaps.find(s=>s.supportCardId===card.id)):undefined,after:trainedCard(card)};},
     direct(card:ExpCard,id:number) {
       const key=`${card.kind}:${card.id}:${id}`;

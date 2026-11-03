@@ -1,3 +1,4 @@
+import { openRankInput } from '../helpers/rank-ui';
 import { test,expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -16,13 +17,13 @@ test.beforeEach(async({page})=>{
 });
 test('missing rules retain manual ranks, ownership editing, backup and manual-only profile export',async({page})=>{
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 —.*手動上書き中.*使用ランク 3/);await expect(page.locator('[data-rank-exp]')).toHaveText('—');
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/現在ランク 3.*手動上書き中/);await expect(page.locator('[data-rank-exp]')).toHaveText('—');
   await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   await tab(page,'exchange');expect(await download(page,'#export-button')).toContain('skillLevel5');
   await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile()));await expect(page.locator('#conversion-preview')).toBeEnabled();await download(page,'#conversion-preview');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
-  await expect(page.locator('[data-effective-rank]')).toHaveText('—');await expect(page.locator('[data-total-character-rank]')).toContainText('未算出');
+  await tab(page,'progress');await openRankInput(page,8201);await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.locator('[data-effective-rank]')).toHaveText('未算出');await expect(page.locator('[data-total-character-rank]')).toContainText('未算出');
   await tab(page,'rating');await expect(page.locator('.band-result')).toContainText('ランク定義');
   await tab(page,'exchange');await expect(page.locator('#conversion-preview')).toBeDisabled();await expect(page.locator('#conversion-export')).toContainText('ランク定義');
   await tab(page,'members');await page.locator('[data-member-card="8301"] input[name=liveSkillLevel][value="2"]').check();await tab(page,'exchange');expect(JSON.parse(await download(page,'#export-button')).members[0].liveSkillLevel).toBe(2);
@@ -38,7 +39,7 @@ test('imports, backs up and restores all static definitions with catalog alone',
   expect(JSON.parse(backup).rankDefinition).not.toHaveProperty('catalog');
   expect(await page.evaluate(k=>localStorage.getItem(k),RANK_RULES_STORAGE_KEY)).toBeNull();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await tab(page,'progress');await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
+  await tab(page,'progress');await openRankInput(page,8201);await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('1');
   await tab(page,'exchange');await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
 
@@ -52,6 +53,6 @@ test('saved legacy definitions remain untouched and do not enable estimation or 
   const before=await page.evaluate(()=>({...localStorage}));
   await tab(page,'exchange');
   await expect(page.locator('[data-tab=catalog], #rank-rules, #rank-rules-file')).toHaveCount(0);
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('推定 —');
+  await tab(page,'progress');await expect(page.locator('[data-estimated-rank]')).toHaveText('—');await expect(page.locator('[data-rank-source]')).toHaveText('手動上書き中');
   expect(await page.evaluate(()=>({...localStorage}))).toEqual(before);
 });

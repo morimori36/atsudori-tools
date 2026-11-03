@@ -1,81 +1,96 @@
-import type { Masterdata } from '../data/catalog/model';
+import type { Masterdata, MemberMaster, SnapMaster } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
 import type { TrainingSettings } from '../app/hypothetical-training';
-import { createCharacterExpScenarios, legalExpTarget } from '../app/character-exp-scenarios';
-import type { ExpResult, ExpGoal } from '../app/character-exp-scenarios';
+import { createCharacterExpScenarios } from '../app/character-exp-scenarios';
+import type { ExpResult, ExpGoal, ExpCard } from '../app/character-exp-scenarios';
 import { openDialog } from './dialog';
-import { cardIdentity } from './card-identity';
+import { collectionCardAttributes, collectionCardIdentity, projectedStages, escape } from './collection-card';
+import { characterDisplayOrder } from './character-order';
 
-const escape=(v:unknown):string=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 const number=(v:number)=>v.toLocaleString('ja-JP');
-const exp=(r:ExpResult<number>)=>r.status==='ready'?`+${number(r.value)} EXP`:`未算出：${escape(r.reason)}`;
+const exp=(r:ExpResult<number>)=>r.status==='ready'?`+${number(r.value)} EXP`:'未算出';
 const goal=(r:ExpResult<ExpGoal>)=>r.status==='ready'?`最終ランク ${number(r.value.rank)} · ${r.value.reached?'目標到達':`不足 ${number(r.value.missingExp)} EXP`}`:`未算出：${escape(r.reason)}`;
-export interface ExpView { targetRank:number }
+export interface ExpView { targetRank:number; targetInput?:string }
 
-export function createCharacterExpView(master:Masterdata,collection:Collection,settings:TrainingSettings,trained:Collection,state:ExpView) {
+export function createCharacterExpView(master:Masterdata,collection:Collection,settings:TrainingSettings,trained:Collection,state:ExpView,protectedData=false) {
   const scenarios=createCharacterExpScenarios(master,collection,settings,trained);
-  const target=legalExpTarget(master,state.targetRank);
-  if(target!==undefined)state.targetRank=target;
-  const summary=(id:number)=>scenarios.summary(id,state.targetRank);
+  const goalResult=(id:number):ExpResult<ExpGoal>=>protectedData?{status:'pending',reason:'保存データを保護中です。JSON Import / Exportで復旧してください。'}:scenarios.goal(id,state.targetRank);
+  const raw=state.targetInput??String(state.targetRank);
+  const valid=(value:string)=>/^[1-9]\d*$/.test(value)&&Number.isSafeInteger(Number(value))&&master.characterRankLevels.includes(Number(value));
+  const targetError='マスタに登録された合法ランクを入力してください。';
   return {
-    targetMarkup:`<label class="exp-target">目標キャラランク <select data-exp-target ${target===undefined?'disabled':''}>${[...master.characterRankLevels].sort((a,b)=>a-b).map(r=>`<option value="${r}" ${r===target?'selected':''}>${r}</option>`).join('')}</select></label><p class="muted">所持育成余地は現在からの増分。未所持獲得余地は所持育成後から関連する全未所持を取得・育成した直接EXP増分です。不足EXPは所持育成後・絆理論値の最終EXPから計算し、未入力進捗は加算しません。</p>`,
+    targetMarkup:`<div class="exp-target"><label class="field" for="exp-target"><span>目標キャラランク</span><input id="exp-target" type="number" inputmode="numeric" min="1" step="1" data-exp-target value="${escape(raw)}" aria-invalid="${!valid(raw)}" aria-describedby="exp-target-error"></label><p id="exp-target-error" role="alert">${valid(raw)?'':targetError}</p></div>`,
     summary(id:number) {
-      const row=summary(id);
-      return `<span class="exp-overview" data-exp-owned><span>所持カード育成余地</span><strong>${exp(row.owned)}</strong></span><span class="exp-overview" data-exp-unowned><span>未所持カード獲得余地</span><strong>${exp(row.unowned)}</strong></span><span class="exp-overview" data-exp-goal>${goal(row.goal)}</span>`;
+      const result=goalResult(id);
+      return `<div class="exp-overview" data-exp-goal><span>目標までの不足EXP</span><strong>${result.status==='ready'?`${number(result.value.missingExp)} EXP`:'未算出'}</strong>${result.status==='pending'?`<small>${escape(result.reason)}</small>`:''}</div>`;
     },
-    button(id:number) {return `<button type="button" class="secondary small exp-detail-button" data-exp-detail="${id}">育成・獲得EXPの詳細</button>`;},
+    button(id:number) {return `<button type="button" class="secondary small exp-detail-button" data-exp-detail="${id}" ${protectedData?'disabled':''}>カード別EXP</button>`;},
     bind(host:HTMLElement,rerender:()=>void) {
-      host.querySelector<HTMLSelectElement>('[data-exp-target]')?.addEventListener('change',event=>{
-        state.targetRank=Number((event.target as HTMLSelectElement).value);rerender();
-        host.querySelector<HTMLElement>('[data-exp-target]')?.focus({preventScroll:true});
-      });
+      const target=host.querySelector<HTMLInputElement>('[data-exp-target]');
+      const validate=()=>{
+        if(!target)return false;
+        state.targetInput=target.value;
+        const ok=valid(target.value);target.setAttribute('aria-invalid',String(!ok));
+        host.querySelector('#exp-target-error')!.textContent=ok?'':`${targetError}${valid(String(state.targetRank))?` 試算は確定済みの${state.targetRank}で表示しています。`:''}`;
+        return ok;
+      };
+      target?.addEventListener('input',validate);
+      const commit=()=>{if(validate()){state.targetRank=Number(target!.value);rerender();host.querySelector<HTMLElement>('[data-exp-target]')?.focus({preventScroll:true});}};
+      target?.addEventListener('change',commit);
+      target?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();commit();}});
       host.querySelectorAll<HTMLButtonElement>('[data-exp-detail]').forEach(button=>button.addEventListener('click',()=>{
         const id=Number(button.dataset.expDetail),character=master.characters.find(c=>c.id===id)!;
         const dialog=document.createElement('dialog');
         dialog.className='training-dialog exp-dialog';dialog.setAttribute('aria-labelledby','exp-dialog-title');
-        dialog.innerHTML=`<h2 id="exp-dialog-title">${escape(character.name)}の育成・獲得EXP</h2><p data-exp-dialog-goal>${goal(summary(id).goal)}（目標 ${state.targetRank}）</p><p class="muted">所持：現在→全所持育成後。未所持：全所持育成後→関連する全未所持を各1枚仮取得・育成後。概要は全件同時に計算し、カード別増分の合計とは一致しない場合があります。直接EXPに絆由来EXPを含めません。</p>
-          <label>表示対象<select data-exp-ownership><option value="owned">所持カード</option><option value="unowned">未所持カード</option></select></label>
-          <div class="exp-filters"><label>カード名・タイトルで検索<input type="search" data-exp-query></label><label>カード種類<select data-exp-kind><option value="">すべて</option><option value="member">メンバー</option><option value="snap">スナップ</option></select></label><label><input type="checkbox" data-exp-positive checked>直接EXP増分あり・未算出のみ</label></div>
-          <p class="muted">直接EXPの大きい順。各行はその1枚だけを変更する独立試算です。未所持は現在のガチャで入手可能という意味ではありません。</p><p data-exp-count role="status"></p><div data-exp-rows></div><button type="button" class="secondary" data-exp-more>続きを表示</button><div class="training-dialog-actions"><button type="button" class="primary" data-exp-close>閉じる</button></div>`;
-        let limit=20;
+        dialog.innerHTML=`<div class="exp-dialog-heading"><h2 id="exp-dialog-title">${escape(character.name)}のカード別EXP</h2><button type="button" class="secondary" data-exp-close aria-label="閉じる">閉じる</button></div><p data-exp-dialog-goal>${goal(goalResult(id))}（目標 ${state.targetRank}）</p>
+          <div class="catalog-tools"><label class="field catalog-search"><span>カード名・タイトル・IDで検索</span><input type="search" data-exp-query></label></div>
+          <details class="exp-help"><summary>試算の見方</summary><p>所持は現在からその1枚を育成した直接EXP。未所持は所持カードを全育成した状態にその1枚を加えた直接EXPです。所持分は画面の育成理論値に含みます。カード別増分は非加算で、合計と一括育成の結果が異なる場合があります。</p><p>未所持は現在入手可能とは限りません。直接EXPに絆由来EXPを含めません。</p></details><div data-exp-sections></div>`;
+        const limits={member:20,snap:20};
+        // Fast per-card contribution deltas; full bond projections remain lazy on disclosure.
+        const all=[...scenarios.cards(id,true),...scenarios.cards(id,false)].map(card=>({card,direct:scenarios.direct(card,id)}));
+        function cardMarkup(card:ExpCard,direct:ExpResult<number>):string {
+          const row=scenarios.state(card);
+          const metadata=(card.kind==='member'?master.members:master.snaps).find(c=>c.id===card.id)!;
+          const from=row.before as unknown as Record<string,number>|undefined;
+          const to=row.after.status==='ready'?row.after.value as unknown as Record<string,number>:undefined;
+          const currentLevel=from?number(from.level!):'未所持';
+          const lv=`<p class="derived-level">Lv <span class="projection-current">現在 ${currentLevel}</span> → <span class="projection-target">目標 ${to?number(to.level!):'未算出'}</span></p>`;
+          const stages=(key:string,label:string,levels:number[])=>projectedStages(label,levels,from?.[key],to?.[key]);
+          let axes:string;
+          if(card.kind==='member'){
+            const m=metadata as MemberMaster;
+            axes=stages('trainingStage','特訓段階',master.memberTraining.filter(r=>r.group===m.trainingGroup).map(r=>r.stage))+
+              stages('awakeningStage','覚醒段階 A',master.memberAwakening.filter(r=>r.group===m.awakeningGroup).map(r=>r.stage))+
+              stages('liveSkillLevel','ライブスキルLv',m.liveSkillLevels)+stages('gekisouSkillLevel','撃奏スキルLv',m.gekisouSkillLevels);
+          }else{
+            const s=metadata as SnapMaster;
+            axes=stages('rank','上限解放 U',master.snapRanks.filter(r=>r.group===s.rankGroup).map(r=>r.rank));
+          }
+          const names=card.kind==='snap'?characterDisplayOrder(master.characters.filter(c=>card.characterIds.includes(c.id))).map(c=>c.name).join(' / '):'';
+          return `<article ${collectionCardAttributes(metadata,card.owned,'exp-card')} data-exp-card="${card.kind}-${card.id}">${collectionCardIdentity(metadata,card.owned,names,true)}<div class="exp-card-growth"><p class="exp-direct" data-exp-direct><span>直接EXP</span> <strong>${exp(direct)}</strong></p>${direct.status==='pending'?`<small>${escape(direct.reason)}</small>`:''}${lv}<div class="form-grid">${axes}</div>${row.after.status==='pending'?`<p class="warning">未算出：${escape(row.after.reason)}</p>`:''}<details data-exp-result="${card.kind}-${card.id}"><summary>最終ランク・絆由来EXP</summary><div data-exp-result-body></div></details></div></article>`;
+        }
         const draw=()=>{
-          const owned=dialog.querySelector<HTMLSelectElement>('[data-exp-ownership]')!.value==='owned';
           const query=dialog.querySelector<HTMLInputElement>('[data-exp-query]')!.value.trim().normalize('NFKC').toLocaleLowerCase('ja');
-          const kind=dialog.querySelector<HTMLSelectElement>('[data-exp-kind]')!.value;
-          const positive=dialog.querySelector<HTMLInputElement>('[data-exp-positive]')!.checked;
-          const all=scenarios.cards(id,owned);
-          const rows=all.filter(c=>(!kind||c.kind===kind)&&`${c.name} ${c.title}`.normalize('NFKC').toLocaleLowerCase('ja').includes(query))
-            .map(card=>({card,direct:scenarios.direct(card,id)}))
-            .filter(r=>!positive||r.direct.status==='pending'||r.direct.value>0)
-            .sort((a,b)=>(b.direct.status==='ready'?b.direct.value:-1)-(a.direct.status==='ready'?a.direct.value:-1)||a.card.kind.localeCompare(b.card.kind)||a.card.id-b.card.id);
-          dialog.querySelector('[data-exp-count]')!.textContent=`メンバー ${all.filter(c=>c.kind==='member').length}枚 · スナップ ${all.filter(c=>c.kind==='snap').length}枚 · 該当 ${rows.length}枚 / 表示 ${Math.min(limit,rows.length)}枚`;
-          dialog.querySelector('[data-exp-rows]')!.innerHTML=rows.slice(0,limit).map(({card})=>{
-            const row=scenarios.state(card);
-            const metadata=(card.kind==='member'?master.members:master.snaps).find(c=>c.id===card.id)!;
-            const axes=card.kind==='member'?[['level','Lv'],['trainingStage','特訓'],['awakeningStage','覚醒'],['liveSkillLevel','ライブ'],['gekisouSkillLevel','撃奏']]:[['level','Lv'],['rank','上限解放']];
-            const from=row.before as unknown as Record<string,number>|undefined;
-            const to=row.after.status==='ready'?row.after.value as unknown as Record<string,number>:undefined;
-            const stages=to?axes.map(([key,label])=>`${label} ${from?.[key!]??'新規'}→${to[key!]}`).join(' · '):'育成状態は未算出';
-            return `<article class="exp-row" data-exp-card="${card.kind}-${card.id}"><h3>${card.kind==='member'?'メンバー':'スナップ'} · ${cardIdentity(metadata)}</h3><p>${escape(stages)}</p><p data-exp-direct>直接EXP増分 ${exp(scenarios.direct(card,id))}</p><details data-exp-result="${card.kind}-${card.id}"><summary>最終ランク・絆由来EXPを計算</summary><div data-exp-result-body></div></details></article>`;
-          }).join('')||'<p>条件に一致するカードがありません。</p>';
+          dialog.querySelector('[data-exp-sections]')!.innerHTML=(['member','snap'] as const).map(kind=>{
+            const rows=all.filter(r=>r.card.kind===kind&&`${r.card.name} ${r.card.title} ${r.card.id}`.normalize('NFKC').toLocaleLowerCase('ja').includes(query))
+              .sort((a,b)=>(b.direct.status==='ready'?b.direct.value:-1)-(a.direct.status==='ready'?a.direct.value:-1)||a.card.id-b.card.id);
+            return `<section data-exp-kind-section="${kind}"><h3>${kind==='member'?'メンバー':'スナップ'}</h3><p class="muted catalog-count" data-exp-count role="status">該当 ${rows.length}枚 / 表示 ${Math.min(limits[kind],rows.length)}枚</p><div class="catalog-grid">${rows.slice(0,limits[kind]).map(({card,direct})=>cardMarkup(card,direct)).join('')||'<p>該当するカードはありません。</p>'}</div><button type="button" class="secondary" data-exp-more="${kind}" ${limits[kind]>=rows.length?'hidden':''}>続きを表示</button></section>`;
+          }).join('');
           dialog.querySelectorAll<HTMLDetailsElement>('[data-exp-result]').forEach(details=>details.addEventListener('toggle',()=>{
             if(!details.open||details.querySelector('[data-exp-final]'))return;
-            const card=all.find(c=>`${c.kind}-${c.id}`===details.dataset.expResult)!;
+            const card=all.find(c=>`${c.card.kind}-${c.card.id}`===details.dataset.expResult)!.card;
             const row=scenarios.detail(card,id,state.targetRank);
             details.querySelector('[data-exp-result-body]')!.innerHTML=`<p data-exp-final>${goal(row.goal)}</p><p>絆由来の間接EXP増分 ${exp(row.indirect)}</p>`;
           }));
-          const gain=owned?summary(id).owned:summary(id).unowned;
-          if(!rows.length&&positive) {
-            const message=gain.status==='ready'&&gain.value>0?'全件同時ではEXP増分がありますが、各カード単独では達成閾値に届かず0の場合があります。':'直接EXP増分0のカードは絞り込みで非表示です。';
-            dialog.querySelector('[data-exp-rows]')!.innerHTML+=`<p>${message}</p><button type="button" data-exp-show-zero>増分0のカードも表示</button>`;
-            dialog.querySelector('[data-exp-show-zero]')!.addEventListener('click',()=>{dialog.querySelector<HTMLInputElement>('[data-exp-positive]')!.checked=false;draw();});
-          }
-          dialog.querySelector<HTMLButtonElement>('[data-exp-more]')!.hidden=limit>=rows.length;
+          dialog.querySelectorAll<HTMLButtonElement>('[data-exp-more]').forEach(button=>button.addEventListener('click',()=>{
+            const kind=button.dataset.expMore as 'member'|'snap';
+            const scroll=dialog.scrollTop;limits[kind]+=20;draw();dialog.scrollTop=scroll;
+            dialog.querySelector<HTMLElement>(`[data-exp-kind-section="${kind}"] [data-exp-card]:nth-child(${limits[kind]-19}) details summary`)?.focus({preventScroll:true});
+          }));
         };
-        dialog.querySelectorAll('select,input').forEach(control=>control.addEventListener(control.matches('[type=search]')?'input':'change',()=>{limit=20;draw();}));
-        dialog.querySelector('[data-exp-more]')!.addEventListener('click',()=>{limit+=20;draw();});
+        dialog.querySelector('[data-exp-query]')!.addEventListener('input',()=>{limits.member=limits.snap=20;draw();});
         dialog.querySelector('[data-exp-close]')!.addEventListener('click',()=>dialog.close());
-        draw();openDialog(dialog,()=>host.querySelector<HTMLElement>(`[data-exp-detail="${id}"]`),dialog.querySelector<HTMLElement>('[data-exp-ownership]'));
+        draw();openDialog(dialog,()=>host.querySelector<HTMLElement>(`[data-exp-detail="${id}"]`),dialog.querySelector<HTMLElement>('[data-exp-query]'));
       }));
     },
   };

@@ -1,3 +1,4 @@
+import { openRankInput } from '../helpers/rank-ui';
 import {test,expect} from '@playwright/test';
 import type {Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
@@ -20,6 +21,9 @@ test('provisional selection notices remain available by hover and keyboard',asyn
 const file=(name:string,value:unknown)=>({name,mimeType:'application/json',buffer:Buffer.from(typeof value==='string'?value:JSON.stringify(value))});
 async function tab(page:Page,name:string):Promise<void>{await page.locator('nav [data-tab="'+name+'"]').click();}
 async function openRank(page:Page,id=8201):Promise<void>{
+  await openRankInput(page,id);
+  const breakdown=page.locator(`[data-progress-section="rank-details-${id}"]`);
+  if(!await breakdown.evaluate(el=>(el as HTMLDetailsElement).open))await breakdown.locator(':scope > summary').click();
   await page.locator(`[data-character-rank="${id}"]`).scrollIntoViewIfNeeded();
 }
 async function openItems(page:Page):Promise<void>{
@@ -175,10 +179,10 @@ test('mobile width supports data entry, results and notices without body overflo
 test('rank estimation, manual progress, overrides, reset, persistence and export use imported values',async({page})=>{
   await catalog(page);await collection(page);await tab(page,'progress');
   const summary=page.locator('[data-rank-summary]');
-  await expect(summary).toContainText(/推定 1.*手動上書き中.*使用ランク 3/);await expect(page.locator('[data-rank-exp]')).toHaveText('3');
-  await openRank(page);await page.locator('#rank-8201').fill('');await page.locator('#progress-8201-bondRankTotal').fill('9');
+  await expect(summary).toContainText(/現在ランク 3.*手動上書き中/);await expect(page.locator('[data-rank-exp]')).toHaveText('3');
+  await openRank(page);await page.locator('#rank-8201').fill('');await openRankInput(page,8201);await page.locator('#progress-8201-bondRankTotal').fill('9');
   await page.locator('#progress-form button[type=submit]').click();
-  await expect(summary).toContainText(/推定 2.*自動推定.*使用ランク 2/);await expect(page.locator('[data-rank-exp]')).toHaveText('16');
+  await expect(summary).toContainText(/現在ランク 2.*自動推定/);await expect(page.locator('[data-rank-exp]')).toHaveText('16');
   await expect(page.locator('[data-total-character-rank]')).toContainText('総合キャラクターランク 2');
   await tab(page,'rating');
   // Imported rank2: per-channel floors124/235/393, then floor752*1.118=840.
@@ -186,12 +190,12 @@ test('rank estimation, manual progress, overrides, reset, persistence and export
   await page.locator('input[name=rating-mode][value=potential]').check();
   await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,282');
   await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('7');await page.locator('#progress-form button[type=submit]').click();
-  await page.reload();await tab(page,'progress');await expect(summary).toContainText('使用ランク 7');
+  await page.reload();await tab(page,'progress');await expect(summary).toContainText('現在ランク 7');
   await openRank(page);await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('9');
   await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
   const json=await readFile((await d.path())!,'utf8');expect(JSON.parse(json).characterRanks).toEqual({'8201':7});expect(JSON.parse(json).characterProgress).toEqual({'8201':{bondRankTotal:9}});
   await page.locator('#import-file').setInputFiles(file('roundtrip.json',json));await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
-  await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();await expect(summary).toContainText('使用ランク 2');
+  await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('');await page.locator('#progress-form button[type=submit]').click();await expect(summary).toContainText('現在ランク 2');
 });
 test('counts three skill contributions using fictional thresholds and preserves legacy progress',async({page})=>{
   const m=syntheticCatalog(),c=syntheticCollection(m);c.characterRanks={};
@@ -202,14 +206,14 @@ test('counts three skill contributions using fictional thresholds and preserves 
   await tab(page,'progress');await expect(page.locator('[data-rank-exp]')).toHaveText('3');await expect(page.locator('input[name*=skillLevel]')).toHaveCount(0);
   await page.locator('#progress-form button[type=submit]').click();expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).characterProgress,STORAGE_KEY)).toEqual(c.characterProgress);
   await tab(page,'members');for(const name of ['awakeningStage','liveSkillLevel','gekisouSkillLevel'])await page.locator('[data-member-card="8301"] input[name="'+name+'"][value="5"]').check();
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/推定 7.*自動推定.*使用ランク 7/);await expect(page.locator('[data-rank-exp]')).toHaveText('88');
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/現在ランク 7.*自動推定/);await expect(page.locator('[data-rank-exp]')).toHaveText('88');
   await openRank(page);await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空スキル集計'})).toContainText('3 → 2件62 EXP');
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-rank-exp]')).toHaveText('88');
 });
 test('manual progress uses imported nonuniform thresholds and survives JSON round trips',async({page})=>{
   await catalog(page);await collection(page);await tab(page,'progress');await openRank(page);
-  await page.locator('#rank-8201').fill('');await page.locator('#progress-8201-liveClears').fill('10');await page.locator('#progress-form button[type=submit]').click();
-  await expect(page.locator('[data-rank-summary]')).toContainText(/推定 3.*自動推定.*使用ランク 3/);await expect(page.locator('[data-rank-exp]')).toHaveText('20');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('');await openRankInput(page,8201);await page.locator('#progress-8201-liveClears').fill('10');await page.locator('#progress-form button[type=submit]').click();
+  await expect(page.locator('[data-rank-summary]')).toContainText(/現在ランク 3.*自動推定/);await expect(page.locator('[data-rank-exp]')).toHaveText('20');
   await page.reload();await tab(page,'progress');await openRank(page);await expect(page.locator('#progress-8201-liveClears')).toHaveValue('10');
   await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空進捗D'})).toContainText('10 → 1件17 EXP');
   await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);const json=await readFile((await d.path())!,'utf8');
@@ -225,13 +229,13 @@ test('switching targets and bands retains drafts, previews, saves and reloads',a
   await page.setViewportSize({width:390,height:844});
   await tab(page,'exchange');await page.locator('#catalog-import').setInputFiles(file('catalog.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();await rules(page,m);
   await collection(page);await tab(page,'progress');
-  await page.locator('#rank-8201').fill('7');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('7');
   await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('7');
-  await page.locator('#progress-8201-bondRankTotal').fill('4');
+  await openRankInput(page,8201);await page.locator('#progress-8201-bondRankTotal').fill('4');
   await openRank(page,8202);await page.locator('#rank-8202').fill('3');
   await openItems(page);await page.locator('#item-8601').fill('2');
   await tab(page,'progress');
-  await page.locator('[data-progress-band="8102"]').click();await page.locator('#rank-8210').fill('2');
+  await page.locator('[data-progress-band="8102"]').click();await openRankInput(page,8210);await page.locator('#rank-8210').fill('2');
   await page.locator('[data-progress-band="8101"]').click();await openRank(page);
   await expect(page.locator('#rank-8201')).toHaveValue('7');await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('4');
   await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('7');
@@ -248,12 +252,12 @@ test('switching targets and bands retains drafts, previews, saves and reloads',a
 
 test('collapsed invalid rank opens for correction and failed explicit save stays visible',async({page})=>{
   await catalog(page);await collection(page);await tab(page,'progress');await openRank(page);
-  await page.locator('#rank-8201').fill('0');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('0');
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('#rank-8201')).toBeVisible();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await page.locator('#rank-8201').fill('7');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('7');
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new DOMException('quota','QuotaExceededError');};});
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('[data-progress-state]')).toHaveText('ブラウザ保存未完了');
@@ -264,8 +268,8 @@ test('collapsed invalid rank opens for correction and failed explicit save stays
 
 for (const replacement of ['import', 'reset'] as const) test(`${replacement} discards progress drafts before subsequent save and reload`,async({page})=>{
   await catalog(page);await collection(page);await tab(page,'progress');
-  await page.locator('#rank-8201').fill('7');
-  await page.locator('#progress-8201-bondRankTotal').fill('9');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('7');
+  await openRankInput(page,8201);await page.locator('#progress-8201-bondRankTotal').fill('9');
   await page.locator('[data-progress-section="total-rank"] summary').click();
   await page.locator('#totalRankBonus').fill('99');
   await openItems(page);await page.locator('#item-8601').fill('2');
@@ -296,8 +300,8 @@ test('catalog replacement removes obsolete progress drafts and retains surviving
   m.bandItemLevels.push({itemId:8602,level:1});
   m.bandItemEffects.push({...m.bandItemEffects[0]!,itemId:8602});
   await tab(page,'exchange');await page.locator('#catalog-import').setInputFiles(file('expanded.json',m));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
-  await tab(page,'progress');await page.locator('#rank-8201').fill('3');
-  await openRank(page,8202);await page.locator('#rank-8202').fill('7');await page.locator('#progress-8202-bondRankTotal').fill('9');
+  await tab(page,'progress');await openRankInput(page,8201);await page.locator('#rank-8201').fill('3');
+  await openRank(page,8202);await page.locator('#rank-8202').fill('7');await openRankInput(page,8202);await page.locator('#progress-8202-bondRankTotal').fill('9');
   await openItems(page);await page.locator('#item-8601').fill('2');await page.locator('#item-8602').fill('1');
   await tab(page,'exchange');await page.locator('#catalog-import').setInputFiles(file('smaller.json',syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await openRank(page);

@@ -50,7 +50,9 @@ for(const width of [1280,390,320])test(`five shared targets, modal keyboard, rec
   await nav(page,'materials');
   await expect(page.locator('[data-growth-overview]')).toHaveCount(0);
   await expect(page.locator('[data-material-total]')).toContainText('架空の折紙');
-  await expect(page.locator('[data-bond-character="8201"] [aria-label="最終キャラランク"]')).toHaveText('4');
+  await nav(page,'progress');
+  await expect(page.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('4');
+  await nav(page,'materials');
   dialog=await open(page);await expect(dialog.locator('[data-training=snapRank]')).toHaveValue('5');
   for(const key of Object.keys(keep))await dialog.locator(`[data-training=${key}]`).selectOption('');
   await dialog.getByRole('button',{name:'閉じる',exact:true}).click();
@@ -92,7 +94,7 @@ test('unavailable theory is pending in both pages and ordinary export remains av
   await page.getByRole('radio',{name:'育成後',exact:true}).check();await expect(page.locator('.band-result .rating-total strong')).toHaveText('—');
   await page.getByRole('button',{name:'計算待ちの理由'}).click();await expect(page.getByRole('tooltip').filter({hasText:'絆理論値は保留'})).toBeVisible();
   await nav(page,'materials');
-  await expect(page.locator('[data-bond-character="8201"]')).toContainText('未算出：');
+  await nav(page,'progress');await expect(page.locator('[data-bond-character="8201"]')).toContainText('未算出');
   await nav(page,'exchange');await page.getByLabel('育成条件を適用する',{exact:true}).check();expect((await output(page)).total).toBe(7);
 });
 

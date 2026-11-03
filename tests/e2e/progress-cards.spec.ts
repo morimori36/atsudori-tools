@@ -1,3 +1,4 @@
+import { openRankInput } from '../helpers/rank-ui';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
@@ -57,6 +58,7 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   }
   expect(await items.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(width < 700);
   await page.locator('nav [data-tab=progress]').click();
+  await openRankInput(page);
   const numeric = page.locator('#progress-8201-bondRankTotal');
   await expect(numeric).toHaveAttribute('inputmode', 'numeric');
   const inputSize = await numeric.evaluate(el => ({ font: parseFloat(getComputedStyle(el).fontSize), height: el.getBoundingClientRect().height }));
@@ -74,20 +76,21 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     expect(await items.evaluate(el => el.scrollLeft)).toBe(0);
     await page.locator('nav [data-tab=progress]').click();
   }
-  await page.locator('#rank-8201').fill('');
-  await page.locator('#progress-8201-bondRankTotal').fill('9');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('');
+  await openRankInput(page,8201);await page.locator('#progress-8201-bondRankTotal').fill('9');
   await expect(page.locator('[data-character-rank="8201"] [data-estimated-rank]')).toHaveText('2');
-  await page.locator('#rank-8202').fill('3');
-  await page.locator('#rank-8203').fill('7');
+  await openRankInput(page,8202);await page.locator('#rank-8202').fill('3');
+  await openRankInput(page,8203);await page.locator('#rank-8203').fill('7');
   await page.locator('nav [data-tab=items]').click();
   for (let n = 1; n <= 5; n++) await page.locator(`#item-${8600+n}`).fill(String(n === 1 ? 2 : n));
   if (width < 700) await items.evaluate(el => { el.scrollLeft = 180; });
   await page.locator('#item-9014').fill('1');
   await page.locator('nav [data-tab=progress]').click();
   await page.locator('[data-progress-band="8102"]').click();
+  await openRankInput(page,8222);
   await expect(page.locator('#rank-8222')).toBeVisible();
   await expect(page.locator('[data-progress-band="8102"]')).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('#rank-8222').fill('2');
+  await openRankInput(page,8222);await page.locator('#rank-8222').fill('2');
   await page.locator('[data-progress-band="8101"]').click();
   await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('9');
   await expect(page.locator('#rank-8202')).toHaveValue('3');
