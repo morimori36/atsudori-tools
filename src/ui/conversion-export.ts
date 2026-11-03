@@ -63,7 +63,7 @@ export function createConversionExport(storage: StoragePort | undefined, read:()
       <section class="exchange-section"><h2>外部形式JSON</h2>
       <button class="primary" id="conversion-preview" ${!profile||!bindingValid||blocked||busy?'disabled':''}>${busy?'処理中…':'JSON出力'}</button>
       ${blocked?`<p role="alert" class="alert error">${escape(blocked)}</p>`:''}
-      <details><summary>仮育成設定</summary><label class="check"><input id="conversion-training" type="checkbox" ${options.applyTraining?'checked':''} ${busy?'disabled':''}>仮育成設定を適用する</label>${trainingSettingsMarkup(trainingSettings)}</details>
+      <label class="check"><input id="conversion-training" type="checkbox" ${options.applyTraining?'checked':''} ${busy?'disabled':''}>育成条件を適用する</label>${trainingSettingsMarkup(trainingSettings)}
       </section>${notice?`<p class="alert ${noticeError?'error':'success'}" role="${noticeError?'alert':'status'}">${escape(notice)}</p>`:''}`;
     host.querySelector('#conversion-profile-select')?.addEventListener('click',()=>host?.querySelector<HTMLInputElement>('#conversion-profile-file')?.click());
     bindTrainingSettings(host,trainingSettings);

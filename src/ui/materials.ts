@@ -1,19 +1,20 @@
 import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
-import { maximumTrainingBondTheory, simulateMaximumTraining } from '../app/maximum-training';
+import { simulateTrainingEvaluation } from '../app/training-simulation';
+import type { TrainingSettingsStore } from '../storage/training-settings';
+import { trainingSettingsMarkup } from './training-settings';
 import type { CardRequirement } from '../domain/materials/calculate';
 import type { MaterialAmount, MaterialAxis } from '../domain/materials/model';
-import type { BondTheoryResult } from '../domain/character-rank/bond-theory';
 import { characterRowsForDisplay } from './character-order';
 const escape=(v:unknown):string=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 const number=(v:number|null|undefined):string=>v==null?'保留':v.toLocaleString('ja-JP');
 const comparison=(from:number|null|undefined,to:number|null|undefined):string=>`<strong>${number(from)} → ${number(to)}</strong>${from!=null&&to!=null?` <small>（${to-from>0?'+':''}${number(to-from)}）</small>`:''}`;
 const labels:Record<MaterialAxis,string>={trainingStage:'特訓',awakeningStage:'覚醒',liveSkillLevel:'ライブスキル',gekisouSkillLevel:'撃奏スキル',level:'レベル',rank:'Snap上限解放'};
-type Simulation=ReturnType<typeof simulateMaximumTraining>;
+type Simulation=ReturnType<typeof simulateTrainingEvaluation>;
 
-export function createMaterialsPage(master:Masterdata,collection:Collection) {
-  const result=simulateMaximumTraining(master,collection);
-  return { html:materialsPage(master,result), bind:(root:HTMLElement)=>bindMaterialsPage(root,master,result.target) };
+export function createMaterialsPage(master:Masterdata,collection:Collection,settings:TrainingSettingsStore) {
+  const result=simulateTrainingEvaluation(master,collection,settings.current());
+  return { html:trainingSettingsMarkup(settings)+materialsPage(master,result), bind:(root:HTMLElement)=>bindMaterialsPage(root,master,result) };
 }
 
 function materialsPage(master:Masterdata,result:Simulation):string {
@@ -33,45 +34,41 @@ function materialsPage(master:Masterdata,result:Simulation):string {
   };
   const rankView=(character:Simulation['bands'][number]['characters'][number])=>{
     const a=character.before,b=character.after;
-    const manual=a.overrideRank!==undefined;
-    return `<p>${manual?`使用ランク：<strong>${number(a.effectiveRank)} → ${number(b.effectiveRank)}</strong>（手入力${number(a.overrideRank)}を維持）<br>参考・自動推定：<strong>${number(a.estimatedRank)} → ${number(b.estimatedRank)}</strong>`:`キャラランク（自動推定）：${comparison(a.estimatedRank,b.estimatedRank)}`}</p>${a.estimatedRank===null||b.estimatedRank===null?'<p class="warning">ランク定義がないため自動推定は保留です。</p>':''}${a.reason||b.reason?`<p class="warning">${escape(a.reason??b.reason)}</p>`:''}${a.missingProgress.length||b.missingProgress.length?'<p class="muted">未入力進捗は加算していません。</p>':''}`;
+    return `<p>キャラランク（現在 → 絆理論値）：${comparison(a.effectiveRank,b.effectiveRank)}</p>${a.overrideRank!==undefined?`<p class="muted">現在の手入力ランク：${number(a.overrideRank)}。育成後は手入力ランク・絆合計の上書きを除外します。</p>`:''}<p>参考・通常推定：${comparison(a.estimatedRank,b.estimatedRank)}</p>${a.reason||b.reason?`<p class="warning">${escape(b.reason??a.reason!)}</p>`:''}${a.missingProgress.length||b.missingProgress.length?'<p class="muted">絆以外の未入力進捗は加算していません。</p>':''}`;
   };
   const bondLink=(bandId:number,characterId?:number)=>`<details class="growth-detail" data-bond-band="${bandId}" ${characterId===undefined?'':`data-bond-character="${characterId}"`}><summary>${characterId===undefined?'育成後のペア別絆上限':'関係する絆の理論上限'}</summary><div data-bond-output class="growth-content"></div></details>`;
   const ratingDetails=(band:Simulation['bands'][number])=>{
     const notes=(stage:'before'|'after')=>{
       const evaluated=band[stage];
       const reasons=[...new Set(evaluated?.colors.flatMap(c=>c.slots.flatMap(s=>[...s.reasons,...s.selection.notices]))??['評価対象の所持Memberがありません。'])];
-      return `<h4>${stage==='before'?'現在':'最大育成後'}</h4>${evaluated?.rating===null?`<p>計算済み小計：${number(evaluated.subtotal)}（確定合計は保留）</p>`:''}<ul>${reasons.map(n=>`<li>${escape(n)}</li>`).join('')||'<li>保留・暫定選出の注記なし</li>'}</ul>`;
+      return `<h4>${stage==='before'?'現在':'育成後'}</h4>${evaluated?.rating===null?`<p>計算済み小計：${number(evaluated.subtotal)}（確定合計は保留）</p>`:''}<ul>${reasons.map(n=>`<li>${escape(n)}</li>`).join('')||'<li>保留・暫定選出の注記なし</li>'}</ul>`;
     };
     return `<details><summary>評価値の保留理由・暫定選出規則</summary>${notes('before')}${notes('after')}</details>`;
   };
-  const manuals=result.before.ranks.filter(r=>r.overrideRank!==undefined).length;
   const characters=result.bands.flatMap(b=>b.characters);
   const comparable=characters.filter(c=>c.rankDelta!==null);
   const growth=comparable.filter(c=>c.rankDelta!>0).length;
-  const pending=characters.length-comparable.length-manuals;
-  return `<div class="growth-page"><section class="panel" data-growth-overview><h2>最大育成後の変化</h2><p><strong>凸なし最大育成</strong>：全所持Member・Snapを対象に、覚醒・上限解放段階を維持します。</p><p class="muted">現在 → 最大育成後</p>
+  const pending=characters.length-comparable.length;
+  return `<div class="growth-page"><section class="panel" data-growth-overview><h2>育成後の変化</h2><p class="muted">現在 → 育成後</p>
     <div class="growth-overview"><div><span>バンド評価値合計（Snap効果を含む）</span>${comparison(result.before.rating,result.after.rating)}</div><div><span>総合キャラランク（使用ランク合計）</span>${comparison(result.before.totalRank,result.after.totalRank)}</div></div>
     ${result.before.bands.some(b=>b.provisional)||result.after.bands.some(b=>b.provisional)?'<p class="muted">※ 暫定選出を含む推定値です。保留理由・規則はバンド詳細へ。</p>':''}
-    <p>自動推定ランクが上がるキャラ：${comparable.length?`${growth}人（比較可能分）`:'保留'}${pending?` ／ 推定比較保留：${pending}人`:''}${manuals?` ／ 手入力ランク維持：${manuals}人`:''}</p><p class="muted">絆の理論上限はバンド・キャラ詳細へ。</p>
-    <details><summary>計算条件・上書き・未計算について</summary><p>Memberは特訓・ライブ／撃奏スキルと最大特訓後のLv、Snapは現在の上限解放段階のLv上限まで育成します。カード追加・凸・進捗獲得・バンドアイテム育成は含めません。保存データと評価値画面の仮育成設定は変更しません。</p><p>手入力ランクは両側で維持し、参考の自動推定との差分は表示しません。絆最大時の理論キャラランクは評価値に適用しません。未入力進捗は加算しません。推定式・暫定選出規則を使用します。</p><p>総合ランクボーナス：${comparison(result.before.bonus.bonus,result.after.bonus.bonus)}（${result.before.bonus.source==='manual'?'手入力を維持':'ランク定義の表を参照'}）</p>${result.before.bonus.reason||result.after.bonus.reason?`<p>${escape(result.before.bonus.reason??result.after.bonus.reason)}</p>`:''}<p>素材マスタ未登録・費用定義欠落・根拠未確認は未計算です。EXPは現在Lv開始時点からの要求量の上限で、アイテム個数へ換算しません。素材の所持数・不足数は計算しません。</p><p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/materials.md" target="_blank" rel="noreferrer">計算と表示の詳細</a></p></details></section>
-    <section class="panel" data-material-total><h2>最大育成の必要素材</h2><p class="muted">各Memberと所持Snapの費用を一度ずつ合算。</p>${!master.materialDefinition?'<p class="warning">素材マスタ未登録・未計算です。</p>':''}${list(result.materials.totals,result.materials.incomplete)}</section>
+    <p>理論ランクが上がるキャラ：${comparable.length?`${growth}人（比較可能分）`:'保留'}${pending?` ／ 推定比較保留：${pending}人`:''}</p><p class="muted">絆の理論上限はバンド・キャラ詳細へ。</p>
+    <details><summary>計算条件・上書き・未計算について</summary><p>全所持Member・Snapに共通の育成条件を適用し、現在との差分を計算します。保存済みの所持・進捗・マスタは変更しません。</p><p>育成後の評価値・総合キャラランク・ボーナス表参照には絆最大時の理論キャラランクを使います。手入力ランクと絆合計の上書きは育成後の評価から除外します。総合ランクボーナスの手入力は優先します。絆以外の未入力進捗は加算しません。推定式・暫定選出規則を使用します。</p><p>総合ランクボーナス：${comparison(result.before.bonus.bonus,result.after.bonus.bonus)}（${result.before.bonus.source==='manual'?'手入力を維持':'ランク定義の表を参照'}）</p>${result.before.bonus.reason||result.after.bonus.reason?`<p>${escape(result.before.bonus.reason??result.after.bonus.reason)}</p>`:''}<p>素材マスタ未登録・費用定義欠落・根拠未確認は未計算です。EXPは現在Lv開始時点からの要求量の上限で、アイテム個数へ換算しません。素材の所持数・不足数は計算しません。</p><p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/materials.md" target="_blank" rel="noreferrer">計算と表示の詳細</a></p></details></section>
+    <section class="panel" data-material-total><h2>育成条件までの必要素材</h2><p class="muted">各Memberと所持Snapの費用を一度ずつ合算。</p>${!master.materialDefinition?'<p class="warning">素材マスタ未登録・未計算です。</p>':''}${list(result.materials.totals,result.materials.incomplete)}</section>
     ${!result.materials.cards.length?'<section class="panel"><p>所持カードがありません。メンバー・Snap画面で登録してください。</p></section>':''}
-    <section class="panel"><h2>バンド・キャラ別の内訳</h2><p class="muted">全所持カードを育成する同じシナリオの内訳です。素材小計はMember分のみ。評価値には育成後Snapと全体の総合ランクボーナスも含みます。</p>${result.bands.map(band=>`<details class="growth-detail" data-growth-band="${band.id}"><summary>${escape(band.name)}</summary><div class="growth-content"><p>バンド評価値：${comparison(band.before?.rating,band.after?.rating)}</p>${band.before?.provisional||band.after?.provisional?'<p class="muted">※ 暫定選出規則を含みます。</p>':''}${ratingDetails(band)}<h3>必要素材（Member分）</h3>${list(band.materials.totals,band.materials.incomplete)}${bondLink(band.id)}<h3>キャラランク・Member内訳</h3>${characterRowsForDisplay(band.characters,master.characters,c=>c.id).map(character=>`<details class="growth-detail" data-growth-character="${character.id}"><summary>${escape(character.name)} <small>ランク ${number(character.before.effectiveRank)} → ${number(character.after.effectiveRank)}${character.before.overrideRank!==undefined?'（手入力維持）':''}</small></summary><div class="growth-content">${rankView(character)}${bondLink(band.id,character.id)}<h4>必要素材（Member分）</h4>${list(character.materials.totals,character.materials.incomplete)}${character.cards.map(cardView).join('')||'<p class="muted">所持Memberなし</p>'}</div></details>`).join('')}</div></details>`).join('')}</section>
+    <section class="panel"><h2>バンド・キャラ別の内訳</h2><p class="muted">全所持カードを育成する同じシナリオの内訳です。素材小計はMember分のみ。評価値には育成後Snapと全体の総合ランクボーナスも含みます。</p>${result.bands.map(band=>`<details class="growth-detail" data-growth-band="${band.id}"><summary>${escape(band.name)}</summary><div class="growth-content"><p>バンド評価値：${comparison(band.before?.rating,band.after?.rating)}</p>${band.before?.provisional||band.after?.provisional?'<p class="muted">※ 暫定選出規則を含みます。</p>':''}${ratingDetails(band)}<h3>必要素材（Member分）</h3>${list(band.materials.totals,band.materials.incomplete)}${bondLink(band.id)}<h3>キャラランク・Member内訳</h3>${characterRowsForDisplay(band.characters,master.characters,c=>c.id).map(character=>`<details class="growth-detail" data-growth-character="${character.id}"><summary>${escape(character.name)} <small>ランク ${number(character.before.effectiveRank)} → ${number(character.after.effectiveRank)}</small></summary><div class="growth-content">${rankView(character)}${bondLink(band.id,character.id)}<h4>必要素材（Member分）</h4>${list(character.materials.totals,character.materials.incomplete)}${character.cards.map(cardView).join('')||'<p class="muted">所持Memberなし</p>'}</div></details>`).join('')}</div></details>`).join('')}</section>
     <section class="panel"><details data-snap-materials><summary>Snapの必要素材・カード内訳（${result.snaps.length}枚）</summary><p class="muted">共有Snapもここで一度だけ計上。対応キャラへ費用を重複加算しません。</p>${list(result.snapMaterials.totals,result.snapMaterials.incomplete)}${result.snaps.map(cardView).join('')}</details></section></div>`;
 }
 
-/** Compute bond theory once per opened band; keep the initial view and calculation compact. */
-function bindMaterialsPage(root:HTMLElement,master:Masterdata,target:Collection):void {
-  const cache=new Map<number,BondTheoryResult>();
+/** Reuse the exact theory used for the displayed rating. */
+function bindMaterialsPage(root:HTMLElement,master:Masterdata,result:Simulation):void {
   root.querySelectorAll<HTMLDetailsElement>('[data-bond-band]').forEach(details=>details.addEventListener('toggle',()=>{
     if(!details.open||details.dataset.loaded)return;
     const bandId=Number(details.dataset.bondBand),characterId=details.dataset.bondCharacter===undefined?undefined:Number(details.dataset.bondCharacter);
-    if(!cache.has(bandId))cache.set(bandId,maximumTrainingBondTheory(master,target,bandId));
-    const theory=cache.get(bandId)!;
+    const theory=result.bondTheory(bandId);
     const name=(id:number)=>escape(master.characters.find(c=>c.id===id)!.name);
     const output=details.querySelector('[data-bond-output]')!;
-    output.innerHTML=theory.status==='pending'?`<p class="warning">絆理論値は保留：${escape(theory.reason)}</p>`:`<p class="muted">絆EXP獲得後の理論上限です。実際のペアランクは未登録で、今回の育成結果に加算しません。手入力ランク・絆合計の上書きは使いません。</p>${theory.characters.some(c=>c.missingProgress.length)?'<p class="muted">絆以外の未入力進捗による不確実性があります。</p>':''}<ul class="bond-pairs">${theory.pairs.filter(p=>characterId===undefined||p.characterA===characterId||p.characterB===characterId).map(p=>`<li>${name(p.characterA)} × ${name(p.characterB)}：<strong>上限 ${number(p.rank)}</strong></li>`).join('')||'<li>対象ペアなし</li>'}</ul><details><summary>絆最大時の理論キャラランク</summary><ul>${theory.characters.filter(c=>characterId===undefined||c.id===characterId).map(c=>`<li>${name(c.id)}：${number(c.finalRank)}</li>`).join('')}</ul><p class="muted">ペア上限とキャラランクが安定するまで既存の絆理論値計算で反復します。実際のキャラランク・獲得済み絆ランクとは別の参考値です。</p></details>`;
+    output.innerHTML=theory.status==='pending'?`<p class="warning">絆理論値は保留：${escape(theory.reason)}</p>`:`<p class="muted">絆EXP獲得後の理論上限です。実際のペアランクは未登録です。この理論ランクを育成後評価値に適用しています。手入力ランク・絆合計の上書きは使いません。</p>${theory.characters.some(c=>c.missingProgress.length)?'<p class="muted">絆以外の未入力進捗による不確実性があります。</p>':''}<ul class="bond-pairs">${theory.pairs.filter(p=>characterId===undefined||p.characterA===characterId||p.characterB===characterId).map(p=>`<li>${name(p.characterA)} × ${name(p.characterB)}：<strong>上限 ${number(p.rank)}</strong></li>`).join('')||'<li>対象ペアなし</li>'}</ul><details><summary>絆最大時の理論キャラランク</summary><ul>${theory.characters.filter(c=>characterId===undefined||c.id===characterId).map(c=>`<li>${name(c.id)}：${number(c.finalRank)}</li>`).join('')}</ul><p class="muted">ペア上限とキャラランクが安定するまで既存の絆理論値計算で反復します。実際のキャラランク・獲得済み絆ランクとは別の参考値です。</p></details>`;
     details.dataset.loaded='true';
   }));
 }

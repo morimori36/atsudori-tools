@@ -3,7 +3,7 @@ import { sumCharacterRanks } from './estimate';
 import type { Collection } from '../../storage/collection';
 import type { BoundRankRules } from './rules';
 
-/** Resolve from the supplied scenario. The existing hypothetical-training view passes current ranks. */
+/** Resolve from the supplied scenario, including explicitly resolved theoretical ranks. */
 export function resolveTotalRankBonus(
   ranks: readonly {effectiveRank:number|null}[], collection: Collection, rules?: BoundRankRules,
 ): {bonus:number|null;source:'manual'|'rules'|'unknown';reason:string|null} {

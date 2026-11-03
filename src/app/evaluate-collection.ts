@@ -66,9 +66,10 @@ export function summarizeBands(colors: readonly EvaluatedColor[]): EvaluatedBand
       provisional: matching.some(c => c.provisional) };
   });
 }
-export function evaluateCollection(master: Masterdata, collection: Collection, rankSource: Collection = collection, rules?: BoundRankRules): EvaluatedColor[] {
+export function evaluateCollection(master: Masterdata, collection: Collection, rankSource: Collection = collection, rules?: BoundRankRules,
+  resolvedRanks?: ReturnType<typeof estimateCharacterRanks>): EvaluatedColor[] {
   rules ??= catalogRankRules(master);
-  const ranks=estimateCharacterRanks(master,rankSource,rules);
+  const ranks=resolvedRanks ?? estimateCharacterRanks(master,rankSource,rules);
   const totalRankBonus=resolveTotalRankBonus(ranks,rankSource,rules);
   const members = collection.members.map(owned => {
     const row = master.members.find(m => m.id === owned.cardId);

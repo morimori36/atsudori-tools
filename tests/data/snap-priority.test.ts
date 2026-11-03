@@ -22,7 +22,7 @@ function fixture() {
 function selected(master: ReturnType<typeof fixture>['master'], collection: ReturnType<typeof fixture>['collection']) {
   return evaluateCollection(master,collection)[0]!.slots[0]!.selection.snap;
 }
-it('reverses EX versus R priority when only the owned R level rises, in both display modes', () => {
+it('reverses current Snap priority with owned Lv and recomputes after simulated cap growth', () => {
   const {master,collection} = fixture();
   expect(selected(master,collection)).toMatchObject({candidate:{id:8501,scoreBp:1100}});
   collection.snaps[1]!.level = 2;
@@ -30,7 +30,8 @@ it('reverses EX versus R priority when only the owned R level rises, in both dis
   // R: 3*500+200=1700; EX: 3*300+200=1100. Unowned 8505 is excluded.
   expect(selected(master,collection)).toMatchObject({candidate:{id:8504,scoreBp:1700}});
   const virtual = evaluateCollection(master,potentialCollection(master,collection),collection)[0]!.slots[0]!;
-  expect(virtual.selection.snap).toEqual(selected(master,collection));
+  // Simulated EX also reaches Lv2: 3*600+200=2000, above R 1700.
+  expect(virtual.selection.snap).toMatchObject({candidate:{id:8501,scoreBp:2000}});
   expect(evaluateCollection(master,collection)[0]!.slots[0]!.input?.snapPercentBp).toEqual({performance:500,technic:500,visual:500});
   expect(virtual.result).toBeDefined();
   expect(JSON.stringify({master,collection})).toBe(before);

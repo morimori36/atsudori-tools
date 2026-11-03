@@ -30,12 +30,12 @@ describe('bounded profile export',()=>{
     const p=prepareExport(master,collection,{...options,applyTraining:true,training:{...DEFAULT_TRAINING,trainingStage:null,liveSkillLevel:4,gekisouSkillLevel:4}});
     expect(p.data.members[0]).toMatchObject({liveSkillLevel:5,gekisouSkillLevel:2});expect(p.adjustments).toEqual([{cardId:8301,skill:'撃奏',before:1,after:2}]);
   });
-  it('uses manual ranks first, estimates from real skills, and reports missing mission progress',async()=>{
+  it('uses manual ranks first, estimates from projected skills, and reports missing mission progress',async()=>{
     const {master,collection}=setup();delete collection.characterRanks['8201'];
     const profile=await fictionalProfile(master),rules=await bindRankRules(await fictionalRules(master),master);
     const a=await exportConversion(master,collection,profile,options,context,rules),b=await exportConversion(master,collection,profile,{...options,applyTraining:true,training:{...DEFAULT_TRAINING,trainingStage:null,liveSkillLevel:4,gekisouSkillLevel:4}},context,rules);
     expect(a.preview.ranks[0]).toMatchObject({effectiveRank:1,estimatedRank:1,missingProgress:expect.arrayContaining(['stamps','bondRankTotal','liveClears','songClears'])});
-    expect(JSON.parse(a.text).ranks).toEqual(JSON.parse(b.text).ranks);
+    expect(JSON.parse(b.text).ranks[8201]).toBeGreaterThan(JSON.parse(a.text).ranks[8201]);
     collection.characterRanks['8201']=7;
     expect(prepareExport(master,collection,options,rules).ranks[0]).toMatchObject({effectiveRank:7,estimatedRank:1,overrideRank:7});
   });
