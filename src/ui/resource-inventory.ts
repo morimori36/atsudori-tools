@@ -1,76 +1,55 @@
+import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
-import type { MaterialRequirements } from '../domain/materials/calculate';
-import { materialInventoryBalances,validateResourceInventory } from '../domain/materials/inventory';
-import type { InventoryBalance,ResourceInventory } from '../domain/materials/inventory';
-import { openDialog } from './dialog';
-const escape=(v:unknown):string=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
-const number=(n:number)=>n.toLocaleString('ja-JP');
-const unit=(row:InventoryBalance)=>row.resource.unit==='card'?'枚':row.resource.unit==='exp'?'EXP（上限）':'個';
-function shortage(row:InventoryBalance):string {
-  if(row.stock===null)return '在庫未登録・不足数未算出';
-  if(row.incomplete)return row.shortage!>0?`少なくとも ${number(row.shortage!)} ${unit(row)}不足`:'不足数未確定（必要量に未計算項目あり）';
-  return `${number(row.shortage!)} ${unit(row)}`;
-}
-export function createResourceInventoryView(collection:Collection,requirements:MaterialRequirements) {
+import { validateResourceInventory } from '../domain/materials/inventory';
+import type { ResourceInventory } from '../domain/materials/inventory';
+import { escape } from './collection-card';
+
+export interface InventoryViewState { query:string; limit:number; drafts:Map<string,string> }
+export function createResourceInventoryView(master:Masterdata,collection:Collection,state:InventoryViewState) {
   let inventory={...collection.resourceInventory};
-  const current=()=>materialInventoryBalances(requirements,inventory);
-  const renderTotals=()=>{
-    const {balances,unsupported}=current();
-    return `<button type="button" class="secondary" data-inventory-open>素材在庫を編集</button>
-      <p class="muted">在庫は素材ごとに全用途で共有します。仮想の育成では消費しません。理論EXPの実現可能性は判定しません。</p>
-      ${unsupported.length?`<p class="warning">未対応・参照不能の在庫 ${unsupported.length}件を保持しています。在庫編集で確認できます。</p>`:''}
-      <div class="inventory-totals" data-inventory-totals><h3>全体の必要量・在庫・不足数</h3>${balances.filter(r=>r.required>0).map(row=>`<section class="inventory-total" data-inventory-resource="${escape(row.resource.id)}"><h4>${escape(row.resource.name)}</h4><dl><div><dt>全体必要量${row.incomplete?'（計算済み小計）':''}</dt><dd>${number(row.required)} ${unit(row)}</dd></div>${row.resource.unit==='exp'?'<div><dt>在庫・不足数</dt><dd>対象外</dd></div>':`<div><dt>現在庫</dt><dd>${row.stock===null?'未登録':`${number(row.stock)} ${unit(row)}`}</dd></div><div><dt>全体不足量</dt><dd>${shortage(row)}</dd></div>`}</dl></section>`).join('')||`<p>${requirements.incomplete?'必要量は未確定です。':'追加の必要量なし'}</p>`}</div>`;
-  };
+  const resources=master.materialDefinition?.resources??[];
+  const supported=resources.filter(r=>r.unit!=='exp');
+  const unsupported=Object.entries(inventory).filter(([id])=>!supported.some(r=>r.id===id));
   return {
-    html:renderTotals(),
-    bind(host:HTMLElement,rerender:()=>void,save:(inventory:ResourceInventory)=>boolean) {
-      host.querySelector('[data-inventory-open]')?.addEventListener('click',()=>{
-        const dialog=document.createElement('dialog');dialog.className='training-dialog inventory-dialog';dialog.setAttribute('aria-labelledby','inventory-dialog-title');
-        dialog.innerHTML=`<h2 id="inventory-dialog-title">素材在庫を編集</h2><p class="muted">空欄は未登録、0は明示的な在庫0です。個・枚の素材だけを登録します。EXP（上限）は対象外です。入力は「在庫を保存」で反映します。</p>
-          <div class="inventory-filters"><label>素材名・IDで検索<input type="search" data-inventory-query></label><label>表示範囲<select data-inventory-scope><option value="required">現在の必要素材</option><option value="all">すべての対応素材</option><option value="unsupported">未対応・参照不能の在庫</option></select></label><label>在庫の絞り込み<select data-inventory-filter><option value="">すべて</option><option value="unknown">未登録のみ</option><option value="shortage">不足あり（確定分）</option></select></label></div>
-          <p class="muted">必要素材を優先し20件ずつ表示します。マスタで参照できないIDや対象外の単位の在庫も削除せずバックアップに保持します。</p><p data-inventory-count role="status"></p><div data-inventory-rows></div><button type="button" class="secondary" data-inventory-more>続きを表示</button><p data-inventory-error role="alert"></p><p data-inventory-message role="status"></p><div class="training-dialog-actions"><button type="button" class="secondary" data-inventory-close>閉じる</button><button type="button" class="primary" data-inventory-save>在庫を保存</button></div>`;
-        const drafts=new Map<string,string>();let limit=20;
-        const draw=()=>{
-          const {balances,unsupported}=current();
-          const query=dialog.querySelector<HTMLInputElement>('[data-inventory-query]')!.value.trim().normalize('NFKC').toLocaleLowerCase('ja');
-          const scope=dialog.querySelector<HTMLSelectElement>('[data-inventory-scope]')!.value;
-          const filter=dialog.querySelector<HTMLSelectElement>('[data-inventory-filter]')!.value;
-          const text=(v:string)=>v.normalize('NFKC').toLocaleLowerCase('ja').includes(query);
-          const rows=balances.filter(r=>r.resource.unit!=='exp'&&(scope==='all'||r.required>0)&&text(`${r.resource.name} ${r.resource.id}`)
-            &&(!filter||(filter==='unknown'?r.stock===null:(r.shortage??0)>0)))
-            .sort((a,b)=>Number(b.required>0)-Number(a.required>0)||a.resource.name.localeCompare(b.resource.name,'ja')||a.resource.id.localeCompare(b.resource.id));
-          const orphaned=unsupported.filter(r=>text(r.id));
-          const count=scope==='unsupported'?orphaned.length:rows.length;
-          dialog.querySelector('[data-inventory-count]')!.textContent=`該当 ${count}件 / 表示 ${Math.min(limit,count)}件`;
-          dialog.querySelector('[data-inventory-rows]')!.innerHTML=scope==='unsupported'?orphaned.slice(0,limit).map(r=>`<article class="inventory-row" data-inventory-unsupported="${escape(r.id)}"><h3>ID ${escape(r.id)}</h3><p>登録値 ${number(r.quantity)} · ${escape(r.reason)}</p></article>`).join(''):
-            rows.slice(0,limit).map(row=>`<article class="inventory-row" data-inventory-row="${escape(row.resource.id)}"><h3>${escape(row.resource.name)}</h3><p class="muted">ID ${escape(row.resource.id)} · 必要量${row.incomplete?'（計算済み小計）':''} ${number(row.required)} ${unit(row)} · 不足量 ${shortage(row)}</p><label>現在庫（${unit(row)}）<input type="text" inputmode="numeric" autocomplete="off" data-inventory-input="${escape(row.resource.id)}" value="${escape(drafts.get(row.resource.id)??row.stock??'')}" aria-label="${escape(row.resource.name)}の現在庫"></label></article>`).join('');
-          if(!count)dialog.querySelector('[data-inventory-rows]')!.innerHTML='<p>条件に一致する素材がありません。「すべての対応素材」や検索を利用してください。</p>';
-          dialog.querySelector<HTMLButtonElement>('[data-inventory-more]')!.hidden=limit>=count;
-          dialog.querySelectorAll<HTMLInputElement>('[data-inventory-input]').forEach(input=>input.addEventListener('input',()=>{
-            drafts.set(input.dataset.inventoryInput!,input.value);
-            dialog.querySelector('[data-inventory-message]')!.textContent='入力中・在庫はまだ保存していません。';
-          }));
-        };
-        dialog.querySelectorAll('.inventory-filters input,.inventory-filters select').forEach(control=>control.addEventListener(control.matches('[type=search]')?'input':'change',()=>{limit=20;draw();}));
-        dialog.querySelector('[data-inventory-more]')!.addEventListener('click',()=>{limit+=20;draw();});
-        dialog.querySelector('[data-inventory-save]')!.addEventListener('click',()=>{
-          const error=dialog.querySelector('[data-inventory-error]')!;error.textContent='';
-          const next={...inventory};
-          for(const [id,value] of drafts) {
-            const raw=value.trim();
-            if(raw===''){delete next[id];continue;}
-            if(!/^\d+$/.test(raw)||!Number.isSafeInteger(Number(raw))) {
-              error.textContent='在庫は0以上の安全な整数を入力してください。空欄で未登録に戻せます。';return;
-            }
-            next[id]=Number(raw);
-          }
-          try {validateResourceInventory(next);}catch {error.textContent='素材在庫が不正です。登録件数・値を確認してください。';return;}
-          if(!save(next)){error.textContent='在庫を保存できませんでした。登録内容は変更していません。';return;}
-          inventory=next;drafts.clear();rerender();draw();dialog.querySelector('[data-inventory-message]')!.textContent='在庫を保存しました';
+    html:`<section class="inventory-management"><section class="panel catalog-tools" aria-label="一覧の絞り込み"><div class="catalog-toolbar"><label class="field catalog-search"><span>素材名・IDで検索</span><input type="search" data-inventory-query value="${escape(state.query)}" placeholder="素材名を入力"></label></div><p class="muted catalog-help">変更は自動保存 · 空欄は未登録、0は在庫0 · EXPは入力対象外</p><p class="muted catalog-count" data-inventory-count role="status"></p></section>
+      ${!master.materialDefinition?'<p class="warning">素材マスタ未登録です。</p>':''}<div class="catalog-grid" data-inventory-rows></div><button type="button" class="secondary" data-inventory-more>続きを表示</button>
+      ${unsupported.length?`<details class="panel inventory-unsupported"><summary>参照不能・対象外の在庫（${unsupported.length}件を保持）</summary>${unsupported.map(([id,quantity])=>`<p data-inventory-unsupported="${escape(id)}">ID ${escape(id)} · 登録値 ${quantity.toLocaleString('ja-JP')} · ${resources.some(r=>r.id===id)?'EXPは在庫入力の対象外':'現在のマスタに対応する素材なし'}</p>`).join('')}</details>`:''}</section>`,
+    bind(host:HTMLElement,save:(inventory:ResourceInventory)=>boolean,schedule:(id:string,save:()=>void,immediate:boolean)=>void) {
+      const query=host.querySelector<HTMLInputElement>('[data-inventory-query]')!;
+      const draw=()=>{
+        const q=state.query.trim().normalize('NFKC').toLocaleLowerCase('ja');
+        const rows=supported.filter(r=>`${r.name} ${r.id}`.normalize('NFKC').toLocaleLowerCase('ja').includes(q));
+        host.querySelector('[data-inventory-count]')!.textContent=`該当 ${rows.length}件 / 表示 ${Math.min(state.limit,rows.length)}件`;
+        host.querySelector('[data-inventory-rows]')!.innerHTML=rows.slice(0,state.limit).map(r=>`<article class="panel collection-card inventory-card ${Object.hasOwn(inventory,r.id)?'is-owned':''}" data-inventory-row="${escape(r.id)}"><div class="card-identity"><span class="card-meta"><span class="card-id">ID ${escape(r.id)}</span><span data-inventory-status>${Object.hasOwn(inventory,r.id)?'登録済み':'未登録'}</span></span><h2 class="card-name">${escape(r.name)}</h2></div><div><label class="field"><span>現在庫（${r.unit==='card'?'枚':'個'}）</span><input type="text" inputmode="numeric" autocomplete="off" placeholder="未登録" data-inventory-input="${escape(r.id)}" value="${escape(state.drafts.get(r.id)??inventory[r.id]??'')}" aria-label="${escape(r.name)}の現在庫"></label><p class="card-input-state" data-inventory-error role="alert"></p></div></article>`).join('')||'<p class="panel catalog-empty">条件に一致する素材がありません。</p>';
+        host.querySelector<HTMLButtonElement>('[data-inventory-more]')!.hidden=state.limit>=rows.length;
+        host.querySelectorAll<HTMLInputElement>('[data-inventory-input]').forEach(input=>{
+          const id=input.dataset.inventoryInput!;
+          const report=(message:string)=>{
+            // Look up the current row: search/paging may have replaced the original node.
+            const current=[...host.querySelectorAll<HTMLInputElement>('[data-inventory-input]')].find(i=>i.dataset.inventoryInput===id);
+            if(!current)return;
+            current.setAttribute('aria-invalid',String(Boolean(message)));
+            current.closest('article')!.querySelector('[data-inventory-error]')!.textContent=message;
+          };
+          const commit=()=>{
+            const raw=state.drafts.get(id)?.trim();if(raw===undefined)return;
+            if(raw!==''&&(!/^\d+$/.test(raw)||!Number.isSafeInteger(Number(raw)))){report('0以上の安全な整数を入力してください。空欄は未登録です。');return;}
+            const next={...inventory};if(raw==='')delete next[id];else next[id]=Number(raw);
+            try{validateResourceInventory(next);}catch{report('素材在庫の件数・値を確認してください。');return;}
+            if(!save(next)){report('保存できませんでした。入力を確認して再試行してください。');return;}
+            inventory=next;state.drafts.delete(id);report('');
+            const row=[...host.querySelectorAll<HTMLElement>('[data-inventory-row]')].find(r=>r.dataset.inventoryRow===id);
+            row?.classList.toggle('is-owned',Object.hasOwn(inventory,id));
+            if(row)row.querySelector('[data-inventory-status]')!.textContent=Object.hasOwn(inventory,id)?'登録済み':'未登録';
+          };
+          input.addEventListener('input',()=>{state.drafts.set(id,input.value);report('');schedule(id,commit,false);});
+          input.addEventListener('change',()=>schedule(id,commit,true));
+          if(state.drafts.has(id))report('未保存の入力があります。値を確認してください。');
         });
-        dialog.querySelector('[data-inventory-close]')!.addEventListener('click',()=>dialog.close());
-        draw();openDialog(dialog,()=>host.querySelector<HTMLElement>('[data-inventory-open]'),dialog.querySelector<HTMLElement>('[data-inventory-query]'));
-      });
+      };
+      query.addEventListener('input',()=>{state.query=query.value;state.limit=20;draw();});
+      host.querySelector('[data-inventory-more]')!.addEventListener('click',()=>{state.limit+=20;draw();});
+      draw();
     },
   };
 }

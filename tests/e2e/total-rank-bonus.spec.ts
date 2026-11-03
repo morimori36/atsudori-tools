@@ -1,3 +1,4 @@
+import { openRankInput } from '../helpers/rank-ui';
 import {test,expect} from '@playwright/test';
 import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
 import {fictionalRules} from '../helpers/rank-rules';
@@ -31,7 +32,7 @@ test('imported bonus thresholds drive the rating and maximum training uses curre
   await page.locator('nav [data-tab=rating]').click();await expect(page.locator('.band-result .rating-total strong')).toHaveText('732');
   await page.locator('input[name=rating-mode][value=potential]').check();
   await page.locator('nav [data-tab=progress]').click();await expect(page.locator('[data-total-rank-bonus]')).toContainText('+13');
-  await page.locator('#rank-8201').fill('7');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('7');
   await expect(page.locator('[data-total-rank-bonus]')).toContainText('+29');
   await page.locator('#progress-form button[type=submit]').click();await page.locator('nav [data-tab=rating]').click();
   await page.locator('input[name=rating-mode][value=current]').check();await expect(page.locator('.band-result .rating-total strong')).toHaveText('854');

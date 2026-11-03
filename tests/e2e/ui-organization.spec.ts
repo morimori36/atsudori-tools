@@ -1,3 +1,4 @@
+import { openRankInput } from '../helpers/rank-ui';
 import { test, expect } from '@playwright/test';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
 import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
@@ -111,12 +112,12 @@ for (const width of [1280,390]) test(`optional training settings preserve values
 
 test('independent saves keep invalid and failed drafts out of other screens',async({page})=>{
   const original=await seed(page);
-  await tab(page,'progress'); await page.locator('#rank-8201').fill('0');
+  await tab(page,'progress'); await openRankInput(page,8201);await page.locator('#rank-8201').fill('0');
   await tab(page,'items'); await page.locator('#item-8601').fill('2');
   await page.locator('#progress-form button[type=submit]').click();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),STORAGE_KEY)).toMatchObject({...original,bandItems:{8601:2}});
   await tab(page,'progress'); await expect(page.locator('#rank-8201')).toHaveValue('0');
-  await page.locator('#rank-8201').fill('7');
+  await openRankInput(page,8201);await page.locator('#rank-8201').fill('7');
   await tab(page,'items'); await page.locator('#item-8601').fill('');
   await tab(page,'progress'); await page.locator('#progress-form button[type=submit]').click();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bandItems,STORAGE_KEY)).toEqual({8601:2});
@@ -128,7 +129,7 @@ test('independent saves keep invalid and failed drafts out of other screens',asy
   };});
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('[data-progress-state]')).toContainText('保存未完了');
-  await tab(page,'progress'); await page.locator('#rank-8201').fill('3');
+  await tab(page,'progress'); await openRankInput(page,8201);await page.locator('#rank-8201').fill('3');
   await page.locator('#progress-form button[type=submit]').click();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bandItems,STORAGE_KEY)).toEqual({8601:2});
   await tab(page,'items'); await expect(page.locator('#item-8601')).toHaveValue('1');

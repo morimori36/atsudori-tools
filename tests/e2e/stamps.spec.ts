@@ -1,3 +1,4 @@
+import { openRankInput } from '../helpers/rank-ui';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { automaticFixture } from '../helpers/automatic-progress';
@@ -43,12 +44,13 @@ for (const width of [1280,390,320]) test(`stamp ownership, automatic counts and 
   await tab('progress');
   await expect(page.locator('input[name$="-stamps"],input[name$="-songClears"]')).toHaveCount(0);
   await expect(page.locator('[data-automatic-songs]:visible,[data-automatic-stamps]:visible')).toHaveCount(0);
+  await openRankInput(page);
   await page.locator('[data-progress-section="rank-details-8201"] summary').click();
   await expect(page.locator('[data-character-rank="8201"] [data-automatic-songs]')).toBeVisible();
   await expect(page.locator('[data-character-rank="8201"] [data-automatic-songs]')).toHaveText('8');
   await expect(page.locator('[data-character-rank="8201"] [data-automatic-stamps]')).toHaveText('2');
   await expect(page.locator('[data-character-rank="8202"] [data-automatic-stamps]')).toHaveText('1');
-  await expect(page.locator('[data-character-rank="8201"] [data-rank-summary]')).toContainText('推定 3');
+  await expect(page.locator('[data-character-rank="8201"] [data-rank-summary]')).toContainText('現在ランク 3');
   await tab('exchange');
   const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);
   const exported=JSON.parse(await readFile((await download.path())!,'utf8'));expect(exported.ownedStampIds).toEqual([9101,9102]);
