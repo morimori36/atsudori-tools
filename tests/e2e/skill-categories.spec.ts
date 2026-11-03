@@ -15,6 +15,11 @@ for(const width of [1280,390,320])test(`four independent skill filters at ${widt
     await expect(visible).toHaveAttribute('data-catalog-id',String(first));
     await page.locator('[data-filter=skill][value=""]').check();await expect(visible).toHaveCount(2);
     await page.locator(`[data-filter=skill][value="${a+1}"]`).check();await expect(visible).toHaveCount(2);
+    await page.locator(`[data-filter=secondarySkill][value="${b+1}"]`).check();await expect(visible).toHaveCount(0);
+    await page.locator(`[data-filter=skill][value="${a}"]`).check();await expect(visible).toHaveCount(1);
+    await expect(visible).toHaveAttribute('data-catalog-id',String(second));
+    await page.locator('[data-filter=secondarySkill][value=""]').check();
+    await page.locator(`[data-filter=skill][value="${a+1}"]`).check();
     await page.locator('[data-filter=ownership][value=unowned]').check();await expect(visible).toHaveCount(1);
     await expect(visible).not.toHaveAttribute('data-catalog-id',String(first));
     await page.locator('[data-reset-filters]').click();await expect(visible).toHaveCount(4);

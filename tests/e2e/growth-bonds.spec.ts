@@ -19,6 +19,7 @@ for(const legacy of [false,true])for(const width of [1280,390,320])test(`growth 
       await expect(card.locator('[data-bond-rank]')).toHaveCount(chars.length-1);
       await expect(card.locator('tbody td')).toHaveText(Array(chars.length-1).fill(chars.length===5?'5':'1'));
       await expect(card.locator('ul')).toHaveCount(0);
+      expect(await card.evaluate(el=>el.querySelector('table')!.getBoundingClientRect().width<=el.clientWidth)).toBe(true);
     }
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
