@@ -11,7 +11,7 @@ catalog v1への任意項目の追加です。旧catalogも読み込めます。
 | engine | achievement-thresholds/1 |
 | id / version | 定義の識別子と版（1〜200文字） |
 | provenance.sources | 出典のid・revision・sha256。空でない配列、重複不可、最大100件 |
-| manualProgress | 手入力進捗のkeyとlabel。対応キーのみ、重複不可 |
+| manualProgress | 進捗条件のkeyとlabel。旧stamps/songClearsもラベル契約として保持し、実際の手入力はbondRankTotal/liveClearsのみ。重複不可 |
 | achievements | 達成条件のid・kind・label・stage・thresholds・exp |
 | rankThresholds | 累積EXPとランクの対応。rank・expの配列 |
 | totalRankBonuses（任意） | 総合ランクの閾値rankと各パラメータへのbonusの配列 |
@@ -71,3 +71,9 @@ collection.totalRankBonusの明示的な手入力があれば優先し、0も有
 評価値の育成後と育成余地・素材は同じ共通条件・計算処理を使います。育成後状態から既存の絆反復計算を実行し、全キャラのfinalRankを個人ランクと総合ランク・ボーナス表参照へ適用します。総合ボーナスの明示的手入力は優先します。現在の手入力ランクや絆進捗は保存されたままで、理論計算では除外します。理論ランクと参考の通常推定は区別します。
 
 絆定義欠落や不一致時は理由付きで保留します。通常ランク・手入力への代替は行いません。外部JSONは育成後状態から通常ランクを推定し、手入力を優先しますが、絆理論値は使いません。[全条件と保存移行](training-simulation.md)を参照してください。
+
+## 楽曲・スタンプの自動算出
+
+楽曲クリア種類数はcatalog.songClearCounts、スタンプ所持種類数はcatalog.stampsとcollection.ownedStampIdsから算出します。楽曲ごとの所持やクリア履歴は登録しません。スタンプ管理で所持・未所持を切り替え、名称・対象キャラ・所持状態で絞り込めます。変更は自動保存し、保存できなければ直前の所持状態を保持します。
+
+キャラランク画面ではこの2項目を閲覧専用で表示し、達成条件内訳にも同じ値を使用します。手入力は絆ランク合計・ライブクリア数、ランク上書きは従来どおりです。旧スタンプ数・楽曲数の保存値を計算や不足判定へ使用しません。定義がない旧catalogでは両方0、ランク定義なしなら推定不能です。全計算経路で同じ推定関数を使い、絆・育成後・素材画面・外部JSON出力へも適用します。閾値・EXP・式は変更していません。

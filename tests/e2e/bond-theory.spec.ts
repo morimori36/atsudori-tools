@@ -10,6 +10,7 @@ for (const width of [1280, 390, 320]) test(`bond theory is independent, readable
   const { master, collection } = bondTheoryFixture();
   // At total4 there is no reward; the self-consistent rank2 is unreachable.
   master.rankDefinition!.achievements[0]!.thresholds = [8];
+  master.stamps=[{id:9100,name:"架空紙片",characterIds:[8201]}];
   collection.characterRanks = { 8201: 5 };
   collection.characterProgress = { 8201: { bondRankTotal: 999 } };
   await page.setViewportSize({ width, height: 844 });
@@ -31,7 +32,7 @@ for (const width of [1280, 390, 320]) test(`bond theory is independent, readable
   await expect(result.locator('[data-bond-base], [data-bond-total]')).toHaveCount(0);
   await expect(page.locator('[data-bond-theory], .bond-theory table')).toHaveCount(0);
   await expect(result.locator('[data-bond-final]')).toHaveText(['1', '1', '1', '1', '1']);
-  await expect(result.locator('.bond-rank')).toContainText(Array(5).fill('バンド内の進捗に未入力あり'));
+  await expect(result.locator('.bond-rank small')).not.toContainText(['バンド内の進捗に未入力あり']);
   await help.locator('summary').click();
   await expect(page.locator('[data-character-rank="8201"] [data-effective-rank]')).toHaveText('5');
   await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('999');
@@ -41,16 +42,16 @@ for (const width of [1280, 390, 320]) test(`bond theory is independent, readable
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   if (width === 390) await result.screenshot({ path: 'test-results/bond-theory-390.png' });
   // The theory uses other progress after the ordinary explicit save action.
-  await page.locator('#progress-8201-stamps').fill('1');
-  await expect(result.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('1');
-  await page.locator('#progress-form button[type=submit]').click();
+  await page.locator('nav [data-tab=stamps]').click();
+  await page.locator('[data-stamp-owned="9100"]').check();
+  await page.locator('nav [data-tab=progress]').click();
   await expect(result.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('2');
   await page.reload(); await page.locator('nav [data-tab=progress]').click();
   await expect(result.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('2');
   await page.locator('nav [data-tab=exchange]').click();
   const downloadPromise = page.waitForEvent('download'); await page.locator('#export-button').click();
   const exported = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
-  expect(exported).toEqual({ ...collection, characterProgress: { 8201: { bondRankTotal: 999, stamps: 1 } } });
+  expect(exported).toEqual({ ...collection, ownedStampIds:[9100] });
   await page.locator('#import-file').setInputFiles({ name: 'toy-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exported)) });
   await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
   delete master.rankDefinition;

@@ -34,7 +34,7 @@ const identity = (v: unknown, path: string): string => {
 /** Structure validation permits an explicit draft. Missing relationships are never filled in. */
 export function validateCatalog(value: unknown): Masterdata {
   const keys = ['format','schemaVersion','catalogId','revision', ...Object.keys(tableFields)];
-  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition'],keys);
+  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','songClearCounts','stamps'],keys);
   if (root.format !== 'atsudori-tools/catalog') fail('$.format', 'catalog形式ではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の形式です。明示的な変換が必要です');
   identity(root.catalogId, '$.catalogId'); identity(root.revision, '$.revision');
@@ -54,6 +54,30 @@ export function validateCatalog(value: unknown): Masterdata {
       return table === 'characterRankLevels' ? row.value : row;
     });
   }
+  if (root.songClearCounts !== undefined) {
+    const counts = root.songClearCounts;
+    if (!counts || typeof counts !== 'object' || Array.isArray(counts)) fail('$.songClearCounts', 'オブジェクトが必要です');
+    if (Object.keys(counts).length > 20000) fail('$.songClearCounts', '20000件以内で指定してください');
+    result.songClearCounts = Object.fromEntries(Object.entries(counts).map(([id, count]) => {
+      if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) fail('$.songClearCounts', '正規の正整数IDが必要です');
+      return [id, integer(count, '$.songClearCounts.' + id, 0)];
+    }));
+  }
+  if (root.stamps !== undefined) {
+    if (!Array.isArray(root.stamps) || root.stamps.length > 20000 || (total += root.stamps.length) > 50000) fail('$.stamps', '配列が必要です（全体50000行、表20000行以内）');
+    const ids = new Set<number>();
+    result.stamps = root.stamps.map((value, i) => {
+      const path = '$.stamps[' + i + ']';
+      const row = strictObject(value, path, ['id','name','characterIds']);
+      const id = integer(row.id, path + '.id', 1);
+      if (ids.has(id)) fail(path, 'スタンプIDが重複しています');
+      ids.add(id);
+      if (!Array.isArray(row.characterIds) || row.characterIds.length > 10000) fail(path, '対象キャラは10000件以内の配列が必要です');
+      const characterIds = row.characterIds.map((n, j) => integer(n, path + '.characterIds[' + j + ']', 1));
+      if (new Set(characterIds).size !== characterIds.length) fail(path, '対象キャラが重複しています');
+      return {id, name: read(row.name, path + '.name', 'text'), characterIds};
+    });
+  }
   if(root.rankDefinition !== undefined) result.rankDefinition=validateRankDefinition(root.rankDefinition);
   if(root.materialDefinition !== undefined) result.materialDefinition=validateMaterialDefinition(root.materialDefinition);
   return result as unknown as Masterdata;
@@ -67,6 +91,8 @@ export function catalogIssues(m: Masterdata): string[] {
   const issues: string[] = materialIssues(m);
   const need = (ok: boolean, p: string, text: string): void => { if (!ok && issues.length < 100) issues.push(p + ': ' + text); };
   const exists = (rows: readonly {id:number}[], id: number) => rows.some(r => r.id === id);
+  for (const id of Object.keys(m.songClearCounts ?? {})) need(exists(m.characters, Number(id)), 'songClearCounts/' + id, '参照キャラクターがありません');
+  for (const stamp of m.stamps ?? []) for (const id of stamp.characterIds) need(exists(m.characters, id), 'stamps/' + stamp.id, '参照キャラクターがありません');
   for (const c of m.characters) need(exists(m.bands,c.bandId), 'characters/' + c.id, '参照バンドがありません');
   for (const bandId of new Set(m.characters.map(c => c.bandId))) {
     const characters = m.characters.filter(c => c.bandId === bandId);
