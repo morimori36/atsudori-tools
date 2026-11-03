@@ -48,7 +48,7 @@ test('invalid unreferenced category kinds are refused without replacing the save
   await upload(m);await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   const saved=await page.evaluate(key=>localStorage.getItem(key),CATALOG_STORAGE_KEY);
   await upload({...m,skillCategories:[...m.skillCategories!,{id:999,kind:['live'],name:'架空の未参照分類'}]});
-  await expect(page.locator('[role=alert]:visible')).toContainText('スキル系統');
+  await expect(page.getByRole('alert').filter({hasText:'$.skillCategories'})).toContainText('スキル系統');
   expect(await page.evaluate(key=>localStorage.getItem(key),CATALOG_STORAGE_KEY)).toBe(saved);
   await page.locator('nav [data-tab=members]').click();
   await expect(page.locator('[data-filter=skill]')).toHaveCount(3);
