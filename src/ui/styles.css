@@ -304,13 +304,13 @@ footer p { margin-bottom: 4px; }
 .rating-page .candidate { display: flex; align-items: baseline; gap: 2px; }
 .rating-page .candidate > span:not([popover]) { margin: 0; min-width: 0; }
 .rating-page .slot-rating { font-size: 17px; }
-.note-marker { flex-shrink: 0; background: none; color: var(--accent-dark); font-size: 12px; padding: 2px 4px; min-width: 24px; min-height: 24px; vertical-align: middle; }
-.note-marker:hover { background: light-dark(#eee9fa, #281f3c); border-radius: 4px; }
-.selection-tooltip { position: fixed; inset: auto; margin: 0 !important; padding: 10px 12px; width: max-content; max-width: min(320px, calc(100vw - 16px)); border: 1px solid light-dark(#ded9ef, #292242); border-radius: 7px; background: light-dark(#fff, #292929); color: light-dark(#45405b, #c1bdd1); box-shadow: 0 4px 18px #25263a20; font-size: 12px; line-height: 1.6; text-align: left; }
+.note-marker, .training-info { flex-shrink: 0; background: none; color: var(--accent-dark); font-size: 12px; padding: 2px 4px; min-width: 24px; min-height: 24px; vertical-align: middle; }
+.note-marker:hover, .training-info:hover { background: light-dark(#eee9fa, #281f3c); border-radius: 4px; }
+.selection-tooltip, .training-tooltip { position: fixed; inset: auto; margin: 0 !important; padding: 10px 12px; width: max-content; max-width: min(320px, calc(100vw - 16px)); border: 1px solid light-dark(#ded9ef, #292242); border-radius: 7px; background: light-dark(#fff, #292929); color: light-dark(#45405b, #c1bdd1); box-shadow: 0 4px 18px #25263a20; font-size: 12px; line-height: 1.6; text-align: left; }
 .selection-tooltip > span { display: block; }
 .selection-tooltip > span + span { margin-top: 6px; }
-.selection-tooltip:not(:popover-open) { display: none; }
-.selection-tooltip:popover-open { display: block; }
+.selection-tooltip:not(:popover-open), .training-tooltip:not(:popover-open) { display: none; }
+.selection-tooltip:popover-open, .training-tooltip:popover-open { display: block; }
 @media (max-width: 700px) {
   .rating-page .band-result { padding: 12px; }
   .rating-page td, .rating-page th { padding-inline: 7px; }
@@ -474,7 +474,8 @@ footer { overflow-wrap: anywhere; }
 
 /* Shared training controls and native modal: scroll inside narrow/short viewports. */
 .training-settings { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
-.training-heading { display: flex; gap: .75rem; align-items: start; }
+.training-heading { display: flex; gap: .25rem; align-items: center; }
+.training-info { font-size: 14px; padding: 0; }
 .training-summary { font-size: .85rem; overflow-wrap: anywhere; }
 .training-help { font-size: .85rem; }
 .training-help summary { cursor: pointer; }

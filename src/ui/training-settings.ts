@@ -8,9 +8,47 @@ export function trainingSettingsSummary(store:TrainingSettingsStore):string {
   return fields.map(([key,label])=>`${label} ${settings[key]??'変更しない'}`).join(' / ');
 }
 export function trainingSettingsMarkup(store:TrainingSettingsStore):string {
-  return `<section class="training-settings" aria-label="育成シミュレーション"><div class="training-heading"><strong>育成シミュレーション</strong><details class="training-help"><summary aria-label="育成シミュレーションの説明">ⓘ</summary><p>育成後は仮想の計算結果です。所持データは変更しません。評価値には絆最大時の理論キャラランクを使います。外部JSONには通常の育成後ランクを使い、絆理論値を含めません。</p></details></div><p class="training-summary">${escape(trainingSettingsSummary(store))}</p><button type="button" class="secondary" data-training-open>育成条件を変更</button>${store.message()?`<p role="status">${escape(store.message())}</p>`:''}</section>`;
+  return `<section class="training-settings" aria-label="育成シミュレーション"><div class="training-heading"><strong>育成シミュレーション</strong><button type="button" class="training-info" aria-label="育成シミュレーションの説明" aria-describedby="training-info-tooltip" popovertarget="training-info-tooltip">ⓘ</button><span id="training-info-tooltip" class="training-tooltip" popover="auto" role="tooltip">育成後は仮想の計算結果です。所持データは変更しません。評価値には絆最大時の理論キャラランクを使います。外部JSONには通常の育成後ランクを使い、絆理論値を含めません。</span></div><p class="training-summary">${escape(trainingSettingsSummary(store))}</p><button type="button" class="secondary" data-training-open>育成条件を変更</button>${store.message()?`<p role="status">${escape(store.message())}</p>`:''}</section>`;
 }
 export function bindTrainingSettings(host:HTMLElement,store:TrainingSettingsStore):void {
+  const info=host.querySelector<HTMLButtonElement>('.training-info');
+  const tip=host.querySelector<HTMLElement>('#training-info-tooltip');
+  if(info&&tip) {
+    let pinned=false;
+    let leaveTimer:ReturnType<typeof setTimeout>|undefined;
+    const cancelLeave=()=>{clearTimeout(leaveTimer);leaveTimer=undefined;};
+    const hide=()=>{cancelLeave();pinned=false;if(tip.matches(':popover-open'))tip.hidePopover();};
+    const position=()=>{
+      const anchor=info.getBoundingClientRect(),rect=tip.getBoundingClientRect();
+      tip.style.left=`${Math.max(8,Math.min(anchor.left,window.innerWidth-rect.width-8))}px`;
+      tip.style.top=`${Math.max(8,anchor.bottom+rect.height+8<=window.innerHeight?anchor.bottom+6:anchor.top-rect.height-6)}px`;
+    };
+    let dismissal:AbortController|undefined;
+    tip.addEventListener('toggle',()=>{
+      dismissal?.abort();
+      if(!tip.matches(':popover-open')){cancelLeave();pinned=false;return;}
+      position();dismissal=new AbortController();
+      window.addEventListener('scroll',hide,{capture:true,signal:dismissal.signal});
+      window.addEventListener('resize',hide,{signal:dismissal.signal});
+    });
+    const show=()=>{cancelLeave();if(!tip.matches(':popover-open'))tip.showPopover();position();};
+    info.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')show();});
+    tip.addEventListener('pointerenter',cancelLeave);
+    info.addEventListener('focus',show);
+    info.addEventListener('click',event=>{
+      // A click after hover pins the explanation instead of immediately hiding it.
+      event.preventDefault();
+      if(pinned&&tip.matches(':popover-open'))hide();else{pinned=true;show();}
+    });
+    const canDismiss=()=>!pinned&&document.activeElement!==info&&!info.matches(':hover')&&!tip.matches(':hover');
+    const leave=()=>{
+      cancelLeave();
+      // Give the pointer time to cross the 6px gap in either direction.
+      if(canDismiss())leaveTimer=setTimeout(()=>{if(canDismiss())hide();},250);
+    };
+    info.addEventListener('pointerleave',leave);tip.addEventListener('pointerleave',leave);
+    info.addEventListener('blur',leave);
+  }
   host.querySelector('[data-training-open]')?.addEventListener('click',()=>{
     const dialog=document.createElement('dialog');
     dialog.className='training-dialog';
