@@ -49,7 +49,7 @@ export function bindStamps(root: HTMLElement, master: Masterdata, collection: Co
     if (owned.has(id)) next.delete(id); else next.add(id);
     const state=section.querySelector('[data-stamp-state]')!;
     if (save([...next])) {
-      owned.clear();next.forEach(id=>owned.add(id));state.textContent='スタンプ所持を保存しました';
+      owned.clear();next.forEach(id=>owned.add(id));state.textContent='';
       button.setAttribute('aria-pressed',String(owned.has(id)));
       button.closest('article')!.classList.toggle('is-owned',owned.has(id));
       button.querySelector('[data-stamp-status]')!.textContent=owned.has(id)?'✓ 所持':'未所持';
