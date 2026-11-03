@@ -46,7 +46,7 @@ import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
 type Tab = 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ管理'],
+const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
   ['materials', '育成余地・素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
   materials: ['育成余地・素材', '共通の育成条件で、所持カードの成長余地と必要素材を比較します。'],
@@ -54,7 +54,7 @@ const headings: Record<Tab, [string, string]> = {
   rating: ['バンド評価値', 'バンド全体の合計と、色・メンバーごとの内訳を表示します。'],
   members: ['所持メンバー', 'Lv・特訓・覚醒と、ライブ／撃奏スキルLvを登録します。'],
   snaps: ['所持スナップ', 'Lvと上限解放段階を登録します。対応キャラクターは登録したマスタから読み取ります。'],
-  stamps: ['スタンプ管理', '所持スタンプを登録すると、対象キャラ全員のランク推定に反映します。'],
+  stamps: ['スタンプ', '所持スタンプを登録すると、対象キャラ全員のランク推定に反映します。'],
   progress: ['キャラランク', 'バンドを選び、進捗とランク上書きを編集します。変更はこの画面で保存してください。'],
   items: ['バンドアイテム', '各バンドのアイテムLvを編集します。変更はこの画面で保存してください。'],
   exchange: ['JSON Import / Export', 'JSONファイルを取り込み・保存します。'],
@@ -323,12 +323,12 @@ export function mountApp(root: HTMLElement): void {
         const theoretical = theory.status === 'ready' ? theory.characters.find(r => r.id === c.id) : undefined;
         const uncertain = theory.status === 'ready' && theory.characters.some(r => r.missingProgress.length);
         return `<article class="panel progress-card character-rank" data-character-rank="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary>${rankSummary(rank)} <span>使用ランク <strong data-effective-rank>${rank.effectiveRank??'—'}</strong></span></div><div class="bond-rank" data-bond-character="${c.id}">絆最大時 <strong data-bond-final>${theoretical ? number(theoretical.finalRank) : '未算出'}</strong>${uncertain ? '<small>バンド内の進捗に未入力あり</small>' : ''}<small>保存済み条件</small></div>
-          <div class="rank-editor"><section class="automatic-progress"><h3>自動算出</h3><p>楽曲クリア種類数：<strong data-automatic-songs>${automatic.songClears}</strong><small>（マスタから算出）</small></p><p>スタンプ所持種類数：<strong data-automatic-stamps>${automatic.stamps}</strong><small>（スタンプ管理から算出）</small></p><button class="secondary" type="button" data-tab="stamps">スタンプ管理を開く</button></section><section><h3>進捗入力</h3>
+          <div class="rank-editor"><section><h3>進捗入力</h3>
           <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue(`progress-${c.id}-${key}`, collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress])}"></label>`).join('')}</div></section>
           <section class="rank-override"><h3>ランク上書き</h3>
           <label class="inline-field" for="rank-${c.id}"><span>手動で使用するランク</span><input name="rank-${c.id}" id="rank-${c.id}" type="number" inputmode="numeric" min="1" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="自動" value="${draftValue(`rank-${c.id}`, rank.overrideRank)}"></label>
           <button class="secondary" type="button" data-reset-rank="${c.id}">自動推定に戻す</button></section>
-          <details data-progress-section="rank-details-${c.id}"><summary>EXP内訳・推定理由 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><p class="muted">EXP <span data-rank-exp>${rank.exp??'—'}</span></p><p class="muted" data-rank-reason>${rankReason(rank)}</p><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></article>`;
+          <details data-progress-section="rank-details-${c.id}"><summary>EXP内訳・推定理由 <small data-missing-progress>${rank.missingProgress.length ? '進捗に未入力あり' : ''}</small></summary><section class="automatic-progress"><h3>自動算出</h3><p>楽曲クリア種類数：<strong data-automatic-songs>${automatic.songClears}</strong><small>（マスタから算出）</small></p><p>スタンプ所持種類数：<strong data-automatic-stamps>${automatic.stamps}</strong><small>（スタンプから算出）</small></p><button class="secondary" type="button" data-tab="stamps">スタンプを開く</button></section><p class="muted">EXP <span data-rank-exp>${rank.exp??'—'}</span></p><p class="muted" data-rank-reason>${rankReason(rank)}</p><p class="muted">空欄は不明として加算しません。未入力・未確認の条件により、推定は実際より低くなる場合があります。定義に指定された項目を所持データから自動集計します。</p><ul class="rank-breakdown" data-rank-breakdown>${rankBreakdown(rank)}</ul></details></div></article>`;
       }).join('')}</div></section>
       ${progressActions()}</form>`;
   }
