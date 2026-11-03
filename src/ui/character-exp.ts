@@ -50,14 +50,26 @@ export function createCharacterExpView(master:Masterdata,collection:Collection,s
             .sort((a,b)=>(b.direct.status==='ready'?b.direct.value:-1)-(a.direct.status==='ready'?a.direct.value:-1)||a.card.kind.localeCompare(b.card.kind)||a.card.id-b.card.id);
           dialog.querySelector('[data-exp-count]')!.textContent=`メンバー ${all.filter(c=>c.kind==='member').length}枚 · スナップ ${all.filter(c=>c.kind==='snap').length}枚 · 該当 ${rows.length}枚 / 表示 ${Math.min(limit,rows.length)}枚`;
           dialog.querySelector('[data-exp-rows]')!.innerHTML=rows.slice(0,limit).map(({card})=>{
-            const row=scenarios.detail(card,id,state.targetRank);
+            const row=scenarios.state(card);
             const metadata=(card.kind==='member'?master.members:master.snaps).find(c=>c.id===card.id)!;
             const axes=card.kind==='member'?[['level','Lv'],['trainingStage','特訓'],['awakeningStage','覚醒'],['liveSkillLevel','ライブ'],['gekisouSkillLevel','撃奏']]:[['level','Lv'],['rank','上限解放']];
             const from=row.before as unknown as Record<string,number>|undefined;
             const to=row.after.status==='ready'?row.after.value as unknown as Record<string,number>:undefined;
             const stages=to?axes.map(([key,label])=>`${label} ${from?.[key!]??'新規'}→${to[key!]}`).join(' · '):'育成状態は未算出';
-            return `<article class="exp-row" data-exp-card="${card.kind}-${card.id}"><h3>${card.kind==='member'?'メンバー':'スナップ'} · ${cardIdentity(metadata)}</h3><p>${escape(stages)}</p><p data-exp-direct>直接EXP増分 ${exp(row.direct)}</p><p data-exp-final>${goal(row.goal)}</p><p class="muted">絆由来の間接EXP増分 ${exp(row.indirect)}</p></article>`;
+            return `<article class="exp-row" data-exp-card="${card.kind}-${card.id}"><h3>${card.kind==='member'?'メンバー':'スナップ'} · ${cardIdentity(metadata)}</h3><p>${escape(stages)}</p><p data-exp-direct>直接EXP増分 ${exp(scenarios.direct(card,id))}</p><details data-exp-result="${card.kind}-${card.id}"><summary>最終ランク・絆由来EXPを計算</summary><div data-exp-result-body></div></details></article>`;
           }).join('')||'<p>条件に一致するカードがありません。</p>';
+          dialog.querySelectorAll<HTMLDetailsElement>('[data-exp-result]').forEach(details=>details.addEventListener('toggle',()=>{
+            if(!details.open||details.querySelector('[data-exp-final]'))return;
+            const card=all.find(c=>`${c.kind}-${c.id}`===details.dataset.expResult)!;
+            const row=scenarios.detail(card,id,state.targetRank);
+            details.querySelector('[data-exp-result-body]')!.innerHTML=`<p data-exp-final>${goal(row.goal)}</p><p>絆由来の間接EXP増分 ${exp(row.indirect)}</p>`;
+          }));
+          const gain=owned?summary(id).owned:summary(id).unowned;
+          if(!rows.length&&positive) {
+            const message=gain.status==='ready'&&gain.value>0?'全件同時ではEXP増分がありますが、各カード単独では達成閾値に届かず0の場合があります。':'直接EXP増分0のカードは絞り込みで非表示です。';
+            dialog.querySelector('[data-exp-rows]')!.innerHTML+=`<p>${message}</p><button type="button" data-exp-show-zero>増分0のカードも表示</button>`;
+            dialog.querySelector('[data-exp-show-zero]')!.addEventListener('click',()=>{dialog.querySelector<HTMLInputElement>('[data-exp-positive]')!.checked=false;draw();});
+          }
           dialog.querySelector<HTMLButtonElement>('[data-exp-more]')!.hidden=limit>=rows.length;
         };
         dialog.querySelectorAll('select,input').forEach(control=>control.addEventListener(control.matches('[type=search]')?'input':'change',()=>{limit=20;draw();}));

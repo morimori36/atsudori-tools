@@ -21,9 +21,10 @@ for(const width of [1280,390,320])test(`shared EXP dialog, targets and bond disc
   const dialog=page.getByRole('dialog',{name:'架空奏者Aの育成・獲得EXP'});await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-exp-count]')).toContainText('メンバー 2枚 · スナップ 2枚');
   await expect(dialog.locator('[data-exp-card]')).toHaveCount(0); // non-additive: zero per-card, positive overall
-  await dialog.locator('[data-exp-positive]').uncheck();await expect(dialog.locator('[data-exp-card]')).toHaveCount(4);
+  await expect(dialog).toContainText('全件同時ではEXP増分');await dialog.locator('[data-exp-show-zero]').click();await expect(dialog.locator('[data-exp-card]')).toHaveCount(4);
   await expect(dialog.locator('[data-exp-card="member-8301"]')).toContainText('特訓 1→2');
   await dialog.locator('[data-exp-ownership]').selectOption('unowned');await expect(dialog.locator('[data-exp-card]')).toHaveCount(4);
+  await dialog.locator('[data-exp-result="snap-8505"] summary').click();
   await expect(dialog.locator('[data-exp-card="snap-8505"] [data-exp-final]')).toContainText('最終ランク 30');
   await dialog.locator('[data-exp-kind]').selectOption('member');await expect(dialog.locator('[data-exp-card]')).toHaveCount(2);
   await dialog.locator('[data-exp-query]').fill('8303');await expect(dialog.locator('[data-exp-card]')).toHaveCount(1);

@@ -1,4 +1,6 @@
-import { expect,test } from 'vitest';
+import * as estimates from '../../src/domain/character-rank/estimate';
+import * as storage from '../../src/storage/collection';
+import { expect,test,vi } from 'vitest';
 import { createCharacterExpScenarios,legalExpTarget } from '../../src/app/character-exp-scenarios';
 import type { ExpResult } from '../../src/app/character-exp-scenarios';
 import { characterExpFixture,expTraining } from '../helpers/character-exp';
@@ -77,4 +79,23 @@ test('missing rules or legal acquisition rows produce pending values without par
   s=createCharacterExpScenarios(fixture.m,fixture.c,expTraining);
   expect(s.summary(8201,30).unowned.status).toBe('pending');
   expect(s.detail(s.cards(8201,false)[0]!,8201,30).after.status).toBe('pending');
+});
+
+test('batched candidate gains match full independent scenarios',()=>{
+  const {m,c}=characterExpFixture();c.members=[c.members[0]!];c.snaps=[c.snaps[0]!];
+  const s=createCharacterExpScenarios(m,c,expTraining);
+  for(const id of [8201,8202])for(const owned of [true,false])for(const card of s.cards(id,owned))expect(s.direct(card,id)).toEqual(s.detail(card,id,30).direct);
+});
+
+test.each([500,1000])('sorting %s owned cards performs no per-card collection validation or rank estimation',count=>{
+  const {m,c}=characterExpFixture();
+  m.members=Array.from({length:count},(_,i)=>({...m.members[0]!,id:10000+i}));
+  c.members=m.members.map(card=>({...c.members[0]!,cardId:card.id}));
+  const rankSpy=vi.spyOn(estimates,'estimateCharacterRanks'),validationSpy=vi.spyOn(storage,'validateCollection');
+  try {
+    const s=createCharacterExpScenarios(m,c,expTraining);
+    const ranks=rankSpy.mock.calls.length,validations=validationSpy.mock.calls.length;
+    for(const card of s.cards(8201,true))expect(s.direct(card,8201).status).toBe('ready');
+    expect(rankSpy.mock.calls.length).toBe(ranks);expect(validationSpy.mock.calls.length).toBe(validations);
+  } finally {vi.restoreAllMocks();}
 });

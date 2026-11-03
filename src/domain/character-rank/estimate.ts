@@ -9,6 +9,20 @@ export function rankFromExp(exp:number,rules:BoundRankRules):number {
   return [...rules.document.rankThresholds].reverse().find(row=>row.exp<=exp)!.rank;
 }
 export interface AchievementResult {definition:AchievementDefinition;value:number|undefined;completed:number;exp:number}
+export function cardAchievementValue(d:AchievementDefinition, member?:Collection['members'][number], snap?:Collection['snaps'][number]):number|undefined {
+  const stage=d.stage!;
+  if(d.kind==='members')return member?1:0;
+  if(d.kind==='snaps')return snap?1:0;
+  if(d.kind==='training')return member&&member.trainingStage>=stage?1:0;
+  if(d.kind==='awakening')return member&&member.awakeningStage>=stage?1:0;
+  if(d.kind==='snapRank')return snap&&snap.rank>=stage?1:0;
+  if(d.kind==='skills')return member?[member.awakeningStage,member.liveSkillLevel,member.gekisouSkillLevel].filter(v=>v>=stage).length:0;
+  return undefined;
+}
+export function achievementExp(definition:AchievementDefinition,value:number|undefined) {
+  const completed=value===undefined?0:definition.thresholds.filter(t=>value>=t).length;
+  return {definition,value,completed,exp:completed*definition.exp};
+}
 function estimate(master:Masterdata,collection:Collection,characterId:number,rules?:BoundRankRules) {
   if(!master.characters.some(c=>c.id===characterId))throw new Error('未登録のキャラクターです');
   const overrideRank=collection.characterRanks[characterId];
@@ -19,15 +33,11 @@ function estimate(master:Masterdata,collection:Collection,characterId:number,rul
     const members=collection.members.filter(m=>master.members.some(row=>row.id===m.cardId&&row.characterId===characterId));
     const snaps=collection.snaps.filter(s=>master.snaps.some(row=>row.id===s.supportCardId&&row.characterIds.includes(characterId)));
     for(const definition of rules.document.achievements) {
-      const {kind,stage}=definition;
-      const value=kind==='members'?members.length:kind==='snaps'?snaps.length
-        :kind==='training'?members.filter(m=>m.trainingStage>=stage!).length
-        :kind==='awakening'?members.filter(m=>m.awakeningStage>=stage!).length
-        :kind==='snapRank'?snaps.filter(s=>s.rank>=stage!).length
-        :kind==='skills'?members.reduce((sum,m)=>sum+[m.awakeningStage,m.liveSkillLevel,m.gekisouSkillLevel].filter(level=>level>=stage!).length,0)
-        :kind==='stamps'||kind==='songClears'?automatic[kind]:manual?.[kind];
-      const completed=value===undefined?0:definition.thresholds.filter(t=>value>=t).length;
-      details.push({definition,value,completed,exp:completed*definition.exp});
+      const {kind}=definition;
+      const cardValue=cardAchievementValue(definition);
+      const value=cardValue===undefined?(kind==='stamps'||kind==='songClears'?automatic[kind]:manual?.[kind as ManualProgressKey]):
+        members.reduce((n,m)=>n+cardAchievementValue(definition,m)!,0)+snaps.reduce((n,s)=>n+cardAchievementValue(definition,undefined,s)!,0);
+      details.push(achievementExp(definition,value));
     }
   }
   const exp=rules?details.reduce((sum,d)=>sum+d.exp,0):null;

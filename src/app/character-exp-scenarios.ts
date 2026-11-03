@@ -5,7 +5,7 @@ import type { SnapProgression } from '../data/catalog/growth';
 import { applyTrainingConditions } from './training-conditions';
 import { trainingConditions } from './hypothetical-training';
 import type { TrainingSettings } from './hypothetical-training';
-import { estimateCharacterRanks } from '../domain/character-rank/estimate';
+import { achievementExp, cardAchievementValue, estimateCharacterRanks } from '../domain/character-rank/estimate';
 import { estimateBondRankTheory } from '../domain/character-rank/bond-theory';
 import { catalogRankRules } from '../domain/character-rank/rules';
 
@@ -42,7 +42,7 @@ export function createCharacterExpScenarios(master:Masterdata, input:Collection,
       return estimateCharacterRanks(master,collection.value,rules.value);
     });
     const theories=new Map<number,ExpResult<ReturnType<typeof estimateCharacterRanks>>>();
-    return {collection,
+    return {collection,ranks,
       direct(id:number):ExpResult<number> {
         if(ranks.status==='pending')return ranks;
         const row=ranks.value.find(r=>r.id===id);
@@ -133,9 +133,24 @@ export function createCharacterExpScenarios(master:Masterdata, input:Collection,
   const related=(id:number,owned:boolean)=>cards.filter(c=>c.owned===owned&&c.characterIds.includes(id));
   return {
     cards:related,
+    state(card:ExpCard) {return {before:card.owned?(card.kind==='member'?input.members.find(m=>m.cardId===card.id):input.snaps.find(s=>s.supportCardId===card.id)):undefined,after:trainedCard(card)};},
     direct(card:ExpCard,id:number) {
       const key=`${card.kind}:${card.id}:${id}`;
-      if(!directGains.has(key))directGains.set(key,delta(card.owned?current:target,singleProjection(card),id));
+      if(!directGains.has(key))directGains.set(key,attempt(()=>{
+        const baseline=(card.owned?current:target).ranks;
+        const after=trainedCard(card);
+        if(baseline.status==='pending'||after.status==='pending')throw new Error('Missing progression');
+        const row=baseline.value.find(r=>r.id===id);
+        if(!row||row.exp===null)throw new Error('Missing rules');
+        const before=source.status==='ready'&&card.owned?(card.kind==='member'?source.value.members.find(m=>m.cardId===card.id):source.value.snaps.find(s=>s.supportCardId===card.id)):undefined;
+        const contribution=(d:typeof row.details[number]['definition'],state:typeof before)=>cardAchievementValue(d,state&&'cardId' in state?state:undefined,state&&'supportCardId' in state?state:undefined);
+        if(!card.characterIds.includes(id))return 0;
+        return row.details.reduce((sum,d)=>{
+          const next=contribution(d.definition,after.value);
+          if(next===undefined)return sum;
+          return sum+achievementExp(d.definition,d.value!+next-(contribution(d.definition,before)??0)).exp-d.exp;
+        },0);
+      }));
       return directGains.get(key)!;
     },
     summary(id:number,targetRank:number) {
