@@ -22,9 +22,12 @@ test('one-click exports, shared saved settings and reload never change real owne
   expect((await download(page,'#conversion-preview')).roster).toEqual([{id:8301,outLive:1,outGeki:1}]);
   expect((await download(page,'#conversion-profile-backup')).format).toBe('atsudori-tools/conversion-profile');
   expect((await download(page,'#catalog-export')).catalogId).toBe(master().catalogId);
-  await page.locator('#conversion-export summary').filter({hasText:'仮育成設定'}).click();
+  await page.getByRole('button',{name:'育成条件を変更'}).click();
+  await page.getByRole('button',{name:'閉じる',exact:true}).click();
   await page.locator('#conversion-training').check();
+  await page.getByRole('button',{name:'育成条件を変更'}).click();
   await page.locator('[data-training=liveSkillLevel]').selectOption('4');await page.locator('[data-training=gekisouSkillLevel]').selectOption('4');
+  await page.getByRole('button',{name:'閉じる',exact:true}).click();
   expect((await download(page,'#conversion-preview')).roster).toEqual([{id:8301,outLive:4,outGeki:4}]);
   expect(await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY])).toEqual(before);
   await page.reload();await page.locator('nav [data-tab=exchange]').click();
@@ -67,17 +70,20 @@ test('catalog drift and missing item facts block downloads',async({page})=>{
 test('shared training controls retain focus and share values with rating across navigation',async({page})=>{
   await page.locator('nav [data-tab=rating]').click();
   await page.locator('[name=rating-mode][value=potential]').check();
-  await page.locator('[data-training-disclosure] > summary').click();
+  await page.getByRole('button',{name:'育成条件を変更'}).click();
   await page.locator('[data-training=awakeningStage]').focus();
   await page.locator('[data-training=awakeningStage]').selectOption('2');
   await expect(page.locator('[data-training=awakeningStage]')).toBeFocused();
+  await page.keyboard.press('Escape');
   await page.locator('nav [data-tab=exchange]').click();
-  await page.locator('#conversion-export summary').filter({hasText:'仮育成設定'}).click();
+  await page.getByRole('button',{name:'育成条件を変更'}).click();
   await expect(page.locator('[data-training=awakeningStage]')).toHaveValue('2');
   await page.locator('[data-training=liveSkillLevel]').focus();
   await page.locator('[data-training=liveSkillLevel]').selectOption('3');
   await expect(page.locator('[data-training=liveSkillLevel]')).toBeFocused();
+  await page.keyboard.press('Escape');
   await page.locator('nav [data-tab=rating]').click();
+  await page.getByRole('button',{name:'育成条件を変更'}).click();
   await expect(page.locator('[data-training=liveSkillLevel]')).toHaveValue('3');
 });
 

@@ -1,33 +1,41 @@
-# 共通育成シミュレーションAPI
+# 共通育成シミュレーション
 
-育成条件・状態生成・成果計算を分離します。今回の変更は計算モデルだけです。既存の仮育成UIと保存、JSON変換出力の意味は維持します。新しい条件を編集する画面はまだありません。
+評価値・育成余地／素材・外部形式JSONで同じ育成条件を共有します。各画面に条件の要約と「育成条件を変更」ボタンを置き、共通のネイティブdialogで編集します。選択変更は即時反映・保存し、閉じるボタンとEscで閉鎖、呼び出しボタンへフォーカスを戻します。モーダル内のキーボード移動と、狭い画面・低い画面での内部スクロールに対応します。説明は情報アイコンやヘルプの開閉で確認できます。
 
 ## 条件と状態生成
 
-`src/app/training-conditions.ts`の`TrainingConditions`は`member`（trainingStage / awakeningStage / liveSkillLevel / gekisouSkillLevel / level）と`snap`（rank / level）を持ちます。各軸は`null`で現状維持、正の安全な整数で指定値以下の合法な最大値、`'max'`で合法最大を指定します。現在値は下げません。`KEEP_TRAINING`は全項目維持、`MAXIMUM_TRAINING`は既存の凸なし最大育成プリセットです。
+UIはMemberの特訓・覚醒・ライブ／撃奏スキルLv、Snapの上限解放段階の5項目です。各選択肢は「変更しない」「1」「2」「3」「4」「5」。数値は目標以下の合法な最大値で、現在値を下げません。「最大」はUIにありません。
 
-`applyTrainingConditions(master, collection, conditions)`が唯一の状態生成処理です。条件と入力所持を検証し、Member特訓・Snap上限解放を決めてから、それぞれ育成後の段階に対応するLv上限以下の合法Lvを選びます。段階・Lv行が飛び飛びでも、存在しない段階は生成しません。上限や合法値はcatalogの対応group、rarity、スキル配列から取得します。未確認の覚醒／特訓／スキル依存は追加しません。最後に既存のcollection検証を通します。不整合は推測で修復せずエラーにします。
+`TrainingSettings`から`trainingConditions()`で既存の7軸`TrainingConditions`へ変換します。Member LvとSnap Lvは常に内部の`'max'`を使い、育成後の特訓／上限解放に対応する上限まで育てます。段階を変更しない場合も同様です。唯一の状態生成処理はPR #26の`applyTrainingConditions()`です。対応group・rarity・スキル配列・Lv上限を使い、飛び番を補完せず、状態を前後で検証します。
 
-入力と出力はネストも分離され、catalogを変更しません。カードの追加・削除はせず、進捗・手入力上書き・アイテム・旧互換値・TGWランクを保持します。collection/catalogの形式・Schema・保存キーは変更しません。この条件型はメモリ内のAPIであり、永続化形式は今回追加しません。
+catalog／collectionの形式と保存キーは変更しません。条件外の進捗・手入力・アイテム・旧互換値・TGWランクを含め、入力とネストを分離した仮想状態を作り、保存済み所持やマスタは変更しません。旧`KEEP_TRAINING`、`MAXIMUM_TRAINING`プリセットと`legacyTrainingConditions()`（特訓上昇時だけのLv連動）は内部APIの互換用に残します。
 
-## 成果計算
+## 保存と旧4項目の移行
 
-`src/app/training-simulation.ts`の`simulateTraining(master, collection, conditions)`は以下を返します。
+条件は既存キー`atsudori-tools.hypothetical-training.v1`へ5項目のオブジェクトとして保存します。旧4項目だけの値も厳密に検証して読み込み、`snapRank: null`を補完します。読み込み時の書き戻しはせず、次の明示的編集で5項目を保存します。旧項目の値・既定値（特訓5、覚醒変更なし、ライブ5、撃奏5）は維持し、新規Snap上限解放は変更なしです。旧アプリへ戻した場合、5項目保存は旧検証で破損扱いとなり保護されます。
 
-- `current` / `target`: 検証済み現在状態と共通処理で生成した育成後状態。
-- `before` / `after`: キャラ別ランク、総合ランク、ボーナス、色・バンド別評価値と総計。各側の同じcollectionをランク推定と評価値に渡し、選出も再実行します。
-- `materials`: `calculateMaterialRequirementsToTarget`で現在→目標の差分を計算。未対応・欠落は未計算、現物は既存のcard単位、EXPはLv開始時点からの上限を維持します。
-- `bands` / `snaps` / `snapMaterials`: 同一シナリオの内訳。Member素材はキャラ／バンド別、共有Snapは独立集計します。
-- `bondTheory(bandId)`: 同じtargetからバンド単位で遅延計算する既存の絆反復計算。ペアの絆理論上限と絆最大時の理論キャラランクを返します。実際の獲得済み絆ランクではありません。理論ランクを通常評価値へ適用しません。
+未知キー・不正値・不足は拒否します。破損設定は明示的な初期設定への置換まで書き換えず、一時的な既定値を使用します。保存失敗は「未保存」と表示し、セッション内の設定・計算結果は反映します。
 
-`trainingBondTheory(master, target, bandId)`も直接使用できます。手動ランク・絆合計の除外、未入力進捗、不動点の規則は既存処理のままです。通常成果では手動ランクとボーナス上書き（0を含む）を維持します。定義不足・未計算を0の成長として表しません。
+## 評価値・素材の共通計算
 
-## 既存処理からの移行と次のUI
+両画面は`simulateTrainingEvaluation()`から`simulateTraining(..., {bondTheory:true})`を使います。
 
-`maximumTrainingTarget` / `simulateMaximumTraining`は`MAXIMUM_TRAINING`を共通APIへ渡す互換入口です。Member特訓・スキル・Lvは最大、覚醒維持、Snap上限解放維持・Lv最大で、PR #24の結果を再現します。既存素材画面と`maximumTrainingBondTheory`の呼び出しも維持します。
+1. 現在状態を検証し、共通条件でtargetを生成。
+2. targetから各バンドの既存`estimateBondRankTheory()`を実行し、収束後の`finalRank`を取得。
+3. 各キャラの使用ランクをfinalRankへ置き換え、同じランク群を既存の評価値計算・総合ランク合計・ボーナス表参照へ渡す。
+4. 総合ランクボーナスの明示的上書き（0を含む）は優先。
+5. 素材は`calculateMaterialRequirementsToTarget()`で現在→targetの差分を算出。
 
-`TrainingSettings`と検証・初期値・保存処理はそのまま維持します。`legacyTrainingConditions`が旧4項目を明示的に変換します。Snapは維持し、Member Lvには互換用の`'maxIfTrainingRaised'`を指定します。これは特訓が上がったときだけLvを上限へ引き上げるモードです。`applyHypotheticalTraining`はこのアダプター経由で状態生成を共通化します。追加した条件に旧設定の既定最大値を割り当てません。破損設定の保護と保存失敗処理は変更しません。
+絆計算は手入力キャラランクと手入力絆合計を除外します。その他の未入力進捗は既存仕様どおり加算せず、不確実性はヘルプ・内訳に表示します。絆理論値が保留なら該当使用ランクはnullとし、通常ランクや手入力へ代替せず評価値も理由付きで保留します。総合ランクが不明なら表からのボーナスも保留します。
 
-評価値画面の旧仮育成では従来どおり現在collectionをランク計算へ渡します。JSON変換も従来どおり現在ランク・Snap・アイテムと旧仮育成後Memberを出力します。新しい共通シミュレーションの育成後ランク／Snapへ黙って移行しません。
+`evaluateCollection()`は解決済みランク群を受け取れるため、式・選出・丸めや総合ボーナスの優先順位を複製しません。全キャラの理論ランクを合計するため、所持Memberのないバンドのキャラも対象です。キャッシュは生成したシミュレーション内に限定し、`bondTheory(bandId)`の詳細表示も同じ結果を再利用します。条件・所持・マスタ変更時には新しい結果を生成します。
 
-次のUI改修では、共通条件の編集・共有・保存仕様を決め、評価値・必要素材の両画面から`simulateTraining`を呼びます。絆の展開時は返却された`bondTheory`を使用し、条件・所持・catalog変更時に画面側の遅延結果を破棄します。新結果のJSON変換への適用は別途仕様決定が必要です。キャラランク・絆・評価値は結果であり、条件入力には追加していません。
+評価値画面の「現在」は従来の`evaluateCollection()`だけを使い、育成条件・絆理論値を適用しません。「育成後」と素材画面の育成後評価値は同一です。素材画面は共通条件を常時適用します。`before`は通常の現在ランク、`after`の`effectiveRank`は理論ランクです。`estimatedRank`は比較参考用の通常推定を保持します。
+
+内部APIの`simulateTraining()`は既定では従来の通常ランク計算を維持し、`simulateMaximumTraining()`も互換プリセットのままです。現行UIはこの互換入口を使用しません。
+
+## 外部JSONとの分離
+
+`prepareExport()`は状態生成のみを共用し、絆を使う評価用APIを呼びません。「育成条件を適用する」がOFFなら現在状態、ONならtargetのMember・Snapとtargetからの通常ランク推定・総合ランクを出力します。通常推定では手入力キャラランクを引き続き優先します。絆理論値の追加ランクや派生する総合ランクの変化は含みません。
+
+チェックボックスは独立した既存キーで保存し、評価値の現在／育成後や素材画面の適用条件に影響しません。変換プロファイル・出力形式・通常バックアップの契約は維持します。

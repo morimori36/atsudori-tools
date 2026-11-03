@@ -417,7 +417,6 @@ footer { overflow-wrap: anywhere; }
   .progress-card.panel { flex-basis: 224px; width: 224px; }
 }
 
-.training-settings { margin-block: 1rem; min-width: 0; }
 .training-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: .75rem; }
 .training-grid label { display: grid; gap: .35rem; min-width: 0; }
 .training-grid select { width: 100%; min-height: 44px; }
@@ -447,12 +446,6 @@ footer { overflow-wrap: anywhere; }
 .progress-cards .band-items > .rank-list { flex-direction: row; }
 .progress-cards .band-items .inline-field { flex: 1 0 168px; width: 168px; }
 
-/* Optional settings retain a readable summary when the controls are closed. */
-.training-disclosure { border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; margin-bottom: 14px; background: light-dark(#fff, #292929); }
-.training-disclosure > summary { padding-block: 10px; min-height: 44px; font-weight: 600; color: inherit; }
-.training-disclosure > summary span { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 4px; overflow-wrap: anywhere; }
-.training-disclosure .training-settings { margin-top: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
-.training-disclosure p { font-size: 12px; margin-bottom: 6px; }
 .rank-help { margin-bottom: 12px; }
 .rank-help > summary { min-height: 44px; padding-block: 10px; color: var(--accent-dark); }
 .rank-help p { font-size: 12px; margin-bottom: 8px; max-width: 75ch; }
@@ -478,3 +471,16 @@ footer { overflow-wrap: anywhere; }
 .growth-overview > div { border-radius: 10px; background: light-dark(#eeebf6, #271f3d); padding: 16px; }
 .growth-overview > div > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 .growth-overview strong { font-size: clamp(16px, 2vw, 22px); font-variant-numeric: tabular-nums; }
+
+/* Shared training controls and native modal: scroll inside narrow/short viewports. */
+.training-settings { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.training-heading { display: flex; gap: .75rem; align-items: start; }
+.training-summary { font-size: .85rem; overflow-wrap: anywhere; }
+.training-help { font-size: .85rem; }
+.training-help summary { cursor: pointer; }
+.training-help p { max-width: 55ch; }
+.training-dialog { color: inherit; background: light-dark(#fff, #292929); border: 1px solid var(--line); border-radius: 16px; width: min(38rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.25rem; }
+.training-dialog::backdrop { background: rgb(0 0 0 / .55); }
+.training-dialog .training-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.training-dialog select { width: 100%; }
+.training-dialog-actions { display: flex; justify-content: end; margin-top: 1rem; }

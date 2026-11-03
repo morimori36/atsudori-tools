@@ -61,7 +61,7 @@ test('catalog import, owned registration, growth, band total and display-only po
   await page.locator('#progress-form button[type=submit]').click();
   await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   await page.locator('input[name=rating-mode][value=potential]').check();
-  await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,214');
+  await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,282');
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).members[0].level,STORAGE_KEY)).toBe(1);
   await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   await tab(page,'snaps');await page.locator('[data-snap-card="8501"] input[name=snapRank][value="2"]').check();
@@ -184,7 +184,7 @@ test('rank estimation, manual progress, overrides, reset, persistence and export
   // Imported rank2: per-channel floors124/235/393, then floor752*1.118=840.
   await expect(page.locator('.band-result .rating-total strong')).toHaveText('840');
   await page.locator('input[name=rating-mode][value=potential]').check();
-  await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,197');
+  await expect(page.locator('.band-result .rating-total strong')).toHaveText('1,282');
   await tab(page,'progress');await openRank(page);await page.locator('#rank-8201').fill('7');await page.locator('#progress-form button[type=submit]').click();
   await page.reload();await tab(page,'progress');await expect(summary).toContainText('使用ランク 7');
   await openRank(page);await expect(page.locator('#progress-8201-stamps')).toHaveValue('9');

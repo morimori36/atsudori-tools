@@ -111,16 +111,16 @@ describe('common training projection',()=>{
     expect(p.after.rating).toBe(1217);expect(p.after.totalRank).toBeNull();expect(p.materials.incomplete).toBe(true);
     expect(p.bondTheory(8101).status).toBe('pending');
   });
-  it('adapts v1 settings without changing arbitrary Lv, Snap or JSON export rank semantics',()=>{
+  it('retains the legacy adapter while new export uses cap levels and ordinary projected ranks',()=>{
     const {m,c}=maximumTrainingFixture();c.members[0]!.trainingStage=2;
     const t=applyTrainingConditions(m,c,legacyTrainingConditions(DEFAULT_TRAINING));
     expect(t.members[0]!.level).toBe(1);expect(t.snaps).toEqual(c.snaps);
     c.members[0]!.trainingStage=1;
     const legacy=applyHypotheticalTraining(m,c,DEFAULT_TRAINING);
-    expect(legacy.members[0]!.level).toBe(2);expect(legacy.snaps).toEqual(c.snaps);
+    expect(legacy.members[0]!.level).toBe(2);expect(legacy.snaps).toEqual(c.snaps.map(s=>({...s,level:2})));
     const output=prepareExport(m,c,{applyTraining:true,training:DEFAULT_TRAINING});
-    expect(output.data.members).toEqual(legacy.members);expect(output.data.snaps).toEqual(c.snaps);
-    expect(output.data.ranks).toEqual([{id:8201,value:1},{id:8202,value:1}]);expect(output.totalRank).toBe(2);
+    expect(output.data.members).toEqual(legacy.members);expect(output.data.snaps).toEqual(c.snaps.map(s=>({...s,level:2})));
+    expect(output.data.ranks).toEqual([{id:8201,value:4},{id:8202,value:1}]);expect(output.totalRank).toBe(5);
     expect(simulateTraining(m,c,legacyTrainingConditions(DEFAULT_TRAINING)).after.totalRank).toBe(5);
   });
   it('rejects malformed conditions and invalid ownership instead of repairing it',()=>{
