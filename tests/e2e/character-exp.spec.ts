@@ -169,6 +169,7 @@ test('recovery ignores progress drafts until saved and displays inconsistent EXP
   await page.locator('nav [data-tab=members]').click();await page.locator('nav [data-tab=progress]').click();
   await expect(recovery).toContainText('+46 EXP');await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('999');
   await page.getByRole('button',{name:'キャラランクを保存',exact:true}).click();await expect(recovery).toContainText('+42 EXP');
+  c.characterProgress![8201]!.bondRankTotal=999;
   c.members=c.members.map(r=>({...r,level:2,trainingStage:2,awakeningStage:2,liveSkillLevel:2,gekisouSkillLevel:2}));
   c.snaps=c.snaps.map(r=>({...r,rank:2,level:2}));
   await page.evaluate(({c,key})=>localStorage.setItem(key,JSON.stringify(c)),{c,key:STORAGE_KEY});await page.reload();await page.locator('nav [data-tab=progress]').click();
