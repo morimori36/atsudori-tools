@@ -10,7 +10,8 @@ import { estimateBondRankTheory } from '../domain/character-rank/bond-theory';
 import { catalogRankRules } from '../domain/character-rank/rules';
 
 export type ExpResult<T> = { status:'ready'; value:T } | { status:'pending'; reason:string };
-export interface ExpGoal { rank:number; exp:number; missingExp:number; reached:boolean }
+export interface ExpTotal { rank:number; exp:number }
+export interface ExpGoal extends ExpTotal { missingExp:number; reached:boolean }
 export interface ExpCard {
   kind:'member'|'snap'; id:number; name:string; title:string; characterIds:number[]; owned:boolean;
 }
@@ -49,12 +50,10 @@ export function createCharacterExpScenarios(master:Masterdata, input:Collection,
         if(!row||row.exp===null)return pending('キャラEXPのランク定義がありません。');
         return {status:'ready',value:row.details.filter(d=>d.definition.kind!=='bondRankTotal').reduce((sum,d)=>sum+d.exp,0)};
       },
-      goal(id:number,targetRank:number):ExpResult<ExpGoal> {
+      total(id:number):ExpResult<ExpTotal> {
         const character=master.characters.find(c=>c.id===id);
         if(!character||collection.status==='pending')return pending('対象キャラまたは育成状態を算出できません。');
         if(rules.status==='pending')return rules;
-        const threshold=rules.value?.document.rankThresholds.find(r=>r.rank===targetRank);
-        if(!master.characterRankLevels.includes(targetRank)||!threshold)return pending('目標ランクに対応する累積EXP定義がありません。');
         if(!theories.has(character.bandId)) {
           const theory=estimateBondRankTheory(master,collection.value,character.bandId);
           theories.set(character.bandId,theory.status==='pending'?theory:attempt(()=> {
@@ -71,7 +70,14 @@ export function createCharacterExpScenarios(master:Masterdata, input:Collection,
         if(final.status==='pending')return final;
         const row=final.value.find(r=>r.id===id);
         if(!row||row.exp===null||row.effectiveRank===null)return pending('絆理論値の最終EXP・ランクを算出できません。');
-        return {status:'ready',value:{rank:row.effectiveRank,exp:row.exp,missingExp:Math.max(threshold.exp-row.exp,0),reached:row.effectiveRank>=targetRank}};
+        return {status:'ready',value:{rank:row.effectiveRank,exp:row.exp}};
+      },
+      goal(id:number,targetRank:number):ExpResult<ExpGoal> {
+        if(rules.status==='pending')return rules;
+        const threshold=rules.value?.document.rankThresholds.find(r=>r.rank===targetRank);
+        if(!master.characterRankLevels.includes(targetRank)||!threshold)return pending('目標ランクに対応する累積EXP定義がありません。');
+        const total=this.total(id);
+        return total.status==='pending'?total:{status:'ready',value:{...total.value,missingExp:Math.max(threshold.exp-total.value.exp,0),reached:total.value.rank>=targetRank}};
       },
     };
   }
@@ -134,6 +140,16 @@ export function createCharacterExpScenarios(master:Masterdata, input:Collection,
   return {
     cards:related,
     goal:(id:number,targetRank:number)=>target.goal(id,targetRank),
+    recoverable(id:number):ExpResult<number> {
+      if(current.ranks.status==='pending')return current.ranks;
+      const before=current.ranks.value.find(r=>r.id===id)?.exp;
+      if(before===undefined||before===null)return pending('現在の推定累積EXPを算出できません。');
+      const after=target.total(id);
+      if(after.status==='pending')return after;
+      const gain=after.value.exp-before;
+      if(gain<0)return pending('育成・絆理論後のEXPが現在の推定EXPを下回っています。保存済みの絆・進捗と育成条件を確認してください。');
+      return {status:'ready',value:gain};
+    },
     state(card:ExpCard) {return {before:card.owned?(card.kind==='member'?input.members.find(m=>m.cardId===card.id):input.snaps.find(s=>s.supportCardId===card.id)):undefined,after:trainedCard(card)};},
     direct(card:ExpCard,id:number) {
       const key=`${card.kind}:${card.id}:${id}`;
