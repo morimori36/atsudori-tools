@@ -99,3 +99,49 @@ test.each([500,1000])('sorting %s owned cards performs no per-card collection va
     expect(rankSpy.mock.calls.length).toBe(ranks);expect(validationSpy.mock.calls.length).toBe(validations);
   } finally {vi.restoreAllMocks();}
 });
+
+test('recovery shares the converged goal EXP and uses estimated current EXP, independent of overrides and goals',()=>{
+  const {m,c}=characterExpFixture();
+  // Current: direct 21 + saved bond 4 = 25. Theory: direct 65 + converged bond 2 = 67.
+  const original=JSON.stringify(c),s=createCharacterExpScenarios(m,c,expTraining);
+  expect(ready(s.recoverable(8201))).toBe(42);
+  expect(ready(s.goal(8201,32)).missingExp).toBe(13);
+  expect(ready(s.goal(8201,28)).missingExp).toBe(0);
+  expect(s.goal(8201,29).status).toBe('pending');
+  expect(ready(s.recoverable(8201))).toBe(42);
+  expect(JSON.stringify(c)).toBe(original);
+  delete c.characterRanks[8201];
+  expect(createCharacterExpScenarios(m,c,expTraining).recoverable(8201)).toEqual(s.recoverable(8201));
+  expect(JSON.parse(original).characterRanks).toEqual({8201:32});
+  // Saved bond at zero: recovery includes the two EXP earned by bond convergence.
+  c.characterProgress![8201]!.bondRankTotal=0;
+  expect(ready(createCharacterExpScenarios(m,c,expTraining).recoverable(8201))).toBe(46);
+  expect(ready(createCharacterExpScenarios(m,c,{...expTraining,awakeningStage:null}).recoverable(8201))).toBe(30);
+});
+
+test('recovery retains partial-estimate semantics, genuine zero and negative differences without clamping',()=>{
+  const {m,c}=characterExpFixture();
+  delete c.characterProgress![8201]!.liveClears;
+  // Missing live progress is not filled: both cumulative estimates omit its reward.
+  expect(ready(createCharacterExpScenarios(m,c,expTraining).recoverable(8201))).toBe(42);
+  const trained=applyTrainingConditions(m,c,trainingConditions(expTraining));
+  trained.characterProgress![8201]!.bondRankTotal=28;
+  const s=createCharacterExpScenarios(m,trained,expTraining);
+  expect(ready(s.recoverable(8201))).toBe(0);
+  expect(ready(s.goal(8201,30)).missingExp).toBe(0);
+  // Saved bond reward exceeds the theoretical bond reward; no invented zero gain.
+  c.members=trained.members;c.snaps=trained.snaps;
+  expect(createCharacterExpScenarios(m,c,expTraining).recoverable(8201)).toMatchObject({status:'pending',reason:expect.stringContaining('下回って')});
+});
+
+test('recovery explains missing definitions, invalid source and unavailable bond theory',()=>{
+  const {m,c}=characterExpFixture();
+  expect(createCharacterExpScenarios(m,c,expTraining).recoverable(999)).toMatchObject({status:'pending',reason:expect.any(String)});
+  c.members[0]!.level=-1;
+  expect(createCharacterExpScenarios(m,c,expTraining).recoverable(8201).status).toBe('pending');
+  const f=characterExpFixture();delete f.m.rankDefinition;
+  expect(createCharacterExpScenarios(f.m,f.c,expTraining).recoverable(8201).status).toBe('pending');
+  const g=characterExpFixture();g.m.rankDefinition!.achievements=g.m.rankDefinition!.achievements.filter(a=>a.kind!=='bondRankTotal');
+  g.m.rankDefinition!.manualProgress=g.m.rankDefinition!.manualProgress.filter(p=>p.key!=='bondRankTotal');
+  expect(createCharacterExpScenarios(g.m,g.c,expTraining).recoverable(8201)).toMatchObject({status:'pending',reason:expect.stringContaining('絆ランク合計')});
+});
