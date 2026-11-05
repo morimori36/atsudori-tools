@@ -109,7 +109,7 @@ export function mountApp(root: HTMLElement): void {
   const expView={targetRank:30};
   let characterExpView:ReturnType<typeof createCharacterExpView>|undefined;
   let inventoryView:ReturnType<typeof createResourceInventoryView>|undefined;
-  const inventoryState = {query:'',limit:20,drafts:new Map<string,string>()};
+  const inventoryState = {query:'',drafts:new Map<string,string>()};
   let noteListenerController = new AbortController();
   let notice: { error: boolean; text: string } | undefined;
   const drafts = new Map<string, Record<string, string>>();
