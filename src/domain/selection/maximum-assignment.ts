@@ -5,7 +5,7 @@
  * no floating epsilon, overflow or change to calculateRating's rounding.
  * O(rows² * columns) time, O(rows * columns) space; no exponential enumeration.
  */
-export function maximumAssignment(weights: readonly (readonly (number | null)[])[]): number[] {
+export function maximumAssignment(weights: readonly (readonly (number | bigint | null)[])[]): number[] {
   const n = weights.length;
   if (!n) return [];
   const m = weights[0]!.length;
