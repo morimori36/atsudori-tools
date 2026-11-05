@@ -11,7 +11,7 @@ export const tableFields = {
   memberLevelLimits: { rarity: 'integer', trainingStage: 'integer', limitLevel: 'integer' },
   snapLevels: { group: 'integer', level: 'integer', rates: 'stats' },
   snapRanks: { group: 'integer', rank: 'integer', limitLevel: 'integer', supportSkillLevels: 'pair' },
-  bandItems: { id: 'integer', bandId: 'integer', name: 'text' },
+  bandItems: { id: 'integer', bandId: 'integer', name: 'text', displayOrder: 'zeroInteger' },
   bandItemLevels: { itemId: 'integer', level: 'integer' },
   bandItemEffects: { itemId: 'integer', level: 'integer', effectType: 'integer', valueBp: 'zeroInteger', targetIds: 'ids' },
   skillTargets: { id: 'integer', targetType: 'integer', bandId: 'integer', characterId: 'zeroInteger', cardType: 'zeroInteger', tagId: 'zeroInteger' },
@@ -32,4 +32,4 @@ export const tableKeys: Record<CatalogTable, string[]> = {
 };
 
 /** Optional row fields; shared by the parser and generated structural schema. */
-export const optionalTableFields: Partial<Record<CatalogTable, readonly string[]>> = { characters: ['displayOrder'], members: ['liveSkillCategoryIds','gekisouSkillCategoryIds'], snaps: ['supportSkillCategoryIds','gekisouSupportSkillCategoryIds'] };
+export const optionalTableFields: Partial<Record<CatalogTable, readonly string[]>> = { bandItems: ['displayOrder'], characters: ['displayOrder'], members: ['liveSkillCategoryIds','gekisouSkillCategoryIds'], snaps: ['supportSkillCategoryIds','gekisouSupportSkillCategoryIds'] };
