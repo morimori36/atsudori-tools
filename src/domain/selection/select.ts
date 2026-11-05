@@ -2,7 +2,7 @@ import { requireInteger } from '../rating/calculate';
 import { maximumAssignment } from './maximum-assignment';
 import { selectionRarityPriority, usesProvisionalRarity, provisionalRarityNotice } from './rarity';
 
-export interface MemberCandidate { id: number; bandId: number; characterId: number; cardType: number; rarity: number }
+export interface MemberCandidate { id: number; bandId: number; characterId: number; cardType: number; rarity: number; /** Displayed P+T+V before Snap. Optional for standalone selection fixtures. */ preSnapStatTotal?: number }
 export interface SnapCandidate { id: number; characterIds: readonly number[]; cardType: number; rarity: number; /** Derived from owned Lv/U, never persisted. */ scoreBp: number }
 export type Choice<T> =
   | { status: 'selected'; candidate: T; provisional: boolean }
@@ -35,7 +35,7 @@ function choose<T extends { id: number; rarity: number }>(candidates: readonly T
   if (result.reason !== 'equal-rarity') return { status: 'ambiguous', candidates: result.candidates, reason: result.reason };
   return { status: 'selected', candidate: [...result.candidates].sort(provisionalCardOrder)[0]!, provisional: true };
 }
-export const snapScoreNotice = 'スナップはバンド・色ごとのスナップ実効補正合計最大化（仮説E）で選出する試験仕様です。同点ID順も含め実機観測からの暫定仮説で、ゲーム内仕様は未確定です。';
+export const snapScoreNotice = 'スナップは実効補正合計最大化（仮説E）、同点は装着前の表示P/T/V合計を加味し、それでも同点ならID順で選出する試験仕様です。ゲーム内仕様は未確定です。';
 export interface SelectedSlot {
   characterId: number;
   member: Choice<MemberCandidate>;
@@ -63,6 +63,7 @@ export function selectByColor(
     throw new Error('duplicate owned card identities');
   }
   for (const snap of snaps) requireInteger(snap.scoreBp, 'スナップ scoreBp');
+  for (const member of members) if (member.preSnapStatTotal !== undefined) requireInteger(member.preSnapStatTotal, 'メンバーのSnap適用前ステータス合計');
   const groups = [...new Set(members.map(m => `${m.bandId}:${m.cardType}`))]
     .map(key => key.split(':').map(Number) as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return groups.map(([bandId, cardType]) => {
@@ -89,11 +90,17 @@ export function selectByColor(
     const candidates = [...snaps].filter(s => s.cardType === cardType && allocation.some(({member}) => s.characterIds.includes(member.characterId)))
       .sort(provisionalCardOrder);
     const pending = slots.some(slot => slot.member.status !== 'selected');
-    // Hypothesis E: only owned Snap effective scores determine the assignment.
+    // Hypothesis E: maximize total Snap score first. Only equal-score allocations
+    // maximize Σ(pre-Snap displayed P+T+V * Snap score), then stable ID order.
+    // BigInt scaling keeps the second objective strictly below one primary point.
     // Incompatible edges are forbidden; no-Snap dummy columns have score zero.
+    const maxScore = candidates.reduce((v, snap) => Math.max(v, snap.scoreBp), 0);
+    const maxStat = allocation.reduce((v, {member}) => Math.max(v, member.preSnapStatTotal ?? 0), 0);
+    const primaryScale = BigInt(allocation.length) * BigInt(maxScore) * BigInt(maxStat) + 1n;
     const weights = allocation.map(({member}) => [
-      ...candidates.map(snap => snap.characterIds.includes(member.characterId) ? snap.scoreBp : null),
-      ...allocation.map(() => 0),
+      ...candidates.map(snap => snap.characterIds.includes(member.characterId)
+        ? BigInt(snap.scoreBp) * (primaryScale + BigInt(member.preSnapStatTotal ?? 0)) : null),
+      ...allocation.map(() => 0n),
     ]);
     if (pending) {
       for (const slot of slots) {
