@@ -113,7 +113,7 @@ test('all inventory rows and search matches preserve concurrent edits and invali
 });
 
 
-test('partial number input never clears saved stock and wheel does not change it',async({page})=>{
+test('partial number input never clears saved stock and wheel does not change it',async({page,isMobile})=>{
   const f=inventoryFixture();f.c.resourceInventory={paper:30};await seed(page,f);
   const input=page.locator('[data-inventory-input="paper"]');
   const before=await bytes(page);
@@ -127,7 +127,8 @@ test('partial number input never clears saved stock and wheel does not change it
   await input.press('Tab');expect(await bytes(page)).toBe(before);
   await input.fill('12');await input.pressSequentially('3');
   await expect(input).toHaveValue('123');
-  await input.hover();await page.mouse.wheel(0,-100);
+  // Mobile WebKit has no mouse wheel API; verify wheel prevention on desktop only.
+  if(!isMobile){await input.hover();await page.mouse.wheel(0,-100);}
   await expect(input).toHaveValue('123');await expect(input).toBeFocused();
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBe(123);
   await input.fill('');await input.press('Tab');
