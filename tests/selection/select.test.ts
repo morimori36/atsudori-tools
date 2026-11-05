@@ -22,6 +22,21 @@ it('isolates band, color and character, reusing Snap across bands',()=>{
     expect.objectContaining({status:'selected',candidate:expect.objectContaining({id:301})})]);
   expect(out.find(c=>c.cardType===8)?.slots[0]?.snap.status).toBe('none');
 });
+it('assigns one shared Snap to the higher pre-Snap stat total even when its member ID is larger',()=>{
+  const out=selectByColor([{...m(101,201),preSnapStatTotal:1000},{...m(102,202),preSnapStatTotal:2000}],[s(301,[201,202])]);
+  expect(out[0]?.slots.map(slot => slot.snap.status === 'selected' ? slot.snap.candidate.id : null)).toEqual([null,301]);
+  expect(selectByColor([{...m(102,202),preSnapStatTotal:2000},{...m(101,201),preSnapStatTotal:1000}],[s(301,[201,202])])).toEqual(out);
+});
+it('puts the stronger tied-score Snap on the higher pre-Snap stat total',()=>{
+  const out=selectByColor([{...m(101,201),preSnapStatTotal:1000},{...m(102,202),preSnapStatTotal:2000}],
+    [s(301,[201,202],3,7,200),s(302,[201,202],3,7,100)]);
+  expect(out[0]?.slots.map(slot => slot.snap.status === 'selected' ? slot.snap.candidate.id : null)).toEqual([302,301]);
+});
+it('still maximizes Snap score before the pre-Snap stat tie-break',()=>{
+  const out=selectByColor([{...m(101,201),preSnapStatTotal:2000},{...m(102,202),preSnapStatTotal:1}],
+    [s(301,[201,202],3,7,100),s(302,[201],3,7,99)]);
+  expect(out[0]?.slots.map(slot => slot.snap.status === 'selected' ? slot.snap.candidate.id : null)).toEqual([302,301]);
+});
 it('assigns a shared Snap by stable ID when scores tie',()=>{
   const out=selectByColor([m(101,201,2),m(102,202,4)],[s(301,[201,202])]);
   expect(out[0]?.slots[1]?.snap.status).toBe('none');
