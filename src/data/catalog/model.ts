@@ -39,7 +39,7 @@ export interface SnapRank {
   limitLevel: number;
   supportSkillLevels: [number, number];
 }
-export interface BandItemMaster { id: number; bandId: number; name: string }
+export interface BandItemMaster { id: number; bandId: number; name: string; displayOrder?: number }
 export interface BandItemLevel { itemId: number; level: number }
 export interface BandItemEffect extends BandItemLevel {
   effectType: number;

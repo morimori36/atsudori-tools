@@ -62,7 +62,7 @@ JSON出力の変換プロファイルも別format・別保存キーです。[プ
 | memberLevelLimits | rarity, trainingStage, limitLevel | rarity + trainingStage |
 | snapLevels | group, level, rates: Stats | group + level |
 | snapRanks | group, rank, limitLevel, supportSkillLevels: [正整数, 正整数] | group + rank |
-| bandItems | id, bandId, name | id |
+| bandItems | id, bandId, name, displayOrder?: 非負整数（任意） | id |
 | bandItemLevels | itemId, level | itemId + level |
 | bandItemEffects | itemId, level, effectType, valueBp, targetIds: 整数配列 | itemId + level |
 | skillTargets | id, targetType, bandId, characterId, cardType, tagId | id |
@@ -188,3 +188,9 @@ collectionの`ownedStampIds`は初期未記載（所持なし）で、新マス�
 メンバーの`liveSkillCategoryIds?`・`gekisouSkillCategoryIds?`、スナップの`supportSkillCategoryIds?`・`gekisouSupportSkillCategoryIds?`は、対応する系統のカテゴリIDを参照する空でない重複なし整数配列です。複数スキルのカテゴリをまとめて指定でき、いずれかの一致で表示します。未定義・異なる系統への参照はImportを拒否します。原本のスキルIDや分類ロジックはcatalogに含めません。
 
 分類不明の場合は参照フィールドを省略します。定義のない旧catalogもImportできます。カード名や育成値からの分類推定はしません。詳細フィルタは系統ごとに単一選択、系統間・既存フィルタ間はAND条件です。「すべて」と全解除で解除でき、マスタ更新で選択カテゴリが消えた場合も解除します。collection・育成条件の保存形式と数値計算は変更しません。
+
+## バンドアイテムの表示順
+
+`bandItems[].displayOrder`はバンド内の任意の安全な非負整数です。全アイテムに指定したバンドは昇順、全件省略した旧catalogのバンドは従来のレイアウト順を維持します。0・飛び番・別バンドの同値を許容し、同一バンドの重複・一部欠落や不正な型・範囲はImportを拒否します。キャラクターの表示順・ID・名前から対応を推測しません。
+
+catalogの配列順とImport/Exportの値は保持します。schemaVersion、collectionの形式・保存キー、入力の保存、評価計算・選出は変更せず、移行は不要です。追加フィールドに未対応の旧アプリには新catalogを渡せません。

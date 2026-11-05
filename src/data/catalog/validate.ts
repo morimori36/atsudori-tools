@@ -114,12 +114,12 @@ export function catalogIssues(m: Masterdata): string[] {
   for (const id of Object.keys(m.songClearCounts ?? {})) need(exists(m.characters, Number(id)), 'songClearCounts/' + id, '参照キャラクターがありません');
   for (const stamp of m.stamps ?? []) for (const id of stamp.characterIds) need(exists(m.characters, id), 'stamps/' + stamp.id, '参照キャラクターがありません');
   for (const c of m.characters) need(exists(m.bands,c.bandId), 'characters/' + c.id, '参照バンドがありません');
-  for (const bandId of new Set(m.characters.map(c => c.bandId))) {
-    const characters = m.characters.filter(c => c.bandId === bandId);
-    const orders = characters.filter(c => c.displayOrder !== undefined).map(c => c.displayOrder!);
+  for (const table of ['characters', 'bandItems'] as const) for (const bandId of new Set(m[table].map(c => c.bandId))) {
+    const rows = m[table].filter(c => c.bandId === bandId);
+    const orders = rows.filter(c => c.displayOrder !== undefined).map(c => c.displayOrder!);
     if (!orders.length) continue;
-    const path = 'characters/band/' + bandId + '/displayOrder';
-    need(orders.length === characters.length, path, 'バンド内の全キャラクターに表示順を指定してください');
+    const path = table + '/band/' + bandId + '/displayOrder';
+    need(orders.length === rows.length, path, 'バンド内の全行に表示順を指定してください');
     need(new Set(orders).size === orders.length, path, '表示順が重複しています');
   }
   if (m.members.length) need(m.characterRankLevels.length > 0, 'characterRankLevels', '合法ランクがありません');

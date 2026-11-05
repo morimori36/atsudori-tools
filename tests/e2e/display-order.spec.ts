@@ -5,6 +5,8 @@ import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
 
 for (const legacy of [false, true]) test(`character order across views and JSON round trips, legacy=${legacy}`, async ({ page }) => {
   const { master, collection } = displayOrderFixture();
+  master.bandItems.forEach((item, i) => { item.displayOrder = [90, 0, 60, 10, 30, 0][i]!; });
+  if (legacy) master.bandItems.forEach(item => { delete item.displayOrder; });
   if (legacy) master.characters.forEach(c => { delete c.displayOrder; });
   const expected = legacy ? ['8201', '8284', '8297', '8239', '8262'] : ['8262', '8239', '8284', '8297', '8201'];
   await page.goto('./');
@@ -21,7 +23,7 @@ for (const legacy of [false, true]) test(`character order across views and JSON 
     expect(await page.locator('[data-character-rank]').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank')))).toEqual(expected);
     expect(await page.locator('[data-bond-character]').evaluateAll(els => els.map(el => el.getAttribute('data-bond-character')))).toEqual(expected);
     await page.locator('nav [data-tab=items]').click();
-    expect(await page.locator('.band-items').first().locator('input').evaluateAll(els => els.map(el => el.id))).toEqual(['item-8698', 'item-8696', 'item-8601', 'item-8694', 'item-8692']);
+    expect(await page.locator('.band-items').first().locator('input').evaluateAll(els => els.map(el => el.id))).toEqual(legacy ? ['item-8698', 'item-8696', 'item-8601', 'item-8694', 'item-8692'] : ['item-8698', 'item-8696', 'item-8694', 'item-8692', 'item-8601']);
     await page.locator('nav [data-tab=progress]').click();
     await page.locator('[data-progress-band="8197"]').click();
     const second = legacy ? ['8328', '8314', '8306'] : ['8314', '8306', '8328'];
@@ -48,4 +50,27 @@ for (const legacy of [false, true]) test(`character order across views and JSON 
   await page.locator('#catalog-import').setInputFiles({ name: 'incomplete-order.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(master)) });
   await expect(page.locator('[role=alert]').filter({ hasText: 'displayOrder' })).toContainText('displayOrder');
   expect(await page.evaluate(keys => keys.map(k => localStorage.getItem(k)), keys)).toEqual(saved);
+});
+
+for (const legacy of [false, true]) test(`item saves follow IDs after reorder, legacy=${legacy}`, async ({ page }) => {
+  const { master, collection } = displayOrderFixture();
+  if (!legacy) master.bandItems.forEach((item, i) => { item.displayOrder = [90, 0, 60, 10, 30, 0][i]!; });
+  await page.goto('./');
+  await page.locator('nav [data-tab=exchange]').click();
+  await page.locator('#catalog-import').setInputFiles({ name: 'fictional.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(master)) });
+  await page.locator('#import-file').setInputFiles({ name: 'fictional-owned.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(collection)) });
+  await page.locator('nav [data-tab=items]').click();
+  const expected = Object.fromEntries(master.bandItems.map((item, i) => [item.id, i % 2]));
+  for (const [id, value] of Object.entries(expected)) await page.locator(`#item-${id}`).fill(String(value));
+  await page.locator('button[type=submit]').click();
+  await page.reload();
+  await page.locator('nav [data-tab=items]').click();
+  for (const [id, value] of Object.entries(expected)) await expect(page.locator(`#item-${id}`)).toHaveValue(String(value));
+  await page.locator('nav [data-tab=exchange]').click();
+  const downloading = page.waitForEvent('download');
+  await page.locator('#export-button').click();
+  const exported = JSON.parse(await readFile((await (await downloading).path())!, 'utf8'));
+  expect(exported).toEqual({ ...collection, bandItems: Object.fromEntries(Object.entries(expected).map(([id, level]) => [id, level || null])) });
+  await page.locator('#import-file').setInputFiles({ name: 'roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exported)) });
+  await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
 });
