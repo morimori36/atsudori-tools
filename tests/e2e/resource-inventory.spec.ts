@@ -39,7 +39,7 @@ for(const width of [1280,390,320])test(`inventory autosave, zero, missing and re
 test('invalid values, failed autosaves and damaged storage remain protected',async({page})=>{
   const f=inventoryFixture();f.c.resourceInventory={paper:30};await seed(page,f);const before=await bytes(page);
   const input=page.locator('[data-inventory-input="paper"]'),row=page.locator('[data-inventory-row="paper"]');
-  for(const n of ['-1','0.5','9007199254740992','not a number']) {
+  for(const n of ['-1','0.5','9007199254740992','1e3']) {
     await input.fill(n);await input.press('Tab');await expect(row.getByRole('alert')).toContainText('安全な整数');expect(await bytes(page)).toBe(before);
   }
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
@@ -82,13 +82,56 @@ test('partial requirements and unsupported EXP never introduce shortage UI',asyn
   await expect(page.locator('[data-material-total]')).toContainText('43 EXP（上限）');await expect(page.locator('main')).not.toContainText(/不足数|現在庫/);
 });
 
-test('inventory search and paging keep autosaves and invalid drafts across filters',async({page})=>{
+test('all inventory rows and search matches preserve concurrent edits and invalid drafts',async({page})=>{
   const f=inventoryFixture();f.m.materialDefinition!.resources.push(...Array.from({length:31},(_,i)=>({id:`extra-${i}`,name:`架空の追加素材${i}`,unit:'item' as const})));await seed(page,f);
-  await expect(page.locator('[data-inventory-row]')).toHaveCount(20);
-  await page.locator('[data-inventory-input="paper"]').fill('7');await page.locator('[data-inventory-more]').click();await expect(page.locator('[data-inventory-row]')).toHaveCount(34);
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(34);
+  await expect(page.locator('[data-inventory-more]')).toHaveCount(0);
+  const paper=page.locator('[data-inventory-input="paper"]');
+  await expect(paper).toHaveAttribute('type','number');
+  await expect(paper).toHaveAttribute('min','0');
+  await expect(paper).toHaveAttribute('step','1');
+  await paper.fill('7');
+  await page.locator('[data-inventory-input="copy"]').fill('0');
+  await page.locator('[data-inventory-input="extra-30"]').fill('123');
+  await page.locator('[data-inventory-query]').fill('追加素材');
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(31);
+  await page.locator('[data-inventory-query]').fill('no-matching-resource');
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(0);
   await page.locator('[data-inventory-query]').fill('追加素材30');await expect(page.locator('[data-inventory-row]')).toHaveCount(1);
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory?.paper).toBe(7);
   await page.locator('[data-inventory-query]').fill('折紙');await expect(page.locator('[data-inventory-input="paper"]')).toHaveValue('7');
   await page.locator('[data-inventory-input="paper"]').fill('-1');await page.locator('[data-inventory-query]').fill('追加素材30');
   await page.locator('[data-inventory-query]').fill('折紙');await expect(page.locator('[data-inventory-input="paper"]')).toHaveValue('-1');
+  await page.locator('[data-inventory-query]').fill('');
+  await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('0');
+  await expect(page.locator('[data-inventory-input="extra-30"]')).toHaveValue('123');
+  await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(34);
+  await expect(paper).toHaveValue('7');
+  await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('0');
+  await expect(page.locator('[data-inventory-input="extra-30"]')).toHaveValue('123');
+});
+
+
+test('partial number input never clears saved stock and wheel does not change it',async({page,isMobile})=>{
+  const f=inventoryFixture();f.c.resourceInventory={paper:30};await seed(page,f);
+  const input=page.locator('[data-inventory-input="paper"]');
+  const before=await bytes(page);
+  await input.fill('');await input.pressSequentially('-');
+  expect(await input.evaluate((el:HTMLInputElement)=>el.validity.badInput)).toBe(true);
+  await expect(page.locator('[data-inventory-row="paper"]').getByRole('alert')).toContainText('安全な整数');
+  expect(await bytes(page)).toBe(before);
+  await page.locator('[data-inventory-query]').fill('複製');
+  await page.locator('[data-inventory-query]').fill('折紙');
+  expect(await input.evaluate((el:HTMLInputElement)=>el.validity.badInput)).toBe(true);
+  await input.press('Tab');expect(await bytes(page)).toBe(before);
+  await input.fill('12');await input.pressSequentially('3');
+  await expect(input).toHaveValue('123');
+  // Mobile WebKit has no mouse wheel API; verify wheel prevention on desktop only.
+  if(!isMobile){await input.hover();await page.mouse.wheel(0,-100);}
+  await expect(input).toHaveValue('123');await expect(input).toBeFocused();
+  await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBe(123);
+  await input.fill('');await input.press('Tab');
+  await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBeUndefined();
+  await page.reload();await page.locator('nav [data-tab=inventory]').click();await expect(input).toHaveValue('');
 });
