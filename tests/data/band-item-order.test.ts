@@ -16,6 +16,8 @@ export function orderedItems() {
 }
 it('sorts only the view, preserving catalog/collection round trips and evaluation', () => {
   const { master, collection } = orderedItems();
+  collection.bandItems = Object.fromEntries(master.bandItems.map(item => [item.id, 1]));
+  collection.characterRanks = Object.fromEntries(master.characters.map(c => [c.id, 1]));
   const before = JSON.stringify({ master, collection });
   const imported = importCatalog(exportCatalog(master));
   expect(imported).toEqual(master);

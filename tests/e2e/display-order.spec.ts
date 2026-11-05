@@ -70,7 +70,7 @@ for (const legacy of [false, true]) test(`item saves follow IDs after reorder, l
   const downloading = page.waitForEvent('download');
   await page.locator('#export-button').click();
   const exported = JSON.parse(await readFile((await (await downloading).path())!, 'utf8'));
-  expect(exported).toEqual({ ...collection, bandItems: expected });
+  expect(exported).toEqual({ ...collection, bandItems: Object.fromEntries(Object.entries(expected).map(([id, level]) => [id, level || null])) });
   await page.locator('#import-file').setInputFiles({ name: 'roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exported)) });
   await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
 });
