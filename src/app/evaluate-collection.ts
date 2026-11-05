@@ -76,7 +76,10 @@ export function evaluateCollection(master: Masterdata, collection: Collection, r
     if (!row) throw new Error(`unknown member ${owned.cardId}`);
     const character = master.characters.find(c => c.id === row.characterId);
     if (!character) throw new Error(`unknown character ${row.characterId}`);
-    return { id: row.id, bandId: character.bandId, characterId: row.characterId, cardType: row.cardType, rarity: row.rarity };
+    const displayed = deriveMemberDisplay(master, owned).displayedStats;
+    const preSnapStatTotal = displayed.performance + displayed.technic + displayed.visual;
+    requireInteger(preSnapStatTotal, 'メンバーのSnap適用前ステータス合計');
+    return { id: row.id, bandId: character.bandId, characterId: row.characterId, cardType: row.cardType, rarity: row.rarity, preSnapStatTotal };
   });
   const snaps = collection.snaps.map(owned => {
     const row = master.snaps.find(s => s.id === owned.supportCardId);
