@@ -6,7 +6,8 @@ import { trainingConditions } from '../app/hypothetical-training';
 import { stampsMarkup, bindStamps } from './stamps';
 import { automaticCharacterProgress } from '../domain/character-rank/automatic-progress';
 import { cardIdentity, rarity } from './card-identity';
-import { legacyProgressOrder, progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
+import { bandItemsForDisplay } from './band-item-order';
+import { progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
 import { createMaterialsPage } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
 import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
@@ -300,7 +301,7 @@ export function mountApp(root: HTMLElement): void {
   function itemsPage(): string {
     const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
     return `<form id="progress-form" data-edit-scope="items"><section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテムLv</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
-      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${legacyProgressOrder(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>${progressActions(true)}</form>`;
+      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${bandItemsForDisplay(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>${progressActions(true)}</form>`;
   }
   function progressPage(): string {
     const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
