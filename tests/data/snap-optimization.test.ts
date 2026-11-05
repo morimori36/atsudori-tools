@@ -18,6 +18,13 @@ it.each([false,true])('combines dedicated and shared Snaps using effective Snap 
   master.members.reverse();master.snaps.reverse();owned.members.reverse();owned.snaps.reverse();
   expect(JSON.stringify({master,collection})).toBe(before);
 });
+it('passes actual pre-Snap displayed stats into shared Snap recipient selection',()=>{
+  const {master,collection}=fixture();
+  master.members[1]!.maxStats={...master.members[1]!.maxStats,performance:master.members[1]!.maxStats.performance+1000};
+  collection.snaps=collection.snaps.filter(s=>s.supportCardId===8501);
+  const color=evaluateCollection(master,collection)[0]!;
+  expect(color.slots.map(slot=>slot.selection.snap.status==='selected' ? slot.selection.snap.candidate.id : null)).toEqual([null,8501]);
+});
 it.each(['rank','item','bonus','calculation'] as const)('does not invent a zero rating when %s is unavailable',kind=>{
   const {master,collection}=fixture();
   if(kind==='rank')delete collection.characterRanks['8202'];
