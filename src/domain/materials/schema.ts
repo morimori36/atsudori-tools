@@ -6,7 +6,7 @@ const object = (properties:Record<string,unknown>,required=Object.keys(propertie
 const array = (items:unknown,maxItems=20000) => ({type:'array',maxItems,items});
 export const materialDefinitionSchema = object({
   catalogRevision:id,
-  resources:array(object({id,name:text,unit:{enum:['item','card','exp']}})),
+  resources:array(object({id,name:text,unit:{enum:['item','card','exp']},displayOrder:{...int,minimum:0}},['id','name','unit'])),
   schedules:array(object({id,axis:{enum:materialAxes},mode:{enum:['steps','cumulative','unsupported']},basis:text,reason:text,
     stages:array(object({stage:int,amounts:array(object({resourceId:id,quantity:{...int,minimum:0}}),100)}),1000)},['id','axis','mode','basis','stages'])),
   bindings:array(object({kind:{enum:['member','snap']},cardId:int,axis:{enum:materialAxes},scheduleId:id}))

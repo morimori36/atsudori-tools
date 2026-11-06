@@ -13,7 +13,7 @@ export function validateMaterialDefinition(value:unknown):MaterialDefinition {
   const r=strictObject(value,'materialDefinition',['catalogRevision','resources','schedules','bindings']);
   let count=0;
   return {catalogRevision:id(r.catalogRevision),
-    resources:unique(rows(r.resources).map(v=>{const o=strictObject(v,'resource',['id','name','unit']);return {id:id(o.id),name:text(o.name),unit:enumeration(o.unit,['item','card','exp'])};}),v=>v.id),
+    resources:unique(rows(r.resources).map(v=>{const o=strictObject(v,'resource',['id','name','unit','displayOrder'],['id','name','unit']);return {id:id(o.id),name:text(o.name),unit:enumeration(o.unit,['item','card','exp']),...(o.displayOrder===undefined?{}:{displayOrder:integer(o.displayOrder,0)})};}),v=>v.id),
     schedules:unique(rows(r.schedules).map(v=>{const o=strictObject(v,'schedule',['id','axis','mode','basis','reason','stages'],['id','axis','mode','basis','stages']);
       const stages=rows(o.stages,1000);count+=stages.length;if(count>50000)fail('段階は全体50000行以内です');
       return {id:id(o.id),axis:enumeration(o.axis,materialAxes),mode:enumeration(o.mode,['steps','cumulative','unsupported']),basis:text(o.basis),...(o.reason===undefined?{}:{reason:text(o.reason)}),
