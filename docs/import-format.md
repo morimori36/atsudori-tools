@@ -194,3 +194,5 @@ collectionの`ownedStampIds`は初期未記載（所持なし）で、新マス�
 `bandItems[].displayOrder`はバンド内の任意の安全な非負整数です。全アイテムに指定したバンドは昇順、全件省略した旧catalogのバンドは従来のレイアウト順を維持します。0・飛び番・別バンドの同値を許容し、同一バンドの重複・一部欠落や不正な型・範囲はImportを拒否します。キャラクターの表示順・ID・名前から対応を推測しません。
 
 catalogの配列順とImport/Exportの値は保持します。schemaVersion、collectionの形式・保存キー、入力の保存、評価計算・選出は変更せず、移行は不要です。追加フィールドに未対応の旧アプリには新catalogを渡せません。
+
+`materialDefinition.resources[]` は任意の `displayOrder`（0以上の安全な整数）を受け取ります。在庫表示用で、費用計算・所持には影響しません。省略した既存catalogもImport・Exportでき、既定値を書き足しません。各単位のセクション内で指定値の昇順、同値はcatalog順、未指定は末尾でcatalog順に表示します。

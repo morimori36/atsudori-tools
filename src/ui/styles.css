@@ -530,8 +530,12 @@ footer { overflow-wrap: anywhere; }
 .stage-projection .is-current { border: 2px solid light-dark(#39799f, #96d1f5); color: light-dark(#225c80, #96d1f5); }
 .stage-projection .is-target { background: light-dark(#6550bd, #b8a5ff); color: light-dark(#fff, #20153e); font-weight: 700; }
 .exp-card details p { font-size: 12px; }
-.inventory-card { cursor: default; }
-.inventory-card h2 { margin: 0; }
+.inventory-heading { font-size: 16px; margin: 16px 0 8px; }
+.inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: 8px; align-items: stretch; }
+.inventory-grid .inventory-card { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px; min-width: 0; cursor: default; align-content: space-between; }
+.inventory-card h3 { margin: 0; }
+.inventory-card .card-meta { font-size: 11px; overflow-wrap: anywhere; }
+.inventory-card input { width: 100%; min-width: 0; }
 .inventory-card input { font-size: 16px; min-height: 44px; }
 .inventory-card .field { max-width: 16rem; }
 .inventory-card .card-input-state:empty { display: none; }

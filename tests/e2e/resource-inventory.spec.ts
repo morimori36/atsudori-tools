@@ -135,3 +135,42 @@ test('partial number input never clears saved stock and wheel does not change it
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBeUndefined();
   await page.reload();await page.locator('nav [data-tab=inventory]').click();await expect(input).toHaveValue('');
 });
+
+for(const metadata of [false,true])for(const width of [1280,390,320])test(`${metadata?'ordered':'legacy'} catalog import, sections and grid at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:844});
+  const f=inventoryFixture();f.c.resourceInventory={paper:0,copy:2};
+  const resources=f.m.materialDefinition!.resources;
+  resources.push({id:'alpha',name:'架空の長い素材名を折り返して表示するための試験カード',unit:'item'});
+  if(metadata){
+    resources.find(r=>r.id==='alpha')!.displayOrder=0;
+    resources.find(r=>r.id==='retired')!.displayOrder=3;
+    resources.find(r=>r.id==='paper')!.displayOrder=9;
+  }
+  await seed(page,f);
+  const before=await bytes(page);
+  // Exercise the actual file import route for both old and extended catalogs.
+  await page.locator('nav [data-tab=exchange]').click();
+  await page.locator('#catalog-import').setInputFiles(file(f.m));
+  await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+  expect(await bytes(page)).toBe(before);
+  await page.locator('nav [data-tab=inventory]').click();
+  const items=page.locator('[data-inventory-section="item"]'),copies=page.locator('[data-inventory-section="card"]');
+  const order=metadata?['alpha','retired','paper']:['paper','retired','alpha'];
+  expect(await items.locator('[data-inventory-row]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-inventory-row')))).toEqual(order);
+  await expect(copies.getByRole('heading',{name:'カード複製',exact:true})).toBeVisible();
+  await expect(copies.locator('[data-inventory-row="copy"]')).toBeVisible();
+  await expect(items.locator('[data-inventory-row="copy"]')).toHaveCount(0);
+  const boxes=await items.locator('[data-inventory-row]').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height};}));
+  if(width>=390){expect(boxes[0]!.y).toBe(boxes[1]!.y);expect(boxes[1]!.x).toBeGreaterThan(boxes[0]!.x);}
+  else expect(boxes[1]!.y).toBeGreaterThan(boxes[0]!.y);
+  expect(boxes[0]!.h).toBeLessThan(260);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const input=page.locator('[data-inventory-input="paper"]');await expect(input).toHaveValue('0');
+  await input.fill('17');await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBe(17);await expect(input).toBeFocused();
+  await page.locator('[data-inventory-query]').fill('複製');await expect(items).toBeHidden();await expect(copies).toBeVisible();
+  await page.locator('[data-inventory-query]').fill('存在しない名前');await expect(page.locator('[data-inventory-empty]')).toBeVisible();
+  await page.locator('[data-inventory-query]').fill('');await expect(input).toHaveValue('17');
+  await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  expect(await items.locator('[data-inventory-row]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-inventory-row')))).toEqual(order);
+  await expect(input).toHaveValue('17');await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('2');
+});

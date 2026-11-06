@@ -2,7 +2,7 @@ export const materialAxes = ['trainingStage','awakeningStage','liveSkillLevel','
 export type MaterialAxis = typeof materialAxes[number];
 export type CardKind = 'member' | 'snap';
 export interface MaterialAmount { resourceId: string; quantity: number }
-export interface MaterialResource { id: string; name: string; unit: 'item' | 'card' | 'exp' }
+export interface MaterialResource { id: string; name: string; unit: 'item' | 'card' | 'exp'; displayOrder?: number }
 export interface MaterialSchedule {
   id: string;
   axis: MaterialAxis;
