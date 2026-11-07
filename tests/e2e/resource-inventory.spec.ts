@@ -15,23 +15,28 @@ for(const width of [1280,390,320])test(`inventory autosave, zero, missing and re
   await page.setViewportSize({width,height:844});const {c}=await seed(page);
   const paper=page.locator('[data-inventory-row="paper"]'),input=paper.locator('input');
   await expect(paper.locator('[data-inventory-status]')).toHaveText('未登録');
-  await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveCount(0);
-  await expect(page.locator('[data-inventory-row]')).toHaveCount(3);
+  await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('[data-inventory-input="member-exp"]')).toBeVisible();
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(5);
   for(const [value,expected] of [['30',30],['0',0],['',undefined],['60',60]]) {
     await input.fill(value as string);
     await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory?.paper).toBe(expected);
     await expect(input).toBeFocused();await expect(page.locator('.save-state')).toHaveText('自動保存済み');
     await expect(paper.locator('[data-inventory-status]')).toHaveText(value===''?'未登録':'登録済み');
   }
+  await page.locator('[data-inventory-input="member-exp"]').fill('20');
+  await page.locator('[data-inventory-input="snap-exp"]').fill('100');
   await page.locator('[data-inventory-input="copy"]').fill('1');
   // Navigating away before the debounce fires flushes the existing autosave queue.
   await page.locator('nav [data-tab=materials]').click();
   await expect(page.locator('[data-inventory-input],[data-inventory-resource],[data-inventory-totals],[data-bond-character]')).toHaveCount(0);
-  await expect(page.locator('main')).not.toContainText(/不足数|現在庫/);
+  await expect(page.locator('[data-material-resource="member-exp"] [data-material-shortage]')).toHaveText('23');
+  await expect(page.locator('[data-material-resource="snap-exp"] [data-material-shortage]')).toHaveText('266');
   await expect(page.locator('[data-material-total]')).toContainText('架空の折紙');
   await page.reload();await page.locator('nav [data-tab=inventory]').click();await expect(input).toHaveValue('60');
   await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('1');
-  const saved=JSON.parse((await bytes(page))!);expect(saved.resourceInventory).toEqual({paper:60,copy:1});delete saved.resourceInventory;expect(saved).toEqual(c);
+  await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveValue('20');
+  await expect(page.locator('[data-inventory-input="snap-exp"]')).toHaveValue('100');
+  const saved=JSON.parse((await bytes(page))!);expect(saved.resourceInventory).toEqual({paper:60,copy:1,'member-exp':20,'snap-exp':100});delete saved.resourceInventory;expect(saved).toEqual(c);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/inventory-${width}.png`,fullPage:true});
 });
@@ -53,7 +58,7 @@ test('invalid values, failed autosaves and damaged storage remain protected',asy
 });
 
 test('inventory backup, omission preservation, explicit replace and orphaned resource updates',async({page})=>{
-  const f=inventoryFixture();f.c.resourceInventory={paper:30,copy:0,retired:11};await seed(page,f);
+  const f=inventoryFixture();f.c.resourceInventory={paper:30,copy:0,retired:11,'member-exp':0,'snap-exp':100000};await seed(page,f);
   const exchange=async()=>{await page.locator('nav [data-tab=exchange]').click();};await exchange();
   const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);const backup=JSON.parse(await readFile((await download.path())!,'utf8'));
   expect(backup.resourceInventory).toEqual(f.c.resourceInventory);
@@ -74,17 +79,21 @@ test('inventory backup, omission preservation, explicit replace and orphaned res
   await exchange();await page.locator('#data-reset summary').click();page.once('dialog',d=>d.accept());await page.locator('#reset-button').click();expect(JSON.parse((await bytes(page))!)).not.toHaveProperty('resourceInventory');
 });
 
-test('partial requirements and unsupported EXP never introduce shortage UI',async({page})=>{
+test('partial requirements retain uncertainty and EXP shortages use registered stock',async({page})=>{
   const f=inventoryFixture();f.c.resourceInventory={paper:60,'member-exp':999};await seed(page,f,{...inventoryTraining,gekisouSkillLevel:2});
-  await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveCount(0);
-  await page.locator('.inventory-unsupported > summary').click();await expect(page.locator('[data-inventory-unsupported="member-exp"]')).toContainText('対象外');
+  await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveValue('999');
+  await expect(page.locator('[data-inventory-unsupported="member-exp"]')).toHaveCount(0);
   await page.locator('nav [data-tab=materials]').click();await expect(page.locator('[data-material-total]')).toContainText('計算済み');
-  await expect(page.locator('[data-material-total]')).toContainText('43 EXP（上限）');await expect(page.locator('main')).not.toContainText(/不足数|現在庫/);
+  const exp=page.locator('[data-material-resource="member-exp"]');
+  await expect(exp.locator('[data-material-required]')).toHaveText('43');
+  await expect(exp.locator('[data-material-stock]')).toHaveText('999');
+  await expect(exp.locator('[data-material-shortage]')).toHaveText('0');
+  await expect(page.locator('[data-material-kind=member]')).toContainText('全体の不足は未確定');
 });
 
 test('all inventory rows and search matches preserve concurrent edits and invalid drafts',async({page})=>{
   const f=inventoryFixture();f.m.materialDefinition!.resources.push(...Array.from({length:31},(_,i)=>({id:`extra-${i}`,name:`架空の追加素材${i}`,unit:'item' as const})));await seed(page,f);
-  await expect(page.locator('[data-inventory-row]')).toHaveCount(34);
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(36);
   await expect(page.locator('[data-inventory-more]')).toHaveCount(0);
   const paper=page.locator('[data-inventory-input="paper"]');
   await expect(paper).toHaveAttribute('type','number');
@@ -106,7 +115,7 @@ test('all inventory rows and search matches preserve concurrent edits and invali
   await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('0');
   await expect(page.locator('[data-inventory-input="extra-30"]')).toHaveValue('123');
   await page.reload();await page.locator('nav [data-tab=inventory]').click();
-  await expect(page.locator('[data-inventory-row]')).toHaveCount(34);
+  await expect(page.locator('[data-inventory-row]')).toHaveCount(36);
   await expect(paper).toHaveValue('7');
   await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('0');
   await expect(page.locator('[data-inventory-input="extra-30"]')).toHaveValue('123');
@@ -173,4 +182,31 @@ for(const metadata of [false,true])for(const width of [1280,390,320])test(`${met
   await page.reload();await page.locator('nav [data-tab=inventory]').click();
   expect(await items.locator('[data-inventory-row]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-inventory-row')))).toEqual(order);
   await expect(input).toHaveValue('17');await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('2');
+});
+
+test('EXP stock edits distinguish unknown and zero and update independent shortages',async({page})=>{
+  await seed(page);
+  const requirements={'member-exp':43,'snap-exp':366};
+  for(const [id,required] of Object.entries(requirements)){
+    const input=page.locator(`[data-inventory-input="${id}"]`);
+    await expect(input.locator('..')).toContainText('現在庫（EXP）');
+    for(const [value,shortage] of [['','—'],['0',String(required)],['20',String(required-20)],[String(required),'0'],[String(required+100),'0']]){
+      await input.fill(value!);
+      await page.locator('nav [data-tab=materials]').click();
+      const row=page.locator(`[data-material-resource="${id}"]`);
+      await expect(row.locator('[data-material-stock]')).toHaveText(value===''?'—':value!);
+      await expect(row.locator('[data-material-shortage]')).toHaveText(shortage!);
+      await page.locator('nav [data-tab=inventory]').click();
+    }
+  }
+  await page.locator('[data-inventory-input="member-exp"]').fill('1000');
+  await page.locator('[data-inventory-input="snap-exp"]').fill('20');
+  await page.locator('nav [data-tab=materials]').click();
+  await expect(page.locator('[data-material-resource="member-exp"] [data-material-shortage]')).toHaveText('0');
+  await expect(page.locator('[data-material-resource="snap-exp"] [data-material-shortage]')).toHaveText('346');
+  const saved=await bytes(page);
+  await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveValue('1000');
+  await expect(page.locator('[data-inventory-input="snap-exp"]')).toHaveValue('20');
+  expect(await bytes(page)).toBe(saved);
 });

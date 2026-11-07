@@ -2,7 +2,8 @@ import { describe,it,expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { materialFixture } from '../helpers/materials';
-import { calculateMaterialRequirements } from '../../src/domain/materials/calculate';
+import { calculateMaterialRequirements,calculateMaterialRequirementsToTarget } from '../../src/domain/materials/calculate';
+import { maximumTrainingFixture } from '../helpers/maximum-training';
 import { importCatalog,exportCatalog,catalogBase } from '../../src/data/catalog/validate';
 import { loadCatalog,saveCatalog,loadCollection,CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
 import { exportCollection } from '../../src/storage/collection';
@@ -12,7 +13,7 @@ describe('independent fictional material costs',()=>{
     const ajv=new Ajv2020();expect(ajv.compile(JSON.parse(readFileSync('public/schemas/catalog-v1.schema.json','utf8')))(m)).toBe(true);
     const before=JSON.stringify([m,c]);const r=calculateMaterialRequirements(importCatalog(exportCatalog(m)),c);
     expect(r.totals).toEqual([{resourceId:'copy',quantity:2},{resourceId:'member-exp',quantity:43},{resourceId:'paper',quantity:31},{resourceId:'snap-exp',quantity:63}]);
-    expect(r.cards[0]!.axes.map(a=>a.status)).toEqual(['calculated','calculated','calculated','unavailable','bounded']);
+    expect(r.cards[0]!.axes.map(a=>a.status)).toEqual(['calculated','calculated','calculated','unavailable','calculated']);
     expect(r.incomplete).toBe(true);expect(r.cards[0]!.axes[3]!.reason).toBe('費用の根拠未確認');expect(JSON.stringify([m,c])).toBe(before);
   });
   it('sums transition costs only above current; cumulative uses subtraction',()=>{
@@ -24,6 +25,22 @@ describe('independent fictional material costs',()=>{
     expect(r.totals.find(a=>a.resourceId==='paper')!.quantity).toBe(37);
     m.materialDefinition!.schedules.find(s=>s.id==='live')!.mode='cumulative';
     expect(calculateMaterialRequirements(m,c).cards[0]!.axes[2]!.amounts).toEqual([{resourceId:'paper',quantity:6}]);
+  });
+  it('calculates exact EXP from current to target cumulative levels without an upper estimate',()=>{
+    const {m,c}=maximumTrainingFixture();
+    c.snaps.forEach(s=>{s.level=2;});
+    const target=structuredClone(c);
+    target.members[0]!.trainingStage=2;target.members[0]!.level=2;
+    target.snaps.forEach(s=>{s.rank=2;s.level=3;});
+    const result=calculateMaterialRequirementsToTarget(m,c,target);
+    expect(result.totals.filter(a=>a.resourceId.endsWith('-exp'))).toEqual([
+      {resourceId:'member-exp',quantity:43}, // 60 - 17
+      {resourceId:'snap-exp',quantity:240}, // (200 - 80) * 2
+    ]);
+    for(const card of result.cards){
+      const level=card.axes.find(a=>a.axis==='level')!;
+      expect(level.status).toBe('calculated');expect(level.reason).toBeUndefined();
+    }
   });
   it('uses highest legal stage and its level cap; maximum costs nothing even without definitions',()=>{
     const {m,c}=materialFixture();c.members[0]={cardId:8301,trainingStage:2,awakeningStage:2,liveSkillLevel:2,gekisouSkillLevel:2,level:2};c.snaps[0]={supportCardId:8501,rank:2,level:2};

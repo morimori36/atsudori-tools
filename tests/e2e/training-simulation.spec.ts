@@ -56,7 +56,7 @@ for(const width of [1280,390,320])test(`five shared targets, modal keyboard, rec
   dialog=await open(page);await expect(dialog.locator('[data-training=snapRank]')).toHaveValue('5');
   for(const key of Object.keys(keep))await dialog.locator(`[data-training=${key}]`).selectOption('');
   await dialog.getByRole('button',{name:'閉じる',exact:true}).click();
-  await expect(page.locator('[data-material-total]')).toContainText('126 EXP');await expect(page.locator('[data-material-total]')).not.toContainText('架空の折紙');
+  await expect(page.locator('[data-material-resource="snap-exp"] [data-material-required]')).toHaveText('126');await expect(page.locator('[data-material-total]')).not.toContainText('架空の折紙');
   await nav(page,'exchange');await expect(page.getByLabel('育成条件を適用する',{exact:true})).not.toBeChecked();
   expect((await output(page)).total).toBe(5);
   dialog=await open(page);await expect(dialog.locator('[data-training=trainingStage]')).toHaveValue('');
