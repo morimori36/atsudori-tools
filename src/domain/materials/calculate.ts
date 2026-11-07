@@ -5,7 +5,7 @@ import type { MaterialAmount, MaterialAxis, CardKind, MaterialResource } from '.
 import { axesFor, materialProgression, materialIssues } from './validate';
 export interface AxisRequirement {
   axis: MaterialAxis; current: number; target: number | null;
-  status: 'complete' | 'calculated' | 'bounded' | 'unavailable';
+  status: 'complete' | 'calculated' | 'unavailable';
   amounts: MaterialAmount[]; reason?: string; basis?: string;
 }
 export interface CardRequirement { kind: CardKind; cardId: number; axes: AxisRequirement[]; amounts: MaterialAmount[] }
@@ -65,8 +65,7 @@ function calculate(m:Masterdata,input:Collection,goal?:Collection):MaterialRequi
           for(const a of to.amounts)add(sum,{...a,quantity:a.quantity-(from.amounts.find(r=>r.resourceId===a.resourceId)?.quantity??0)});
         }
         result.amounts=amounts(sum);
-        result.status=axis==='level'&&result.amounts.some(a=>d!.resources.find(r=>r.id===a.resourceId)?.unit==='exp')?'bounded':'calculated';
-        if(result.status==='bounded')result.reason='現在Lvの開始時点からのEXP（上限）。Lv内の途中EXPが不明のため、実際の残り必要EXPは確定できません。EXPアイテム個数への換算は行いません。';
+        result.status='calculated';
         for(const a of result.amounts){add(cardTotals,a);add(totals,a);}
       }
       axes.push(result);

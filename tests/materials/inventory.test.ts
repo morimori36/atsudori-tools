@@ -27,18 +27,30 @@ test.each([[undefined,null,null],[0,0,41],[30,30,11],[60,60,0],[Number.MAX_SAFE_
   const r=materialInventoryBalances(requirements,n===undefined?{}:{paper:n}).balances.find(r=>r.resource.id==='paper')!;
   expect(r.stock).toBe(stock);expect(r.shortage).toBe(shortage);
 });
-test('partial costs retain lower-bound semantics; EXP never acquires an inventory shortage',()=>{
+test('partial costs remain subtotals while EXP uses its own stock and shortage',()=>{
   const {m,c}=inventoryFixture();
   const r=materialInventoryBalances(simulateTrainingEvaluation(m,c,{...inventoryTraining,gekisouSkillLevel:2}).materials,{paper:60,'member-exp':999});
   expect(r.balances.find(r=>r.resource.id==='paper')).toMatchObject({required:41,shortage:0,incomplete:true});
-  expect(r.balances.find(r=>r.resource.id==='member-exp')).toMatchObject({required:43,stock:null,shortage:null});
-  expect(r.unsupported).toEqual([{id:'member-exp',quantity:999,reason:expect.any(String)}]);
+  expect(r.balances.find(r=>r.resource.id==='member-exp')).toMatchObject({required:43,stock:999,shortage:0,incomplete:true});
+  expect(r.balances.find(r=>r.resource.id==='snap-exp')).toMatchObject({required:366,stock:null,shortage:null});
+  expect(r.unsupported).toEqual([]);
+});
+test.each(['member-exp','snap-exp'])('%s distinguishes missing stock, explicit zero, shortage and surplus',id=>{
+  const {m,c}=inventoryFixture();const requirements=simulateTrainingEvaluation(m,c,inventoryTraining).materials;
+  const required=id==='member-exp'?43:366;
+  for(const [stock,shortage] of [[undefined,null],[0,required],[20,required-20],[required,0],[required+1,0]] as const){
+    const balance=materialInventoryBalances(requirements,stock===undefined?{}:{[id]:stock}).balances.find(r=>r.resource.id===id)!;
+    expect(balance).toMatchObject({required,stock:stock??null,shortage});
+  }
+  const balances=materialInventoryBalances(requirements,{'member-exp':1000,'snap-exp':20}).balances;
+  expect(balances.find(r=>r.resource.id==='member-exp')!.shortage).toBe(0);
+  expect(balances.find(r=>r.resource.id==='snap-exp')!.shortage).toBe(346);
 });
 test('old v1 bytes remain unchanged; new optional inventory round-trips through schema, JSON and storage',()=>{
   const {m,c}=inventoryFixture();const raw=exportCollection(c,m);
   expect(schema(c)).toBe(true);expect(exportCollection(importCollection(raw,m),m)).toBe(raw);
   expect(importCollection(raw,m)).not.toHaveProperty('resourceInventory');
-  c.resourceInventory={paper:0,copy:7,retired:11};expect(schema(c)).toBe(true);
+  c.resourceInventory={paper:0,copy:7,retired:11,'member-exp':0,'snap-exp':123456};expect(schema(c)).toBe(true);
   expect(importCollection(exportCollection(c,m),m)).toEqual(c);
   const data=new Map<string,string>(),port={getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>{data.set(k,v);}};
   expect(saveCollection(port,c,m).status).toBe('saved');expect(loadCollection(port,m)).toEqual({status:'loaded',collection:c});
@@ -47,9 +59,10 @@ test('old v1 bytes remain unchanged; new optional inventory round-trips through 
   expect(data.get(STORAGE_KEY)).toBe(before);
 });
 test('daily imports preserve omitted inventory; explicit maps replace and empty map clears',()=>{
-  const {m,c}=inventoryFixture();const previous={...c,resourceInventory:{paper:0,retired:11}};
+  const {m,c}=inventoryFixture();const previous={...c,resourceInventory:{paper:0,retired:11,'member-exp':100000,'snap-exp':0}};
   expect(prepareCollectionImport(c,previous,m).resourceInventory).toEqual(previous.resourceInventory);
   expect(prepareCollectionImport({...c,resourceInventory:{copy:2}},previous,m).resourceInventory).toEqual({copy:2});
+  expect(prepareCollectionImport({...c,resourceInventory:{'member-exp':0,'snap-exp':250}},previous,m).resourceInventory).toEqual({'member-exp':0,'snap-exp':250});
   expect(prepareCollectionImport({...c,resourceInventory:{}},previous,m).resourceInventory).toEqual({});
   expect(prepareCollectionImport(c,previous,m,false)).not.toHaveProperty('resourceInventory');
 });
