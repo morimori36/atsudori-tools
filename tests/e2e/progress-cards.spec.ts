@@ -48,6 +48,9 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     const extra = 9000 + band * 10;
     expect(await card.locator('input').evaluateAll(els => els.map(el => el.id)))
       .toEqual([`item-${extra+2}`, `item-${extra+4}`, `item-${8600+band}`, `item-${extra+5}`, `item-${extra+3}`]);
+    const widths = await card.locator('.item-field').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
+    expect(widths).toHaveLength(5);
+    expect(widths.every(n => n <= 145)).toBe(true);
     const fields = await card.locator('label').evaluateAll(els => els.map(el => ({x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y})));
     expect(new Set(fields.map(b => b.y)).size).toBe(1);
     for (let n = 1; n < fields.length; n++) expect(fields[n]!.x).toBeGreaterThan(fields[n-1]!.x);
@@ -127,6 +130,63 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await expect(page.locator('#item-8605')).toHaveValue('1');
   expect(await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), STORAGE_KEY)).toEqual(saved);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+});
+
+
+for (const width of [320, 390]) test(`band-item +/- keeps legal levels, unsaved drafts and 44px touch targets at ${width}px`, async ({page}) => {
+  const m=syntheticCatalog();
+  // A deliberately sparse, fictional level table: 0 -> 1 -> 3, never an illegal 2.
+  m.bandItemLevels.find(r=>r.itemId===8601 && r.level===2)!.level=3;
+  m.bandItemEffects.find(r=>r.itemId===8601 && r.level===2)!.level=3;
+  const catalog=await fictionalCatalog(m), owned=syntheticCollection(m);
+  owned.bandItems={}; // Unknown is distinct from an explicitly unowned item.
+  await page.setViewportSize({width,height:844});
+  await page.goto('./');
+  await page.evaluate(({catalog,owned,keys}) => {
+    localStorage.setItem(keys[0]!,JSON.stringify(catalog));
+    localStorage.setItem(keys[1]!,JSON.stringify(owned));
+  },{catalog,owned,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY]});
+  await page.reload();
+  await page.locator('nav [data-tab=items]').click();
+  const input=page.locator('#item-8601');
+  const minus=page.locator('[data-item-step="8601"][data-step="-1"]');
+  const plus=page.locator('[data-item-step="8601"][data-step="1"]');
+  await expect(input).toHaveValue('0');
+  await expect(minus).toBeDisabled();
+  await expect(plus).toBeEnabled();
+  const dimensions=await page.locator('.item-field').first().evaluate(el => {
+    const input=el.querySelector('input')!,buttons=Array.from(el.querySelectorAll('button'));
+    return {width:el.getBoundingClientRect().width,font:parseFloat(getComputedStyle(input).fontSize),
+      inputHeight:input.getBoundingClientRect().height,
+      buttons:buttons.map(button=>({width:button.getBoundingClientRect().width,height:button.getBoundingClientRect().height}))};
+  });
+  expect(dimensions.width).toBeLessThanOrEqual(145);
+  expect(dimensions.font).toBeGreaterThanOrEqual(16);
+  expect(dimensions.inputHeight).toBeGreaterThanOrEqual(44);
+  expect(dimensions.buttons.every(b=>b.width>=44 && b.height>=44)).toBe(true);
+
+  await plus.click(); await expect(input).toHaveValue('1');
+  await plus.click(); await expect(input).toHaveValue('3');
+  await expect(plus).toBeDisabled();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bandItems,STORAGE_KEY)).toEqual({});
+  await minus.click(); await expect(input).toHaveValue('1');
+  await minus.click(); await expect(input).toHaveValue('0');
+  await expect(minus).toBeDisabled();
+  await input.fill('2'); // In numeric range, but not a catalog-defined level.
+  await expect(minus).toBeDisabled(); await expect(plus).toBeDisabled();
+  await page.locator('nav [data-tab=progress]').click();
+  await page.locator('nav [data-tab=items]').click();
+  await expect(input).toHaveValue('2'); // Do not guess or overwrite invalid drafts.
+  await input.fill('3');
+  await expect(minus).toBeEnabled(); await expect(plus).toBeDisabled();
+  await page.locator('#progress-form button[type=submit]').click();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bandItems,STORAGE_KEY)).toEqual({8601:3});
+  await page.reload(); await page.locator('nav [data-tab=items]').click();
+  await expect(page.locator('#item-8601')).toHaveValue('3');
+  await page.locator('#item-8601').fill('0');
+  await page.locator('#progress-form button[type=submit]').click();
+  expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bandItems,STORAGE_KEY)).toEqual({8601:null});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
 for (const count of [0, 1, 4, 6]) test(`non-five progress groups preserve all ${count} rows in catalog order`, async ({ page }) => {
