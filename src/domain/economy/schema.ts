@@ -31,15 +31,15 @@ export const supplyDefinitionSchema = object({schemaVersion:{const:2},catalogRev
 });
 export const economyScenarioSchema = {
   $schema:'https://json-schema.org/draft/2020-12/schema',
-  title:'Economy scenario v2',
-  ...object({format:{const:'atsudori-tools/economy-scenario'},schemaVersion:{const:2},catalogId:id,
+  title:'Economy scenario v3',
+  ...object({format:{const:'atsudori-tools/economy-scenario'},schemaVersion:{const:3},catalogId:id,
     startDate:date,endDate:date,rank:nullable(positive),
     live:object({enabled:{type:'boolean'},lbPerDay:int,skipPercent:{...int,maximum:100},playId:nullable(id),skipId:nullable(id),playsPerDay:nullable(int),skipsPerDay:nullable(int)}),
     studio:object({enabled:{type:'boolean'},levels:array(object({bandId:positive,level:positive})),
       claimEveryMinutes:{...positive,maximum:5270400},minutesPerDay:{...int,maximum:1440}}),
     dailyClaims:int,
     includeEvents:{type:'boolean'},
-    pass:nullable(object({passId:id,startsOn:date,claimDates:array(date,3660)})),
+    pass:nullable(object({passId:id})),
     fixedSources:array(object({sourceId:id,claims:int}))
 
   })

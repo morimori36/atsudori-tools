@@ -3,10 +3,10 @@ import type { StoragePort } from './local';
 import { exportEconomyScenario, importEconomyScenario, validateEconomyScenario } from '../domain/economy/validate';
 import type { EconomyScenario } from '../domain/economy/model';
 
-export const ECONOMY_STORAGE_KEY='atsudori-tools.economy-scenario.v2';
+export const ECONOMY_STORAGE_KEY='atsudori-tools.economy-scenario.v3';
 export function createEconomyStore(storage:StoragePort|undefined,initial:EconomyScenario) {
   const loaded=loadJson(storage,ECONOMY_STORAGE_KEY,importEconomyScenario);
-  let legacy:string|null=null;try{legacy=storage?.getItem('atsudori-tools.economy-scenario.v1')??null;}catch{/* storage error handled above */}
+  let legacy:string|null=null;try{legacy=storage?.getItem('atsudori-tools.economy-scenario.v2')??storage?.getItem('atsudori-tools.economy-scenario.v1')??null;}catch{/* storage error handled above */}
   let current=loaded.status==='loaded'?loaded.value:initial;
   let protectedData=loaded.status==='invalid'||loaded.status==='empty'&&legacy!==null;
   let unsaved=loaded.status==='unavailable';

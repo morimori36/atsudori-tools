@@ -24,6 +24,8 @@
 
 ## 保存と公開境界
 
-供給定義はcatalogの任意項目、実在庫はcollection、試算条件はschemaVersion=2の独立JSONです。保存キーは atsudori-tools.economy-scenario.v2。旧v1は交換条件を含むため非対応です。旧保存は自動変換・上書きせず、元JSONをExportしてからv2をImportするか、確認付きで試算条件を初期化できます。catalogの旧供給定義も新版定義の再Importが必要です。catalog・collection本体の既存形式は維持します。
+供給定義はcatalogの任意項目、実在庫はcollection、試算条件はschemaVersion=3の独立JSONです。保存キーは atsudori-tools.economy-scenario.v3。旧v1・v2は非対応です。旧保存は自動変換・上書きせず、元JSONをExportしてからv3をImportするか、確認付きで試算条件を初期化できます。catalogの旧供給定義も新版定義の再Importが必要です。catalog・collection本体の既存形式は維持します。
 
 試算条件のImport/Export、結果・育成条件・使用版・根拠・全明細のExportに対応します。保存失敗や破損保護を表示し、Import失敗は既存条件を維持します。実マスタ・個人情報は同梱せず、公開検証には独立した架空データを使用します。
+
+パスは試算開始日から全期間で同じグレードを継続し、外部定義の契約日数ごとに自動更新します。契約開始が期間内なら最終契約も全額・購入時報酬を計上し、日次報酬は毎日、週次権利は更新日と独立した連続期間のリセットだけで計上します。v2保存の元JSONを保護し、明示的なv3条件のImportまたは初期化を必要とします。

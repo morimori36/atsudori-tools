@@ -38,14 +38,14 @@ export interface SupplyDefinition {
   unavailable: Unavailable[];
 }
 export interface EconomyScenario {
-  format: 'atsudori-tools/economy-scenario'; schemaVersion: 2; catalogId: string;
+  format: 'atsudori-tools/economy-scenario'; schemaVersion: 3; catalogId: string;
   startDate: string; endDate: string; rank: number | null;
   live: { enabled: boolean; lbPerDay: number; skipPercent: number; playId: string | null; skipId: string | null;
     playsPerDay: number | null; skipsPerDay: number | null };
   studio: { enabled: boolean; levels: { bandId: number; level: number }[]; claimEveryMinutes: number; minutesPerDay: number };
   dailyClaims: number;
   includeEvents: boolean;
-  pass: { passId: string; startsOn: string; claimDates: string[] } | null;
+  pass: { passId: string } | null;
   fixedSources: { sourceId: string; claims: number }[];
 
 }

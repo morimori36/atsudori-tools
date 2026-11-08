@@ -4,7 +4,7 @@ import { materialInventoryBalances, validateResourceInventory } from '../materia
 import type { ResourceInventory } from '../materials/inventory';
 import type { Certainty, EconomyIssue, EconomyScenario, LedgerEntry, Named, Ratio, Rewards } from './model';
 import { validateEconomyScenario, validateSupplyDefinition, supplyIssues } from './validate';
-import { DAY, localDate, opportunities, period, startOfDate } from './time';
+import { DAY, localDate, opportunities, period } from './time';
 
 type Fraction = { n:bigint; d:bigint };
 const one:Fraction={n:1n,d:1n};
@@ -81,7 +81,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
     const ids=[...new Set([...inventoryIds(r),...unknown.flatMap(u=>u.resourceIds)])];
     issue(source.id,reason,ids,ids.length>0||unknown.length>0);
   }
-  let cashCostYen=0;
+  let cashCostYen=0,passContracts=0;
   const pay=(n:number)=>{cashCostYen=integer(BigInt(cashCostYen)+BigInt(n));};
   if(!definition)issue('supply','供給定義が未登録です。供給を計算できません');
   if(definition){
@@ -158,11 +158,13 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
       const p=found?{...found,id:'pass:'+found.id}:undefined;
       if(!p)issue(selection.passId,'選択したパスの定義がありません');
       else{
-        const begins=startOfDate(selection.startsOn,offset),expires=begins+p.durationDays*DAY;
-        job(begins,5,()=>{pay(p.priceYen);rewards(begins,{...p,name:p.name+' 購入時'},p.purchase,one,1,'conditional');});
-        for(const date of selection.claimDates){
-          const at=startOfDate(date,offset);
-          if(at<begins||at>=expires||at<start||at>=end)throw new Error('パス受取日は契約期間と試算期間内に指定してください');
+        const duration=p.durationDays*DAY;
+        for(let begins=start;begins<end;begins+=duration){
+          passContracts++;
+          const at=begins;
+          job(at,5,()=>{pay(p.priceYen);rewards(at,{...p,name:p.name+' 購入時'},p.purchase,one,1,'conditional');});
+        }
+        for(let at=start;at<end;at+=DAY){
           job(at,10,()=>rewards(at,{...p,name:p.name+' 日次'},p.daily,one,1,'conditional'));
           if(hasRewards(p.eventDaily)){
             const e=definition.standardEvent;
@@ -170,10 +172,8 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
             else estimate({...p,id:'pass:event',name:p.name+' イベント連動特典'},p.eventDaily,e.activeDays,e.intervalDays);
           }
         }
-        const a=Math.max(start,begins),b=Math.min(end,expires);
         if(!p.weeklyReset&&hasRewards(p.weekly))missingRewards(p,p.weekly,'パスの週次リセット時点が未確認です');
-        for(const at of p.weeklyReset?opportunities(a,b,p.weeklyReset,offset):[]){
-          if(at===start&&begins<start){missingRewards(p,p.weekly,'契約開始後の週次特典は、期間開始時点の受取状況が未確認です');continue;}
+        for(const at of p.weeklyReset?opportunities(start,end,p.weeklyReset,offset):[]){
           job(at,10,()=>rewards(at,{...p,name:p.name+' 週次権利'},p.weekly,one,1,'conditional'));
         }
       }
@@ -223,7 +223,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
     scenario,period:{startsAt:iso(start),endsAt:iso(end),days,utcOffsetMinutes:definition?.utcOffsetMinutes??null},
     eventForecast:scenario.includeEvents&&definition?.standardEvent?{equivalentEvents:days/definition.standardEvent.intervalDays,intervalDays:definition.standardEvent.intervalDays,activeDays:definition.standardEvent.activeDays}:null,
     assumptions:['開始日・終了日を含む期間です。','イベント供給は日数÷開催間隔。小数回を切り捨てず、全回収の標準報酬を比例配分します。','充足期間は今回の平均日次供給を維持する場合の概算です。パス購入時特典・一度きりの報酬も平均に含むため、継続入手を保証しません。','ライブ・練習・ランクは固定。期待と推計は確定在庫ではありません。'],
-    rows,ledger,issues,cashCostYen,requirementsIncomplete:requirements.incomplete,
+    rows,ledger,issues,cashCostYen,passContracts,requirementsIncomplete:requirements.incomplete,
     unsupportedInventory:initial.unsupported,
     entitlements:ledger.filter(e=>e.destination==='entitlement'),directRewards:ledger.filter(e=>e.destination==='direct'),
     dates:[...new Set(ledger.map(e=>localDate(Date.parse(e.at),offset)))]};

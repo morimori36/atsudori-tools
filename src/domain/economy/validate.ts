@@ -2,7 +2,7 @@ import { jsonValue } from '../../data/json';
 import type { Masterdata } from '../../data/catalog/model';
 import type { EconomyScenario, Rewards, Reset, SupplyDefinition, Window } from './model';
 import { economyScenarioSchema, supplyDefinitionSchema } from './schema';
-import { dateValue, period } from './time';
+import { period } from './time';
 
 type Shape = {type?:string;enum?:readonly unknown[];const?:unknown;anyOf?:Shape[];not?:Shape;
   minimum?:number;maximum?:number;minLength?:number;maxLength?:number;pattern?:string;
@@ -104,13 +104,12 @@ export function validateEconomyScenario(value:unknown):EconomyScenario {
   const {days}=period(s.startDate,s.endDate,0);
   if(s.dailyClaims>days)throw new Error('デイリー受取日数が試算期間を超えます');
   unique(s.studio.levels.map(r=>r.bandId),'練習バンド');unique(s.fixedSources.map(r=>r.sourceId),'固定報酬');
-  if(s.pass){dateValue(s.pass.startsOn);unique(s.pass.claimDates,'パスの受取日');s.pass.claimDates.forEach(dateValue);}
   return s;
 }
 export function importEconomyScenario(text:string):EconomyScenario {return validateEconomyScenario(jsonValue(text,5*1024*1024));}
 export function exportEconomyScenario(value:EconomyScenario):string {return JSON.stringify(validateEconomyScenario(value),null,2)+'\n';}
 export function emptyEconomyScenario(catalogId:string,date:string):EconomyScenario {
-  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:2,catalogId,startDate:date,endDate:date,rank:null,
+  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:3,catalogId,startDate:date,endDate:date,rank:null,
     live:{enabled:false,lbPerDay:0,skipPercent:0,playId:null,skipId:null,playsPerDay:null,skipsPerDay:null},
     studio:{enabled:false,levels:[],claimEveryMinutes:1440,minutesPerDay:1440},dailyClaims:0,includeEvents:true,pass:null,
     fixedSources:[]});
