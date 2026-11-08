@@ -1,6 +1,7 @@
 import { collectionCardAttributes, collectionCardIdentity, editableStages } from './collection-card';
 import { createResourceInventoryView } from './resource-inventory';
 import { createEconomyView } from './economy';
+import { createStarBudgetView } from './star-budget';
 import { createCharacterExpView } from './character-exp';
 import { applyTrainingConditions } from '../app/training-conditions';
 import { trainingConditions } from '../app/hypothetical-training';
@@ -52,10 +53,11 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'inventory' | 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event' | 'economy';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['economy', '素材別充足日数シミュレーター'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
+type Tab = 'inventory' | 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event' | 'economy' | 'star-budget';
+const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['economy', '素材別充足日数シミュレーター'], ['star-budget', 'スター予算'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
   ['inventory', '素材在庫'], ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
+  'star-budget': ['スター予算', '毎週の全交換予算とスターの週平均供給を、アワーノーツパス4種類で比較します。'],
   economy: ['素材別充足日数シミュレーター', '通常プレイと標準イベントの日平均供給から、育成素材の充足日数を概算します。'],
   inventory: ['素材在庫', '素材の現在庫を登録します。変更は自動保存されます。'],
   materials: ['必要素材', '共通育成条件で必要な素材と、素材別の消費内訳を確認します。'],
@@ -104,6 +106,7 @@ export function mountApp(root: HTMLElement): void {
     : loaded.status === 'unavailable' ? loaded.error : '';
   let active: Tab = 'rating';
   const eventPlanner = createEventPlanner(storage, syncSaveState);
+  const starBudget = createStarBudgetView(storage, download, syncSaveState);
   const rankRules = createRankRules(()=>master);
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(editableProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
@@ -375,6 +378,7 @@ export function mountApp(root: HTMLElement): void {
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
     if (active === 'economy') return '<div id="economy-simulator"></div>';
+    if (active === 'star-budget') return '<div id="star-budget"></div>';
     try { return catalogIssues(master).length && ['members','snaps','stamps','progress','items','materials','inventory'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'stamps' ? stampsMarkup(master,collection,stampFilters) : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : createMaterialsPage(master,collection,trainingSettings).html) : active === 'inventory' ? (inventoryView=createResourceInventoryView(master,collection,inventoryState)).html : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
@@ -384,15 +388,15 @@ export function mountApp(root: HTMLElement): void {
     noteListenerController.abort(); noteListenerController = new AbortController();
     flushAutosaves();
     const [title, description] = headings[active];
-    root.innerHTML = `<header class="site-header"><div class="brand"><span class="brand-mark" aria-hidden="true">ON</span><div><strong>atsudori-tools</strong><small>${active === 'event' ? 'イベント周回プランナー' : 'バンド評価値'}</small></div></div>
+    root.innerHTML = `<header class="site-header"><div class="brand"><span class="brand-mark" aria-hidden="true">ON</span><div><strong>atsudori-tools</strong><small>${active === 'star-budget' ? 'スター予算' : active === 'event' ? 'イベント周回プランナー' : 'バンド評価値'}</small></div></div>
       <div class="header-meta"><label class="theme-setting">表示 <select data-theme aria-label="表示テーマ"><option value="system">システム</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label><span class="save-state ${saved ? '' : 'unsaved'}" role="status">${saved ? 'ブラウザ内に保存' : '保存未完了'}</span></div></header>
       <div class="layout"><nav class="navigation" aria-label="メインメニュー">${tabs.map(([id, label]) => `<button data-tab="${id}" ${active === id ? 'class="active" aria-current="page"' : ''}>${label}${id === 'members' || id === 'snaps' ? `<span>${id === 'members' ? collection.members.length : collection.snaps.length}</span>` : ''}</button>`).join('')}</nav>
-      <main class="${active === 'rating' ? 'rating-page' : active === 'progress' || active === 'items' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
+      <main class="${active === 'rating' ? 'rating-page' : active === 'progress' || active === 'items' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'star-budget' ? 'STAR BUDGET' : active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
       ${pageBody()}
       <footer><p>非公式ツールです。ゲームの運営・開発元とは関係ありません。計算結果は推定式によるもので、ゲーム内の結果を保証しません。</p>
-        <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : active === 'economy' ? 'economy' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
+        <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'star-budget' ? 'star-budget' : active === 'event' ? 'event-planner' : active === 'economy' ? 'economy' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
     root.querySelectorAll<HTMLDetailsElement>('#progress-form details[data-progress-section]').forEach(d=>{d.open=progressExpanded.get(d.dataset.progressSection!)??false;});
     const themeSelect = root.querySelector<HTMLSelectElement>('[data-theme]')!;
     themeSelect.value = getTheme();
@@ -429,6 +433,7 @@ export function mountApp(root: HTMLElement): void {
     });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
     if (active === 'economy') economy.mount(root.querySelector<HTMLElement>('#economy-simulator')!);
+    if (active === 'star-budget') starBudget.mount(root.querySelector<HTMLElement>('#star-budget')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindStamps(root,master,collection,stampFilters, ids => {
       const previous=collection;
@@ -449,8 +454,8 @@ export function mountApp(root: HTMLElement): void {
   }
   function syncSaveState(): void {
     const state = root.querySelector<HTMLElement>('.save-state');
-    if (active === 'event' || active === 'economy') {
-      const eventState = active==='event'?eventPlanner.saveState():economy.saveState();
+    if (active === 'event' || active === 'economy' || active === 'star-budget') {
+      const eventState = active === 'star-budget' ? starBudget.saveState() : active==='event'?eventPlanner.saveState():economy.saveState();
       if (state) { state.textContent = eventState.label; state.classList.toggle('unsaved', eventState.unsaved); }
       return;
     }

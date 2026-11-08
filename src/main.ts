@@ -1,6 +1,7 @@
 import { mountApp } from './ui/app';
 import './ui/styles.css';
 import './ui/event-planner.css';
+import './ui/star-budget.css';
 import './ui/economy.css';
 
 const root = document.querySelector<HTMLElement>('#app');

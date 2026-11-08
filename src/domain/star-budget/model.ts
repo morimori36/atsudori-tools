@@ -1,0 +1,70 @@
+export const STAR_BUDGET_FORMAT = 'atsudori-tools/star-budget';
+export const PASS_GRADES = ['lite', 'standard', 'premium'] as const;
+export type PassGrade = typeof PASS_GRADES[number];
+export const PRODUCT_NAMES = {
+  'crystal-luck': '幸運のクリスタル',
+  'crystal-miracle': '奇跡のクリスタル',
+  'skill-live': 'ライブスキル強化チケット',
+  'skill-gekisou': '撃奏スキル強化チケット',
+  'skill-basic': '通常スキル強化チケット',
+  'skill-sp': 'SPスキル強化チケット',
+  'sr-1': 'SRピース（バンド1）',
+  'sr-2': 'SRピース（バンド2）',
+  'sr-3': 'SRピース（バンド3）',
+  'sr-4': 'SRピース（バンド4）',
+  'sr-5': 'SRピース（バンド5）',
+} as const;
+export type ProductId = keyof typeof PRODUCT_NAMES;
+export const PRODUCT_IDS = Object.keys(PRODUCT_NAMES) as ProductId[];
+export type EvidenceStatus = 'unconfirmed' | 'assumed' | 'confirmed';
+export interface BudgetValue {
+  value: number | null;
+  status: EvidenceStatus;
+  basis: string;
+}
+export interface BudgetProduct {
+  id: ProductId;
+  name: string;
+  unlockRank: BudgetValue;
+  // All tiers are fully exchanged. Limits count exchanges, including a pack as one exchange.
+  tiers: { starCost: BudgetValue; weeklyLimit: BudgetValue }[];
+}
+export interface StarBudgetDefinition {
+  revision: string;
+  loginDaily: BudgetValue;
+  missionDaily: BudgetValue;
+  liveStampWeekly: BudgetValue;
+  liveStampSelection: string;
+  event: {
+    intervalDays: BudgetValue;
+    points: BudgetValue;
+    missionFree: BudgetValue;
+    missionPremium: BudgetValue;
+    storyPerEpisode: BudgetValue;
+    storyEpisodes: BudgetValue;
+  };
+  season: { intervalDays: BudgetValue; free: BudgetValue; premium: BudgetValue };
+  arena: { intervalDays: BudgetValue; recurringStars: BudgetValue };
+  passes: Record<PassGrade, {
+    periodDays: BudgetValue;
+    purchaseStars: BudgetValue;
+    dailyStars: BudgetValue;
+    priceYen: BudgetValue;
+  }>;
+  starCompatibility: 'unconfirmed' | 'assumed-usable' | 'confirmed-usable' | 'restricted';
+  starCompatibilityBasis: string;
+  products: BudgetProduct[];
+}
+export interface StarBudgetInput {
+  format: typeof STAR_BUDGET_FORMAT;
+  schemaVersion: 1;
+  definition: StarBudgetDefinition;
+  scenario: {
+    rank: number | null;
+    storyEventPercent: number | null;
+    eventPremium: boolean;
+    seasonPremium: boolean;
+    includeArena: boolean;
+    selectedProducts: ProductId[];
+  };
+}
