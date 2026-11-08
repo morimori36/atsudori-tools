@@ -53,10 +53,10 @@ import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
 type Tab = 'inventory' | 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event' | 'economy';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['economy', '素材・経済シミュレーター'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
+const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['economy', '基本素材需給シミュレーター'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
   ['inventory', '素材在庫'], ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
-  economy: ['素材・経済シミュレーター', '指定期間の供給・交換・通貨収支と、育成目標までの不足を試算します。'],
+  economy: ['基本素材需給シミュレーター', '通常プレイと標準イベントの供給、育成目標までの不足・充足期間を試算します。'],
   inventory: ['素材在庫', '素材の現在庫を登録します。変更は自動保存されます。'],
   materials: ['必要素材', '共通育成条件で必要な素材と、素材別の消費内訳を確認します。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],

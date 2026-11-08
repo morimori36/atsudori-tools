@@ -7,7 +7,7 @@ export interface Unavailable { reason: string; resourceIds: string[]; destinatio
 /** An empty lottery outcome explicitly represents a miss. All weights must sum to totalWeight. */
 export interface Lottery { draws: Ratio; totalWeight: number; outcomes: { weight: number; rewards: Grant[] }[] }
 export interface Rewards { fixed: Grant[]; lotteries: Lottery[]; unavailable: Unavailable[] }
-export interface Reset { kind: 'once' | 'daily' | 'weekly' | 'monthly'; hour: number; weekday?: number; day?: number }
+export interface Reset { kind: 'daily' | 'weekly' | 'monthly'; hour: number; weekday?: number; day?: number }
 export interface Window { startsAt: string; endsAt: string }
 export interface Named { id: string; name: string; basis: string }
 export interface LiveSupply extends Named {
@@ -20,32 +20,27 @@ export interface StudioSupply {
   lotteryRounding: 'floor' | 'fractional' | null; rewards: Rewards; basis: string;
 }
 export interface RankSupply { rank: number; studioMultiplier: Ratio | null; daily: Rewards | null }
-export interface StandardEvent { intervalDays: number; activeDays: number | null; basis: string; cumulative: Rewards; limited: Rewards }
-export interface PassSupply extends Named {
-  durationDays: number; priceYen: number; purchase: Rewards; daily: Rewards;
-  weekly: Rewards; weeklyReset: Reset | null; eventDaily: Rewards; features: string[];
-}
+export interface StandardEvent { intervalDays: number; basis: string; cumulative: Rewards; limited: Rewards }
 export interface FixedSupply extends Named {
-  category: 'permanent' | 'oneTime' | 'paid'; reset: Reset; window: Window | null;
-  rewards: Rewards; priceYen: number;
+  reset: Reset; window: Window | null;
+  rewards: Rewards;
 }
 /** All resource IDs refer to materialDefinition; types never imply conversion between IDs. */
 export interface SupplyDefinition {
-  schemaVersion: 2;
+  schemaVersion: 3;
   catalogRevision: string; revision: string; basis: string; utcOffsetMinutes: number;
   currencies: string[]; lives: LiveSupply[]; studios: StudioSupply[]; ranks: RankSupply[];
-  standardEvent: StandardEvent | null; passes: PassSupply[]; fixedSources: FixedSupply[];
+  standardEvent: StandardEvent | null; fixedSources: FixedSupply[];
   unavailable: Unavailable[];
 }
 export interface EconomyScenario {
-  format: 'atsudori-tools/economy-scenario'; schemaVersion: 3; catalogId: string;
+  format: 'atsudori-tools/economy-scenario'; schemaVersion: 4; catalogId: string;
   startDate: string; endDate: string; rank: number | null;
   live: { enabled: boolean; lbPerDay: number; skipPercent: number; playId: string | null; skipId: string | null;
     playsPerDay: number | null; skipsPerDay: number | null };
   studio: { enabled: boolean; levels: { bandId: number; level: number }[]; claimEveryMinutes: number; minutesPerDay: number };
   dailyClaims: number;
   includeEvents: boolean;
-  pass: { passId: string } | null;
   fixedSources: { sourceId: string; claims: number }[];
 
 }

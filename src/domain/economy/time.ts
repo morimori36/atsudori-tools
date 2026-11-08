@@ -17,7 +17,6 @@ export function period(startDate:string,endDate:string,offset:number) {
 export function opportunities(start:number,end:number,rule:Reset,offset:number):number[] {
   if(start>=end)return [];
   const result=[start];
-  if(rule.kind==='once')return result;
   const shifted=start+offset*60000;
   let day=Math.floor(shifted/DAY)*DAY;
   for(;day-offset*60000<end;day+=DAY){

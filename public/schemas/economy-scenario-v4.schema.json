@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Economy scenario v3",
+  "title": "Economy scenario v4",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -8,7 +8,7 @@
       "const": "atsudori-tools/economy-scenario"
     },
     "schemaVersion": {
-      "const": 3
+      "const": 4
     },
     "catalogId": {
       "type": "string",
@@ -186,33 +186,6 @@
     "includeEvents": {
       "type": "boolean"
     },
-    "pass": {
-      "anyOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "passId": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
-              "not": {
-                "enum": [
-                  "__proto__",
-                  "prototype",
-                  "constructor"
-                ]
-              }
-            }
-          },
-          "required": [
-            "passId"
-          ]
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "fixedSources": {
       "type": "array",
       "maxItems": 1000,
@@ -255,7 +228,6 @@
     "studio",
     "dailyClaims",
     "includeEvents",
-    "pass",
     "fixedSources"
   ]
 }
