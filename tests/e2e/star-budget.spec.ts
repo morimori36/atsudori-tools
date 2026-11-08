@@ -160,6 +160,29 @@ test('retains invalid drafts across navigation and ignores an import overtaken b
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).scenario.rank, STAR_BUDGET_STORAGE_KEY)).toBe(14);
 });
 
+for (const valid of [true, false]) test(`pending import refreshes the remounted view, valid=${valid}`, async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const original = File.prototype.text;
+    File.prototype.text = function () { return new Promise<string>(resolve => { (window as unknown as { releaseBudgetImport: () => void }).releaseBudgetImport = () => { void original.call(this).then(resolve); }; }); };
+  });
+  const next = starBudgetFixture(); next.scenario.rank = 12;
+  await page.locator('[data-budget-file]').setInputFiles({ name: 'delayed.json', mimeType: 'application/json', buffer: Buffer.from(valid ? JSON.stringify(next) : 'invalid-json') });
+  await page.locator('nav [data-tab=manual]').click(); await page.locator(menu).click();
+  await expect(field(page, 'scenario.rank')).toHaveValue('13');
+  await page.evaluate(() => (window as unknown as { releaseBudgetImport: () => void }).releaseBudgetImport());
+  if (valid) {
+    await expect(field(page, 'scenario.rank')).toHaveValue('12');
+    await expect(balance(page)).toHaveText('+346.17');
+    await expect(page.locator('[data-budget-message]')).toContainText('Import・保存しました');
+  } else {
+    await expect(page.locator('[data-budget-message]')).toContainText('JSONとして読み込めません');
+    await expect(balance(page)).toHaveText('+106.17');
+  }
+  await field(page, 'scenario.storyEventPercent').fill('0');
+  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).scenario.rank, STAR_BUDGET_STORAGE_KEY)).toBe(valid ? 12 : 13);
+});
+
 test('keeps all four comparisons accessible on narrow dark screens', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 }); await setup(page);
   await page.locator('[data-theme]').selectOption('dark');

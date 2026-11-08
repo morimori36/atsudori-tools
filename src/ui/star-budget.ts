@@ -16,6 +16,7 @@ type Control = HTMLInputElement | HTMLSelectElement;
 export function createStarBudgetView(storage: StoragePort | undefined, download: (text: string, filename: string) => void, changed: () => void) {
   const store = createStarBudgetStore(storage);
   let message = '', invalid = '', importId = 0;
+  let currentHost: HTMLElement | undefined;
   const rawDraft = new Map<string, string | boolean>();
   // Browsers expose incomplete number tokens as an empty value. Keep their invalid
   // state across remounts so they cannot be mistaken for intentionally unknown input.
@@ -27,6 +28,7 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
   const checkbox = (path: string, label: string, checked: boolean): string => `<label class="budget-check"><input type="checkbox" name="${path}" data-path="${path}" ${checked ? 'checked' : ''}>${esc(label)}</label>`;
 
   function mount(host: HTMLElement): void {
+    currentHost = host;
     const input = store.current(), d = input.definition, s = input.scenario;
     host.innerHTML = `<section class="panel budget-toolbar"><h2>スター予算のデータ</h2><p>実ゲームの報酬・価格は同梱していません。条件・定義JSONをImportするか、下の「定義・根拠」を入力してください。数値の入力時は「手入力の仮定」として扱います。</p><p data-budget-message role="status"></p>${store.protected() ? `<p role="alert">既存の条件を保護しています。元JSONをExportし、対応するJSONのImportまたは初期化で復旧してください。</p>${store.original() !== undefined ? '<button type="button" class="secondary" data-budget-original>元JSONをExport</button>' : ''}` : ''}<div class="budget-actions"><button type="button" class="primary" data-budget-import>条件・定義JSONをImport</button><input type="file" accept=".json,application/json" hidden data-budget-file><button type="button" class="secondary" data-budget-export>条件・定義JSONをExport</button><button type="button" class="secondary" data-budget-retry>保存を再試行</button><button type="button" class="secondary danger" data-budget-reset>スター予算を初期化</button></div></section>
       <form id="star-budget-form"><fieldset class="budget-form-body" ${store.protected() ? 'disabled' : ''}><section class="panel"><h2>試算条件・毎週の全交換</h2><div class="form-grid">${field('scenario.rank', 'T.G.Wランク', s.rank, true, 1)}${field('scenario.storyEventPercent', 'ストーリー付きイベント割合（%）', s.storyEventPercent, true)}</div><p class="muted">ストーリーなしは0、毎回ありは100。対象回の全話を回収する想定です。入力変更のたび再計算・自動保存します。</p><div class="budget-checks">${checkbox('scenario.eventPremium', 'イベントミッションPremiumを購入', s.eventPremium)}${checkbox('scenario.seasonPremium', 'シーズンミッションPremiumを購入', s.seasonPremium)}${checkbox('scenario.includeArena', 'プラチナ1の反復スターを含む（存在確認が必要）', s.includeArena)}</div>
@@ -151,8 +153,8 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
         const next = importStarBudget(raw); calculateStarBudget(next);
         if (store.protected() && !window.confirm('保護中のスター予算をImportしたJSONで置き換えます。元JSONをExport済みですか？')) return;
         store.update(next, { recover: true, atomic: true }); rawDraft.clear(); incompleteNumbers.clear(); invalid = ''; message = 'スター予算をImport・保存しました';
-        if (host.isConnected) mount(host);
-      } catch (error) { if (id === importId) { message = errorText(error); if (host.isConnected) updateMessages(); } }
+        if (currentHost?.isConnected) mount(currentHost);
+      } catch (error) { if (id === importId) { message = errorText(error); if (currentHost?.isConnected) mount(currentHost); } }
     });
     function tiers(index: number, remove?: number): void {
       action(() => {
