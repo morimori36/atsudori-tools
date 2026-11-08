@@ -1,0 +1,7 @@
+.economy-table-wrap { max-width:100%; overflow-x:auto; margin-block:1rem; }
+.economy-table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+.economy-table th,.economy-table td { padding:.6rem; text-align:right; white-space:nowrap; }
+.economy-table th:first-child { text-align:left; }
+#economy-simulator details { margin-block:1rem; }
+#economy-simulator pre { max-height:30rem; overflow:auto; }
+#economy-simulator input[type=checkbox] { width:auto; }

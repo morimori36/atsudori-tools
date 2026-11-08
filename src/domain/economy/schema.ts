@@ -1,0 +1,38 @@
+const int = { type:'integer', minimum:0, maximum:Number.MAX_SAFE_INTEGER };
+const positive = { ...int, minimum:1 };
+const text = { type:'string', minLength:1, maxLength:200, pattern:'\\S' };
+const id = { type:'string', pattern:'^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$', not:{enum:['__proto__','prototype','constructor']} };
+const enumeration = (values: readonly string[]) => ({ enum:values });
+const nullable = (s:unknown) => ({anyOf:[s,{type:'null'}]});
+const array = (items:unknown,maxItems=1000) => ({type:'array',maxItems,items});
+const object = (properties:Record<string,unknown>, required=Object.keys(properties)) => ({type:'object',additionalProperties:false,properties,required});
+const ratio = object({numerator:int,denominator:positive});
+const grant = object({resourceId:id,quantity:int,destination:enumeration(['inventory','direct','entitlement'])});
+const unavailable = object({reason:text,resourceIds:array(id),destination:enumeration(['inventory','direct','entitlement'])},['reason','resourceIds']);
+const rewards = object({fixed:array(grant),lotteries:array(object({draws:ratio,totalWeight:positive,
+  outcomes:array(object({weight:positive,rewards:array(grant)}))})),unavailable:array(unavailable)});
+const named = {id,name:text,basis:text};
+export const supplyDefinitionSchema = object({schemaVersion:{const:4},catalogRevision:id,revision:id,basis:text,
+  currencies:array(id),
+  lives:array(object({...named,mode:enumeration(['play','skip']),scoreRank:text,lbMultiplier:positive,perLb:rewards,perPlay:rewards})),
+  studios:array(object({bandId:positive,level:positive,tickMinutes:positive,rewardScale:ratio,normalMinutes:int,capMinutes:nullable(int),
+    overflowRate:nullable(ratio),rounding:nullable(enumeration(['claim','tick'])),lotteryRounding:nullable(enumeration(['floor','fractional'])),rewards,basis:text})),
+  ranks:array(object({rank:positive,studioMultiplier:nullable(ratio),daily:nullable(rewards)})),
+  standardEvent:nullable(object({intervalDays:positive,basis:text,cumulative:rewards,limited:rewards})),
+  fixedSources:array(object({...named,intervalDays:nullable(object({numerator:positive,denominator:positive})),rewards})),
+  unavailable:array(unavailable)
+});
+export const economyScenarioSchema = {
+  $schema:'https://json-schema.org/draft/2020-12/schema',
+  title:'Material clearance scenario v5',
+  ...object({format:{const:'atsudori-tools/economy-scenario'},schemaVersion:{const:5},catalogId:id,
+    rank:nullable(positive),
+    live:object({enabled:{type:'boolean'},lbPerDay:int,skipPercent:{...int,maximum:100},playId:nullable(id),skipId:nullable(id),playsPerDay:nullable(int),skipsPerDay:nullable(int)}),
+    studio:object({enabled:{type:'boolean'},levels:array(object({bandId:positive,level:positive})),
+      claimEveryMinutes:{...positive,maximum:5270400},minutesPerDay:{...int,maximum:1440}}),
+    includeRankDaily:{type:'boolean'},
+    includeEvents:{type:'boolean'},
+    fixedSources:array(object({sourceId:id,claimPercent:{...int,maximum:100}}))
+
+  })
+};

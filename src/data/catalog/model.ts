@@ -64,6 +64,7 @@ export interface Masterdata {
   songClearCounts?: Record<string, number>;
   stamps?: StampMaster[];
   materialDefinition?: import('../../domain/materials/model').MaterialDefinition;
+  supplyDefinition?: import('../../domain/economy/model').SupplyDefinition;
   /** Static progression definitions and total-rank bonus table, supplied with this catalog. */
   rankDefinition?: RankDefinition;
   schemaVersion: 1;

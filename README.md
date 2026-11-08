@@ -1,6 +1,6 @@
 # atsudori-tools
 
-アツドリのバンド評価値とイベント周回計画を計算する、非公式の静的Webアプリです。メニューから評価値計算機とイベント周回プランナーを切り替えられます。ゲーム運営・開発元とは関係ありません。総合力の計算や編成最適化は対象外です。
+アツドリのバンド評価値・イベント周回計画・素材の充足日数を計算する、非公式の静的Webアプリです。メニューから評価値計算機・イベント周回プランナー・素材別充足日数シミュレーターを切り替えられます。ゲーム運営・開発元とは関係ありません。総合力の計算や編成最適化は対象外です。
 
 **カード等のマスターデータは同梱していません。** ランク推定用のミッション条件・報酬・累積EXPも同梱しません。 利用する権利のあるマスタJSONをImportしてください。外部サービスからの自動取得、ログイン、サーバー、サーバー側DBはありません。マスタがなくても起動し、表示値で個別計算できます。
 
@@ -42,6 +42,7 @@ npm run audit:public
 - [catalog内のランク定義・推定と未算出時の扱い](docs/character-rank.md)
 - [変換プロファイルによるJSON出力](docs/profile-export.md)
 - [イベント周回プランナー](docs/event-planner.md) / [周回プランJSON Schema](public/schemas/event-planner-v1.schema.json)
+- [素材別充足日数シミュレーター](docs/economy.md) / [試算条件Schema](public/schemas/economy-scenario-v5.schema.json)（供給定義は外部catalogへ内包）
 - [公開手順](docs/deployment.md) / [公開データの範囲](docs/separation.md) / [非公開回帰の実行](docs/private-regression.md)
 - [開発参加](CONTRIBUTING.md) / [権利表示](THIRD_PARTY_NOTICES.md)
 

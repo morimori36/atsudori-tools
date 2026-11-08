@@ -1,5 +1,7 @@
 # JSONインポート仕様 v1
 
+素材別充足日数シミュレーターはcatalog v1の任意項目 `supplyDefinition` を使用します。供給資源は `materialDefinition.resources` のIDを参照します。供給定義のない旧catalogは変更不要です。供給定義はv4、試算条件はv5を使用し、旧ドラフトの交換・契約・期間項目を含む形式は非対応です。ユーザーの試算条件は独立したformat・保存キーで管理します。[供給定義・シナリオの仕様](economy.md)を参照してください。
+
 catalogは共通のカード・育成定義、collectionは利用者の所持・進行状態です。どちらもサービス非依存で、出典URLやGitコミットを要求しません。自動取得・変換・送信はしません。
 
 イベント周回プランナーは別format・別保存キーです。この文書のcatalog/collectionとは独立した仕様です。[周回プランJSON仕様](event-planner.md#保存json)を参照してください。

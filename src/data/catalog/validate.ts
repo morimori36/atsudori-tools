@@ -1,4 +1,5 @@
 import { validateMaterialDefinition, materialIssues } from '../../domain/materials/validate';
+import { validateSupplyDefinition, supplyIssues } from '../../domain/economy/validate';
 import type { Masterdata } from './model';
 import { tableFields, tableKeys, optionalTableFields } from './fields';
 import type { CatalogTable, FieldKind } from './fields';
@@ -34,7 +35,7 @@ const identity = (v: unknown, path: string): string => {
 /** Structure validation permits an explicit draft. Missing relationships are never filled in. */
 export function validateCatalog(value: unknown): Masterdata {
   const keys = ['format','schemaVersion','catalogId','revision', ...Object.keys(tableFields)];
-  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','songClearCounts','stamps','skillCategories'],keys);
+  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','supplyDefinition','songClearCounts','stamps','skillCategories'],keys);
   if (root.format !== 'atsudori-tools/catalog') fail('$.format', 'catalog形式ではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の形式です。明示的な変換が必要です');
   identity(root.catalogId, '$.catalogId'); identity(root.revision, '$.revision');
@@ -93,6 +94,7 @@ export function validateCatalog(value: unknown): Masterdata {
   }
   if(root.rankDefinition !== undefined) result.rankDefinition=validateRankDefinition(root.rankDefinition);
   if(root.materialDefinition !== undefined) result.materialDefinition=validateMaterialDefinition(root.materialDefinition);
+  if(root.supplyDefinition !== undefined) result.supplyDefinition=validateSupplyDefinition(root.supplyDefinition);
   return result as unknown as Masterdata;
 }
 export function emptyCatalog(): Masterdata {
@@ -101,7 +103,7 @@ export function emptyCatalog(): Masterdata {
 }
 /** Completeness/semantics gate for imports and calculation. Draft editing is a separate path. */
 export function catalogIssues(m: Masterdata): string[] {
-  const issues: string[] = materialIssues(m);
+  const issues: string[] = [...materialIssues(m),...supplyIssues(m)];
   const need = (ok: boolean, p: string, text: string): void => { if (!ok && issues.length < 100) issues.push(p + ': ' + text); };
   const exists = (rows: readonly {id:number}[], id: number) => rows.some(r => r.id === id);
   for (const [rows, fields] of [
@@ -193,7 +195,7 @@ export function exportCatalog(m: Masterdata): string {
 }
 
 /** Legacy hashes covered only the original catalog tables. Used solely for migration/compatibility. */
-export function catalogBase(master: Masterdata): Omit<Masterdata,'rankDefinition'|'materialDefinition'> {
-  const {rankDefinition,materialDefinition,...base}=validateCatalog(master);
+export function catalogBase(master: Masterdata): Omit<Masterdata,'rankDefinition'|'materialDefinition'|'supplyDefinition'> {
+  const {rankDefinition,materialDefinition,supplyDefinition,...base}=validateCatalog(master);
   return base;
 }
