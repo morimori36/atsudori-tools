@@ -1,77 +1,29 @@
-# 素材・経済シミュレーター
+# 基本素材供給シミュレーター
 
-メニューの「素材・経済シミュレーター」で、期間内の素材供給・通貨交換・用途配分を試算します。素材需要は現在の所持と共通育成条件から毎回再計算します。所持・在庫・カードの育成状態は変更しません。
+必要素材は現在の所持・共通育成条件から `calculateMaterialRequirementsToTarget()` で算出し、`materialInventoryBalances()` で登録在庫と比較します。所持状態・在庫は変更しません。
 
-## 使い方
+ライブ・スキップ、練習、ランク報酬、固定報酬、パスの基本供給を見積もります。有償・無償スターは異なる資源IDの獲得量として比較します。無料抽選などは利用権の表示に留めます。
 
-1. `materialDefinition` と `supplyDefinition` を含むcatalogをImportし、素材在庫で現在庫を登録します。空欄と在庫0は別です。有償・無償通貨も別の素材IDに登録します。
-2. 開始日・終了日、固定するランク、LB消費・通常／スキップのランク、バンド別練習Lvと受取条件を入力します。期間ボタンは1・7・30日、任意期間は最大3660日です。
-3. イベントの回収日・到達pt・全回収・制限商品全交換、商品別の購入数量と購入済み数を指定します。無制限商品は指定数量だけを交換します。数量0は購入しません。
-4. パス、固定報酬の受取回数、外部収入、ガチャ・LB回復・将来用の確保を選択し、「試算して条件を保存」を押します。パス比較は各契約を1回購入し、期間内の契約日をすべて受け取る条件で比較します。
-5. 素材／通貨収支、利用権／直接EXP、未確認・未実行、取得元と根拠の明細を確認します。「結果・前提をExport」は共通育成条件・catalogの版・全明細・未計算理由を含むJSONを出力します。「条件JSON」は再Importできます。
+## 標準イベント
 
-入力途中の値は画面切替でも保持し、未反映と表示します。共通育成条件は他の画面と共用し、変更すると保存済みシナリオの需要を再計算します。保存条件とcatalogIdが異なる場合は計算を保留します。対応catalogまたは条件JSONをImportするか、試算条件を初期化してください。
+供給定義は supplyDefinition.schemaVersion=2 を必須とします。外部catalogの supplyDefinition.standardEvent は intervalDays（正整数の開催間隔）、activeDays（開催日数、未確認はnull）、basis（仮定の根拠）、cumulative（累計全回収分）、limited（個数制限商品全回収分）を持ちます。未登録はnullです。各報酬は fixed・lotteries・unavailable の配列です。
 
-## 確実性と残高
+報酬の生成側は累計全回収分と個数制限商品だけの素材を集約します。バッジ自体、余剰分、無制限商品の素材を含めません。アプリには個別イベントID・期間・到達pt・商品情報を取り込みません。標準報酬への集約は利用する権利のあるデータの管理側で行います。
 
-- 確定収入、選択した達成・購入・受取を前提にした条件付き収入、抽選の期待収入を分離します。期待値は在庫登録値や購入資金には使いません。
-- 計算済み残高は、登録現在庫＋確定・条件付き収入−実行済み支出−確保分です。推定不足には抽選の期待値も含みます。未確認の供給・必要数・現在庫があれば、全体の推定不足は未確認です。既知の小計と未確認の理由を残します。
-- 有償・無償スター、交換通貨、EXP、複製などの異なるIDは自動換算しません。直接付与EXPと無料抽選の利用権は在庫とは別の明細です。無料抽選からカードや星のシールを生成しません。
-- 収支は日時順。同日時は購入時特典、その他の収入、用途配分、catalog配列順の商品購入です。購入は要求数量の全体を満たす場合だけ実行し、残高に合わせて黙って減らしません。費用が複数資源でも一括検査します。現在庫未登録の資源を使う支出は保留します。
-- 将来用の確保は支出とは別列に記録し、購入可能残高から除きます。ガチャへの支出はカード獲得、LB回復への支出はLB増加を自動生成しません。プレイ予定をLB消費入力に反映してください。
+想定開催回数＝期間日数÷開催間隔。小数回を切り捨てずに報酬へ乗じ、確定供給・抽選期待値と別の「推計」として記録します。10日間隔なら30日で3回、365日で36.5回相当。開始日によって開催回数は変わりません。10日は暫定の想定であり、コードへ確定仕様として埋め込みません。供給定義の間隔を変更すると結果が変わり、画面とExportに使用値・根拠を表示します。
 
-## catalog内の供給定義
+パスのイベント連動特典は、受取日数×activeDays÷intervalDaysで推計します。開催日数・特典条件が未確認なら計上を保留します。基本イベント報酬にパス特典を含めず、別の取得元で記録します。
 
-catalog v1の任意項目 `supplyDefinition` を使用します。未登録の旧catalogとcollectionは従来どおり有効です。構造は[Schema](../public/schemas/catalog-v1.schema.json)、参照・意味検証は `src/domain/economy/validate.ts` です。実定義、取得機能、上流固有形式の変換は同梱しません。
+## 表示と前提
 
-全数量は非負の安全な整数。比率は `{numerator, denominator}`（分母は正整数）。IDは素材と同じ識別子規則で、危険なキーを拒否します。全ての資源参照は `materialDefinition.resources` 内のIDです。根拠 `basis`、名称はテキストです。版を推測しません。
+資源別に必要・現在庫・基本供給・イベント推計・パス追加・推定不足・充足期間を表示します。基本供給中の抽選期待値は明細で確定供給と区別します。必要数未計算・在庫未登録・供給定義不足では、全体の不足と充足期間は未確認です。
 
-| 項目 | 内容 |
-| --- | --- |
-| catalogRevision, revision, basis | 包含catalogと一致する版、供給定義の版、根拠 |
-| utcOffsetMinutes | 日付・リセットに使用するUTC差。固定オフセットを明示する。夏時間を推測しない |
-| currencies | 通貨収支へ分類する素材ID。分類は換算規則ではない |
-| lives | id/name/basis、mode（play/skip）、scoreRank、lbMultiplier、perLb、perPlay |
-| studios | bandId/level、tickMinutes、rewardScale、normalMinutes、capMinutes、overflowRate、rounding、lotteryRounding、rewards、basis |
-| ranks | rank、studioMultiplier、daily |
-| events | id/name/basis、startsAt/endsAt、milestones、repeat |
-| offers | id/name/basis、scope、任意eventId、minimumRank、costs、rewards、limit、reset、window |
-| passes | id/name/basis、durationDays/priceYen、purchase/daily/weekly/eventDaily、weeklyReset、features |
-| fixedSources | id/name/basis、category（permanent/oneTime/paid）、reset/window、rewards、priceYen |
-| unavailable | 未取得・未確認の定義と影響する資源ID |
+充足期間は今回の平均日次供給が継続すると仮定した日数（切上げ）です。一度きりの特典・期間限定パスも平均に含むため、継続的な入手や正確な達成日を保証しません。供給0では到達を推定しません。
 
-各配列は1000件以内、構造検査は全体20万要素以内、catalog全体は既存の10MiB上限です。任意のeventCoverageは開催カレンダーの収録範囲を示すWindowです。範囲未指定・範囲外でイベントがない日を、開催なしと推測しません。試算は処理10万件・明細20万件までとし、超過をエラーにします。定義不足を正常な収入0として扱いません。
+ライブの期間LBを通常とスキップへ配分し、スキップ分を切り捨てます。直接EXPは在庫から分離します。練習は蓄積単位・受取間隔・上限・通常効率・ランク倍率・登録された端数処理を使用し、不明な規則は保留します。パスの購入時・日次報酬は契約期間内だけ、週次権利は定義されたリセットに従います。未購入と各パスで同じ素材需要を比較できます。
 
-### 報酬・抽選
+## 保存と公開境界
 
-`Rewards` は `fixed`, `lotteries`, `unavailable` の3配列を必須とします。確認済みの報酬なしは空配列で表します。未取得は `unavailable: [{reason, resourceIds, destination?}]`、対象資源自体が不明なら空の `resourceIds` です。destination省略は在庫への影響、direct/entitlementは直接報酬・権利の保留で、在庫の不足判定とは分離します。
+供給定義はcatalogの任意項目、実在庫はcollection、試算条件はschemaVersion=2の独立JSONです。保存キーは atsudori-tools.economy-scenario.v2。旧v1は交換条件を含むため非対応です。旧保存は自動変換・上書きせず、元JSONをExportしてからv2をImportするか、確認付きで試算条件を初期化できます。catalogの旧供給定義も新版定義の再Importが必要です。catalog・collection本体の既存形式は維持します。
 
-固定報酬は `{resourceId, quantity, destination}`。destinationは `inventory`（在庫）、`direct`（直接付与）、`entitlement`（権利）。抽選は `{draws: Ratio, totalWeight, outcomes: [{weight, rewards: Grant[]}]}`。外れも空rewardsのoutcomeで明示し、重み合計はtotalWeightと完全一致させます。素材別期待値は抽選回数×重みの割合×数量です。確率や回数の欠落は補完しません。
-
-ライブは `perLb` の基礎報酬×lbMultiplier×LB消費数です。期間全体でスキップLBを割合から切り捨て、残りを通常プレイに割り当てます。直接EXPは `perPlay` に分け、入力した実行回数だけで計算します。通常・スキップの定義は独立です。日次ライブ報酬は日末に受け取り、将来日の報酬で前日の商品を買いません。
-
-### スタジオ練習
-
-指定した蓄積時間を受取間隔で区切り、期間末も受け取ります。各受取でcapMinutes（nullは上限なし）を適用し、tickMinutes未満を切り捨てます。normalMinutes以降のtickにはoverflowRateを適用します。時間・上限はtickの倍数が必要です。overflowRate=nullで超過した場合は通常分の小計と、未確認の超過分を分けます。
-
-ランクのstudioMultiplierと、報酬単位を蓄積単位へ換算するrewardScaleを固定報酬と抽選回数の両方へ適用します。rounding=`claim` は受取単位、`tick` は蓄積単位で固定報酬を切り捨てます。抽選回数はlotteryRounding=`floor` で同じ単位で切り捨て、`fractional` は期待回数を維持します。丸め規則null、ランク倍率null、対象Lv欠落は計算を保留します。端数処理は整数比の演算で行います。練習Lvの成長・途中残時間の持越しはシミュレーションしません。
-
-### イベント・交換・リセット
-
-日時は正規の `YYYY-MM-DDTHH:mm:ssZ`。windowは開始を含み終了を含みません。シナリオの日付は開始・終了の両日を含みます。終了日しか分からない上流の秒単位包含時刻は、生成側で終了の次の瞬間へ正規化してください。
-
-累計報酬は `{points, excludeOnFullCollection, rewards}`。全回収時だけ指定された最終通貨を除外し、他の報酬と混ぜません。repeat=`{startsAfter, everyPoints, rewards}` は `max(0, floor((到達pt−startsAfter)/everyPoints))` 回です。設定なしはnull。到達ptなしでは繰り返し数量を未確認にします。イベント通貨は先に在庫へ計上し、交換を経由して素材へ変換します。全回収と低すぎる到達ptの矛盾は拒否します。
-
-商品scopeは `catalog/seal/event/other`。eventは参照イベントを必須とし、回収日時以降を対象にします。minimumRank=nullはランク制限なし、limit=nullは無制限です。costsは同時に支払う資源の配列。代替通貨や為替を推測しません。購入方針のquantityはリセット期間ごとの購入数、alreadyPurchasedは最初の期間だけの購入済み数です。イベントの制限商品全交換は残り枠を購入します。
-
-reset=`{kind, hour, weekday?, day?}`。kindはonce/daily/weekly/monthly。weeklyのみweekday（0=日曜）、monthlyのみday（1〜28）を指定します。最初のリセット期間の残り枠を1回数え、期間内の境界ごとに新しい枠を加えます。30日を4週には換算しません。月末29〜31日、夏時間、未知のリセット規則は未対応として生成側で保留してください。
-
-パスの購入時特典・価格は契約開始が試算期間内の場合だけ、dailyは指定受取日だけ、weeklyは契約内の週次機会、eventDailyはイベントの開催日だけを数えます。期間前に契約開始した場合は、最初の週次枠の受取状況を未確認として保留します。時短機能はfeaturesの説明だけで、報酬倍率に加えません。初回・継続購入の特別特典や複数契約の重複は推測しません。
-
-## 計算と保存の境界
-
-`simulateEconomy()` は `applyTrainingConditions()` → `calculateMaterialRequirementsToTarget()` → `calculateEconomy()` の純粋な経路です。在庫比較は `materialInventoryBalances()` を共用し、素材ごとに一度だけ在庫を引きます。費用未計算項目も結果Exportへ含めます。供給はカード状態を変更せず、育成素材を実際に支出しません。
-
-シナリオは[独立Schema](../public/schemas/economy-scenario-v1.schema.json)、format=`atsudori-tools/economy-scenario`、schemaVersion=1、保存キー=`atsudori-tools.economy-scenario.v1`、上限5MiBです。静的供給定義はcatalog内、ユーザーの期間・練習Lv・ランク・交換方針はシナリオ内、実在庫はcollection内です。共通育成条件は既存の保存とUIを使用します。結果JSONは入力・育成条件・版・根拠を含む説明用の出力で、所持Importには使用できません。
-
-起動だけでは保存しません。破損条件の元JSONはExportでき、正しい条件JSONのImportまたは確認付きの初期化まで保護します。失敗したImportは既存条件を変更しません。通常の保存失敗は未保存と表示し、試算・現在の条件Exportは利用できます。所持とcatalogの初期化は試算条件を削除しません。
+試算条件のImport/Export、結果・育成条件・使用版・根拠・全明細のExportに対応します。保存失敗や破損保護を表示し、Import失敗は既存条件を維持します。実マスタ・個人情報は同梱せず、公開検証には独立した架空データを使用します。

@@ -51,9 +51,8 @@ function window(value:Window):void {
 }
 export function validateSupplyDefinition(value:unknown):SupplyDefinition {
   const d=structural<SupplyDefinition>(value,supplyDefinitionSchema);
-  for(const rows of [d.lives,d.events,d.offers,d.passes,d.fixedSources])unique(rows.map(r=>r.id),'供給ID');
+  for(const rows of [d.lives,d.passes,d.fixedSources])unique(rows.map(r=>r.id),'供給ID');
   unique(d.currencies,'通貨ID');unique(d.ranks.map(r=>r.rank),'ランク');
-  if(d.eventCoverage)window(d.eventCoverage);
   unique(d.studios.map(r=>r.bandId+':'+r.level),'練習Lv');
   for(const r of d.lives)for(const grant of [...r.perLb.fixed,...r.perLb.lotteries.flatMap(l=>l.outcomes.flatMap(o=>o.rewards))])
     if(grant.destination==='direct')throw new Error('直接EXPはライブ回数ごとの報酬に分離してください');
@@ -61,19 +60,14 @@ export function validateSupplyDefinition(value:unknown):SupplyDefinition {
     if(r.normalMinutes%r.tickMinutes||r.capMinutes!==null&&(r.capMinutes<r.normalMinutes||r.capMinutes%r.tickMinutes))throw new Error('練習時間・上限は蓄積単位の倍数で指定してください');
     if(r.overflowRate&&r.overflowRate.numerator>r.overflowRate.denominator)throw new Error('超過時の練習効率は1以下で指定してください');
   }
-  for(const e of d.events){window(e);unique(e.milestones.map(m=>m.points),'累計報酬pt');
-    if(e.repeat&&e.milestones.some(m=>m.points>e.repeat!.startsAfter))throw new Error('繰り返し開始ptが累計報酬の最終ptより小さい値です');}
-  for(const o of d.offers){reset(o.reset);if(o.window)window(o.window);
-    if((o.scope==='event')!==(o.eventId!==undefined)||o.eventId&&!d.events.some(e=>e.id===o.eventId))throw new Error('イベント商品は対応するイベントIDが必要です');
-    unique(o.costs.map(a=>a.resourceId),'商品費用');
-    if(o.costs.length&&!o.costs.some(a=>a.quantity>0))throw new Error('無料商品は費用の空配列で明示してください');}
+  if(d.standardEvent && d.standardEvent.activeDays!==null && d.standardEvent.activeDays>d.standardEvent.intervalDays)throw new Error('標準開催日数は開催間隔以下が必要です');
   for(const p of d.passes)if(p.weeklyReset){reset(p.weeklyReset);if(p.weeklyReset.kind!=='weekly')throw new Error('パスの週次リセットを指定してください');}
   for(const f of d.fixedSources){reset(f.reset);if(f.window)window(f.window);
     if(f.category==='oneTime'&&f.reset.kind!=='once')throw new Error('一度きりの報酬には一度きりのリセットを指定してください');
     if((f.category==='paid')!==(f.priceYen>0))throw new Error('有料報酬と価格の指定が一致しません');}
   const all:Rewards[]=[...d.lives.flatMap(r=>[r.perLb,r.perPlay]),...d.studios.map(r=>r.rewards),
-    ...d.ranks.flatMap(r=>r.daily?[r.daily]:[]),...d.events.flatMap(e=>[...e.milestones.map(m=>m.rewards),...(e.repeat?[e.repeat.rewards]:[])]),
-    ...d.offers.map(o=>o.rewards),...d.passes.flatMap(p=>[p.purchase,p.daily,p.weekly,p.eventDaily]),...d.fixedSources.map(f=>f.rewards)];
+    ...d.ranks.flatMap(r=>r.daily?[r.daily]:[]),...(d.standardEvent?[d.standardEvent.cumulative,d.standardEvent.limited]:[]),
+    ...d.passes.flatMap(p=>[p.purchase,p.daily,p.weekly,p.eventDaily]),...d.fixedSources.map(f=>f.rewards)];
   for(const reward of all){
     unique(reward.fixed.map(g=>g.destination+':'+g.resourceId),'固定報酬');
     for(const lottery of reward.lotteries){
@@ -109,24 +103,15 @@ export function validateEconomyScenario(value:unknown):EconomyScenario {
   const s=structural<EconomyScenario>(value,economyScenarioSchema);
   const {days}=period(s.startDate,s.endDate,0);
   if(s.dailyClaims>days)throw new Error('デイリー受取日数が試算期間を超えます');
-  unique(s.studio.levels.map(r=>r.bandId),'練習バンド');unique(s.events.map(r=>r.eventId),'イベント選択');
-  unique(s.purchases.map(r=>r.offerId),'購入方針');unique(s.fixedSources.map(r=>r.sourceId),'固定報酬の選択');
-  unique(s.allocations.map(r=>r.id),'配分ID');unique(s.externalIncome.map(r=>r.id),'外部収入ID');
-  for(const row of [...s.events.map(e=>({date:e.claimDate})),...s.externalIncome,...s.allocations]){
-    dateValue(row.date);if(row.date<s.startDate||row.date>s.endDate)throw new Error('受取・支出日は試算期間内に指定してください');
-  }
-  for(const r of [...s.externalIncome,...s.allocations]){
-    const amounts='amounts' in r?r.amounts:r.costs;unique(amounts.map(a=>a.resourceId),'入出金の素材ID');
-    if(!amounts.some(a=>a.quantity>0))throw new Error('入出金には正の数量が必要です');
-  }
+  unique(s.studio.levels.map(r=>r.bandId),'練習バンド');unique(s.fixedSources.map(r=>r.sourceId),'固定報酬');
   if(s.pass){dateValue(s.pass.startsOn);unique(s.pass.claimDates,'パスの受取日');s.pass.claimDates.forEach(dateValue);}
   return s;
 }
 export function importEconomyScenario(text:string):EconomyScenario {return validateEconomyScenario(jsonValue(text,5*1024*1024));}
 export function exportEconomyScenario(value:EconomyScenario):string {return JSON.stringify(validateEconomyScenario(value),null,2)+'\n';}
 export function emptyEconomyScenario(catalogId:string,date:string):EconomyScenario {
-  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:1,catalogId,startDate:date,endDate:date,rank:null,
+  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:2,catalogId,startDate:date,endDate:date,rank:null,
     live:{enabled:false,lbPerDay:0,skipPercent:0,playId:null,skipId:null,playsPerDay:null,skipsPerDay:null},
-    studio:{enabled:false,levels:[],claimEveryMinutes:1440,minutesPerDay:1440},dailyClaims:0,events:[],purchases:[],pass:null,
-    fixedSources:[],externalIncome:[],allocations:[]});
+    studio:{enabled:false,levels:[],claimEveryMinutes:1440,minutesPerDay:1440},dailyClaims:0,includeEvents:true,pass:null,
+    fixedSources:[]});
 }

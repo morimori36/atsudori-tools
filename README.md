@@ -42,7 +42,7 @@ npm run audit:public
 - [catalog内のランク定義・推定と未算出時の扱い](docs/character-rank.md)
 - [変換プロファイルによるJSON出力](docs/profile-export.md)
 - [イベント周回プランナー](docs/event-planner.md) / [周回プランJSON Schema](public/schemas/event-planner-v1.schema.json)
-- [素材・経済シミュレーター](docs/economy.md) / [試算条件Schema](public/schemas/economy-scenario-v1.schema.json)（供給定義は外部catalogへ内包）
+- [素材・経済シミュレーター](docs/economy.md) / [試算条件Schema](public/schemas/economy-scenario-v2.schema.json)（供給定義は外部catalogへ内包）
 - [公開手順](docs/deployment.md) / [公開データの範囲](docs/separation.md) / [非公開回帰の実行](docs/private-regression.md)
 - [開発参加](CONTRIBUTING.md) / [権利表示](THIRD_PARTY_NOTICES.md)
 

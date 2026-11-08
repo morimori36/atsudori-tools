@@ -41,4 +41,4 @@ mkdirSync('public/schemas',{recursive:true});
 for (const [name,value] of [['catalog',catalog],['collection',collection],['event-planner',eventPlannerSchema]] as const)
   writeFileSync('public/schemas/' + name + '-v1.schema.json',JSON.stringify(value,null,2)+'\n');
 writeFileSync('public/schemas/conversion-profile-v2.schema.json',JSON.stringify(conversionProfileSchema,null,2)+'\n');
-writeFileSync('public/schemas/economy-scenario-v1.schema.json',JSON.stringify(economyScenarioSchema,null,2)+'\n');
+writeFileSync('public/schemas/economy-scenario-v2.schema.json',JSON.stringify(economyScenarioSchema,null,2)+'\n');

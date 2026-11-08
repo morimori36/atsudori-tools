@@ -2,7 +2,7 @@ import type { Masterdata } from '../../data/catalog/model';
 import type { MaterialRequirements } from '../materials/calculate';
 import { materialInventoryBalances, validateResourceInventory } from '../materials/inventory';
 import type { ResourceInventory } from '../materials/inventory';
-import type { Certainty, EconomyIssue, EconomyScenario, LedgerEntry, Named, Offer, Ratio, Rewards } from './model';
+import type { Certainty, EconomyIssue, EconomyScenario, LedgerEntry, Named, Ratio, Rewards } from './model';
 import { validateEconomyScenario, validateSupplyDefinition, supplyIssues } from './validate';
 import { DAY, localDate, opportunities, period, startOfDate } from './time';
 
@@ -20,7 +20,7 @@ const inventoryIds=(r:Rewards):string[]=>[...new Set([...r.fixed,...r.lotteries.
 const hasRewards=(r:Rewards)=>r.fixed.length+r.lotteries.length+r.unavailable.length>0;
 const iso=(at:number)=>new Date(at).toISOString();
 
-/** Pure accounting. Expected rewards never enter spendable balances. Unknown starting stock stays unknown. */
+/** Pure accounting. Estimates stay separate from fixed inventory. Unknown starting stock stays unknown. */
 export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,requirements:MaterialRequirements,input:EconomyScenario) {
   validateResourceInventory(inventory);
   const scenario=validateEconomyScenario(input);
@@ -38,7 +38,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
     if(issues.length>=2000)throw new Error('未確認・未実行項目が上限を超えます。試算条件を絞ってください');
     issues.push({sourceId,reason,resourceIds,blocksProjection});
   }
-  const funds=new Map(resources.map(r=>[r.id,{confirmed:inventory[r.id]??0,conditional:0,known:Object.hasOwn(inventory,r.id)}]));
+  const stocks=new Map(resources.map(r=>[r.id,{confirmed:inventory[r.id]??0,conditional:0,known:Object.hasOwn(inventory,r.id)}]));
   type Job={at:number;priority:number;order:number;run:()=>void};
   const jobs:Job[]=[];
   function job(at:number,priority:number,run:()=>void):void {
@@ -52,8 +52,8 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
     safe(quantity);
     if(ledger.length>=200000)throw new Error('試算明細が上限を超えます。期間や対象を絞ってください');
     ledger.push({at:iso(at),sourceId:source.id,sourceName:source.name,basis:source.basis,resourceId,quantity,destination,certainty,conditional});
-    if(destination==='inventory'&&quantity>0&&certainty!=='expected'){
-      const f=funds.get(resourceId)!;const field=certainty==='confirmed'?'confirmed':'conditional';safe(f.confirmed+f.conditional+quantity);f[field]=safe(f[field]+quantity);
+    if(destination==='inventory'&&quantity>0&&certainty!=='expected'&&certainty!=='estimated'){
+      const f=stocks.get(resourceId)!;const field=certainty==='confirmed'?'confirmed':'conditional';safe(f.confirmed+f.conditional+quantity);f[field]=safe(f[field]+quantity);
     }
   }
   function rewards(at:number,source:Named,r:Rewards,factor=one,count=1,certainty:'confirmed'|'conditional'='confirmed',lotteryRounding:'floor'|'fractional'='fractional'):void {
@@ -83,34 +83,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
   }
   let cashCostYen=0;
   const pay=(n:number)=>{cashCostYen=integer(BigInt(cashCostYen)+BigInt(n));};
-  function spend(at:number,source:Named,costs:{resourceId:string;quantity:number}[],reserve=false,conditional=false):boolean {
-    for(const cost of costs){
-      const f=funds.get(cost.resourceId);
-      if(!f)throw new Error('支出に未登録の素材IDがあります');
-      if(!f.known){issue(source.id,'現在庫が未登録のため支出を保留しました',[cost.resourceId],false);return false;}
-      if(f.confirmed+f.conditional<cost.quantity){issue(source.id,'通貨・素材の残高不足のため支出を実行できませんでした',[cost.resourceId],false);return false;}
-    }
-    conditional ||= costs.some(c=>funds.get(c.resourceId)!.confirmed<c.quantity);
-    for(const cost of costs){
-      const f=funds.get(cost.resourceId)!;const confirmed=Math.min(f.confirmed,cost.quantity);
-      f.confirmed-=confirmed;f.conditional-=cost.quantity-confirmed;
-      entry(at,source,cost.resourceId,-cost.quantity,reserve?'reservation':'inventory',conditional?'conditional':'confirmed');
-    }
-    return true;
-  }
-  function offerJob(offer:Offer,at:number,quantity:number):void {
-    if(!quantity)return;
-    job(at,30,()=>{
-      if(offer.minimumRank!==null&&(scenario.rank===null||scenario.rank<offer.minimumRank)){
-        issue(offer.id,'必要ランクを満たすと確認できないため購入を保留しました',offer.costs.map(c=>c.resourceId),false);return;
-      }
-      const costs=offer.costs.map(c=>({...c,quantity:integer(BigInt(c.quantity)*BigInt(quantity))}));
-      // A policy is atomic: never silently reduce a requested purchase quantity.
-      const conditioned=offer.scope==='event'||costs.some(c=>(funds.get(c.resourceId)?.confirmed??0)<c.quantity);
-      if(spend(at,offer,costs,false,conditioned))rewards(at,offer,offer.rewards,one,quantity,conditioned?'conditional':'confirmed');
-    });
-  }
-  if(!definition)issue('supply','供給定義が未登録です。供給・交換を計算できません');
+  if(!definition)issue('supply','供給定義が未登録です。供給を計算できません');
   if(definition){
     for(const u of definition.unavailable)issue('supply',u.reason,u.resourceIds,!u.destination||u.destination==='inventory');
     const rank=definition.ranks.find(r=>r.rank===scenario.rank);
@@ -166,59 +139,23 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
       if(!rank?.daily)issue(source.id,'指定ランクのデイリー報酬が未確認です');
       else for(let day=0;day<scenario.dailyClaims;day++){const at=start+day*DAY;job(at,10,()=>rewards(at,source,rank.daily!));}
     }
-    const eventClaims=new Map<string,number>();
-    for(const selected of scenario.events){
-      const event=definition.events.find(e=>e.id===selected.eventId);
-      if(!event){issue(selected.eventId,'選択したイベントの定義がありません');continue;}
-      const at=Math.max(startOfDate(selected.claimDate,offset),Date.parse(event.startsAt));
-      if(at>=Date.parse(event.endsAt)||at>=end||at<start)throw new Error('イベントの受取日が開催期間外です');
-      if(selected.fullCollection&&selected.points!==null&&event.milestones.some(m=>m.points>selected.points!))throw new Error('イベント全回収に必要な累計ptを満たしていません');
-      eventClaims.set(event.id,at);
-      if(!selected.fullCollection&&selected.points===null){
-        const ids=[...new Set(event.milestones.flatMap(m=>inventoryIds(m.rewards)))];
-        issue('event:'+event.id,'累計報酬の到達ptが未設定です',ids,ids.length>0);
-      }
-      for(const milestone of event.milestones){
-        if(selected.fullCollection&&milestone.excludeOnFullCollection)continue;
-        if(selected.fullCollection||selected.points!==null&&selected.points>=milestone.points){
-          const source={...event,id:'event:'+event.id+':'+milestone.points,name:event.name+' 累計報酬'};
-          job(at,10,()=>rewards(at,source,milestone.rewards,one,1,'conditional'));
-        }
-      }
-      if(event.repeat){
-        const source={...event,id:'event:'+event.id+':repeat',name:event.name+' 繰り返し報酬'};
-        if(selected.points===null)missingRewards(source,event.repeat.rewards,'到達ptが未設定のため繰り返し報酬の数量は未確認です');
-        else {const count=Math.max(0,Math.floor((selected.points-event.repeat.startsAfter)/event.repeat.everyPoints));
-          if(count)job(at,10,()=>rewards(at,source,event.repeat!.rewards,one,count,'conditional'));}
+    function estimate(source:Named,r:Rewards,numerator:number,denominator=1):void {
+      for(const u of r.unavailable)issue(source.id,u.reason,u.resourceIds,!u.destination||u.destination==='inventory');
+      for(const g of r.fixed)entry(end-1,source,g.resourceId,decimal(times(units(g.quantity),{n:BigInt(numerator),d:BigInt(denominator)})),g.destination,'estimated',true);
+      for(const l of r.lotteries)for(const o of l.outcomes)for(const g of o.rewards)
+        entry(end-1,source,g.resourceId,safe(numerator/denominator*l.draws.numerator/l.draws.denominator*o.weight/l.totalWeight*g.quantity),g.destination,'estimated',true);
+    }
+    if(scenario.includeEvents){
+      const e=definition.standardEvent;
+      if(!e)issue('standard-event','標準イベント報酬・開催間隔が未登録です');
+      else {
+        estimate({id:'standard-event:cumulative',name:'標準イベント累計',basis:e.basis},e.cumulative,days,e.intervalDays);
+        estimate({id:'standard-event:limited',name:'標準イベント制限商品分',basis:e.basis},e.limited,days,e.intervalDays);
       }
     }
-    for(const offer of definition.offers){
-      const policy=scenario.purchases.find(p=>p.offerId===offer.id);
-      const event=scenario.events.find(e=>e.eventId===offer.eventId);
-      const allLimited=event?.buyLimited&&offer.limit!==null;
-      if(!policy&&!allLimited)continue;
-      let from=start,to=end;
-      if(offer.window){from=Math.max(from,Date.parse(offer.window.startsAt));to=Math.min(to,Date.parse(offer.window.endsAt));}
-      if(offer.eventId){
-        const e=definition.events.find(e=>e.id===offer.eventId)!;
-        const claim=eventClaims.get(e.id);
-        if(claim===undefined){issue(offer.id,'イベントの受取条件が未設定です',offer.costs.map(c=>c.resourceId),false);continue;}
-        from=Math.max(from,claim);if(!offer.window)to=Math.min(to,Date.parse(e.endsAt));
-      }
-      const dates=opportunities(from,to,offer.reset,offset);
-      dates.forEach((at,index)=>{
-        const used=index===0?(policy?.alreadyPurchased??0):0;
-        if(offer.limit!==null&&used>offer.limit){issue(offer.id,'購入済み数が商品上限を超えています',offer.costs.map(c=>c.resourceId),false);return;}
-        const remaining=offer.limit===null?Infinity:Math.max(offer.limit-used,0);
-        const quantity=allLimited?remaining:policy!.quantity;
-        if(quantity>remaining){issue(offer.id,'購入方針が残り購入上限を超えています',offer.costs.map(c=>c.resourceId),false);return;}
-        offerJob(offer,at,quantity);
-      });
-      if(!dates.length)issue(offer.id,'試算期間内に購入できる機会がありません',[],false);
-    }
-    for(const p of scenario.purchases)if(!definition.offers.some(o=>o.id===p.offerId))issue(p.offerId,'選択した商品定義がありません');
     if(scenario.pass){
-      const selection=scenario.pass,p=definition.passes.find(p=>p.id===selection.passId);
+      const selection=scenario.pass,found=definition.passes.find(p=>p.id===selection.passId);
+      const p=found?{...found,id:'pass:'+found.id}:undefined;
       if(!p)issue(selection.passId,'選択したパスの定義がありません');
       else{
         const begins=startOfDate(selection.startsOn,offset),expires=begins+p.durationDays*DAY;
@@ -227,9 +164,11 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
           const at=startOfDate(date,offset);
           if(at<begins||at>=expires||at<start||at>=end)throw new Error('パス受取日は契約期間と試算期間内に指定してください');
           job(at,10,()=>rewards(at,{...p,name:p.name+' 日次'},p.daily,one,1,'conditional'));
-          const active=definition.events.filter(e=>Date.parse(e.startsAt)<at+DAY&&Date.parse(e.endsAt)>at);
-          if(active.length){const eventAt=Math.max(at,Math.min(...active.map(e=>Date.parse(e.startsAt))));job(eventAt,10,()=>rewards(eventAt,{...p,name:p.name+' イベント日次'},p.eventDaily,one,1,'conditional'));}
-          else if(hasRewards(p.eventDaily)&&(!definition.eventCoverage||at<Date.parse(definition.eventCoverage.startsAt)||at+DAY>Date.parse(definition.eventCoverage.endsAt)))missingRewards(p,p.eventDaily,'イベント開催定義の収録期間外のためイベント日次特典は未確認です');
+          if(hasRewards(p.eventDaily)){
+            const e=definition.standardEvent;
+            if(!e||e.activeDays===null)missingRewards(p,p.eventDaily,'イベント連動特典の標準開催日数・適用条件は未確認です');
+            else estimate({...p,id:'pass:event',name:p.name+' イベント連動特典'},p.eventDaily,e.activeDays,e.intervalDays);
+          }
         }
         const a=Math.max(start,begins),b=Math.min(end,expires);
         if(!p.weeklyReset&&hasRewards(p.weekly))missingRewards(p,p.weekly,'パスの週次リセット時点が未確認です');
@@ -248,22 +187,14 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
       for(const at of dates.slice(0,selected.claims))job(at,10,()=>{pay(source.priceYen);rewards(at,source,source.rewards,one,1,'conditional');});
     }
   }
-  for(const income of scenario.externalIncome){
-    const at=startOfDate(income.date,offset),source={...income,id:'external:'+income.id,basis:'シナリオの外部入力'};
-    job(at,10,()=>{for(const a of income.amounts)entry(at,source,a.resourceId,a.quantity,'inventory','conditional');});
-  }
-  for(const allocation of scenario.allocations){
-    const at=startOfDate(allocation.date,offset),source={...allocation,id:'allocation:'+allocation.id,basis:'選択した用途: '+allocation.purpose};
-    job(at,20,()=>{spend(at,source,allocation.costs,allocation.purpose==='reserve');});
-  }
   jobs.sort((a,b)=>a.at-b.at||a.priority-b.priority||a.order-b.order).forEach(j=>j.run());
   const initial=materialInventoryBalances(requirements,inventory);
-  const finalInventory=Object.fromEntries([...funds].filter(([,f])=>f.known).map(([id,f])=>[id,safe(f.confirmed+f.conditional)]));
+  const finalInventory=Object.fromEntries([...stocks].filter(([,f])=>f.known).map(([id,f])=>[id,safe(f.confirmed+f.conditional)]));
   const afterFixed=materialInventoryBalances(requirements,finalInventory);
   const original=new Map(initial.balances.map(r=>[r.resource.id,r]));
   const final=new Map(afterFixed.balances.map(r=>[r.resource.id,r]));
   const byResource=new Map<string,LedgerEntry[]>();
-  for(const e of ledger)if(e.destination==='inventory'||e.destination==='reservation'){
+  for(const e of ledger)if(e.destination==='inventory'){
     if(!byResource.has(e.resourceId))byResource.set(e.resourceId,[]);byResource.get(e.resourceId)!.push(e);
   }
   const rows=resources.map(resource=>{
@@ -272,26 +203,26 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
     const stock=Object.hasOwn(inventory,resource.id)?inventory[resource.id]!:null;
     const fixedStock=stock===null?null:finalInventory[resource.id]!;
     const expectedIncome=sum(e=>e.certainty==='expected');
+    const eventIncome=sum(e=>e.certainty==='estimated'&&e.sourceId.startsWith('standard-event:'));
+    const passIncome=sum(e=>e.sourceId.startsWith('pass')&&e.quantity>0);
+    const estimatedIncome=sum(e=>e.certainty==='estimated');
     const supplyIncomplete=issues.some(i=>i.blocksProjection&&(!i.resourceIds.length||i.resourceIds.includes(resource.id)));
-    const estimatedStock=fixedStock===null||supplyIncomplete?null:safe(fixedStock+expectedIncome);
+    const estimatedStock=fixedStock===null||supplyIncomplete?null:safe(fixedStock+expectedIncome+estimatedIncome);
     const required=original.get(resource.id)?.required??0;
     return {resource,currency:definition?.currencies.includes(resource.id)??false,required,stock,
       currentShortage:original.get(resource.id)?.shortage??null,
       confirmedIncome:sum(e=>e.quantity>0&&e.certainty==='confirmed'),conditionalIncome:sum(e=>e.quantity>0&&e.certainty==='conditional'),expectedIncome,
-      spent:Math.abs(sum(e=>e.quantity<0&&e.destination==='inventory')),reserved:Math.abs(sum(e=>e.destination==='reservation')),
+      eventIncome,passIncome,estimatedIncome,eventUnknown:scenario.includeEvents&&(!definition?.standardEvent||issues.some(i=>i.sourceId.startsWith('standard-event:')&&(!i.resourceIds.length||i.resourceIds.includes(resource.id)))),
+      clearanceDays:stock===null||supplyIncomplete||requirements.incomplete?null:required<=stock?0:(sum(()=>true)>0?Math.ceil((required-stock)/(sum(()=>true)/days)):null),
       fixedStock,estimatedStock,shortageAfterFixed:final.get(resource.id)?.shortage??null,
       estimatedShortage:estimatedStock===null||requirements.incomplete?null:Math.max(0,required-estimatedStock),
       supplyIncomplete,demandIncomplete:requirements.incomplete,sources:[...new Set(entries.map(e=>e.sourceName))]};
   });
-  return {format:'atsudori-tools/economy-result' as const,schemaVersion:1 as const,
+  return {format:'atsudori-tools/economy-result' as const,schemaVersion:2 as const,
     catalog:{catalogId:master.catalogId,revision:master.revision,supplyRevision:definition?.revision??null},
     scenario,period:{startsAt:iso(start),endsAt:iso(end),days,utcOffsetMinutes:definition?.utcOffsetMinutes??null},
-    assumptions:['開始日・終了日を含む期間です。','条件付き報酬は選択した受取・達成・購入を前提とします。',
-      '期待値は抽選の平均です。購入資金には含めません。','期間開始時の残り購入枠は購入済み数の入力を使います。',
-      '通常ライブとスキップのLBは期間全体で配分し、スキップ分を切り捨てます。',
-      '同日時は収入、用途配分、商品の定義順に処理します。日次ライブ報酬は日末に受け取ります。',
-      '練習は期間末にも受け取り、受取ごとに蓄積単位未満の時間を切り捨てます。',
-      'デイリー・固定報酬は指定回数分を期間内の早い受取機会から数えます。'],
+    eventForecast:scenario.includeEvents&&definition?.standardEvent?{equivalentEvents:days/definition.standardEvent.intervalDays,intervalDays:definition.standardEvent.intervalDays,activeDays:definition.standardEvent.activeDays}:null,
+    assumptions:['開始日・終了日を含む期間です。','イベント供給は日数÷開催間隔。小数回を切り捨てず、全回収の標準報酬を比例配分します。','充足期間は今回の平均日次供給を維持する場合の概算です。パス購入時特典・一度きりの報酬も平均に含むため、継続入手を保証しません。','ライブ・練習・ランクは固定。期待と推計は確定在庫ではありません。'],
     rows,ledger,issues,cashCostYen,requirementsIncomplete:requirements.incomplete,
     unsupportedInventory:initial.unsupported,
     entitlements:ledger.filter(e=>e.destination==='entitlement'),directRewards:ledger.filter(e=>e.destination==='direct'),

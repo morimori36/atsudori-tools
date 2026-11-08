@@ -1,31 +1,7 @@
-.economy-inputs details,.economy-results details { margin-block:1rem; }
-.economy-inputs summary,.economy-results summary { cursor:pointer; font-weight:600; padding-block:.5rem; }
-.economy-inputs fieldset { border:1px solid var(--line); border-radius:8px; margin-block:1rem; padding:1rem; min-width:0; }
-.economy-inputs .form-grid { margin-block:.75rem; }
-.economy-presets { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin-block:1rem; }
-.economy-submit { display:flex; align-items:center; flex-wrap:wrap; gap:1rem; margin-block:1.5rem 0; }
 .economy-table-wrap { max-width:100%; overflow-x:auto; margin-block:1rem; }
-.economy-table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; font-size:.875rem; }
-.economy-table th,.economy-table td { padding:.65rem .8rem; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+.economy-table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+.economy-table th,.economy-table td { padding:.6rem; text-align:right; white-space:nowrap; }
 .economy-table th:first-child { text-align:left; }
-.economy-table th small { display:block; font-weight:400; opacity:.7; }
-.economy-results .economy-table td:last-child { min-width:12rem; max-width:24rem; white-space:normal; }
-.economy-amount { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:1rem; margin-block:1rem; }
-.economy-flow { border-bottom:1px solid var(--line); padding-bottom:1rem; margin-bottom:1rem; }
-.economy-results pre { max-height:20rem; overflow:auto; font-size:.8rem; }
-.economy-results h3 { margin-top:1.5rem; }
-.economy-mobile-balances { display:none; }
-@media (max-width:600px) {
-  .economy-inputs .panel-heading { flex-wrap:wrap; }
-  .economy-table th,.economy-table td { padding:.5rem; }
-  .economy-summary-table,.economy-table-hint { display:none; }
-  .economy-mobile-balances { display:grid; gap:1rem; }
-  .economy-resource-card { border:1px solid var(--line); border-radius:8px; padding:1rem; overflow-wrap:anywhere; }
-  .economy-resource-card h4 { margin:0; }
-  .economy-resource-card p { margin:.5rem 0; }
-  .economy-resource-card dl { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.65rem; font-variant-numeric:tabular-nums; }
-  .economy-resource-card dl div { min-width:0; }
-  .economy-resource-card dt { font-size:.75rem; color:var(--muted); }
-  .economy-resource-card dd { margin:0; }
-  .economy-resource-card small { color:var(--muted); }
-}
+#economy-simulator details { margin-block:1rem; }
+#economy-simulator pre { max-height:30rem; overflow:auto; }
+#economy-simulator input[type=checkbox] { width:auto; }
