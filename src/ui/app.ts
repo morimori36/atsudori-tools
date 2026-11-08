@@ -8,7 +8,7 @@ import { automaticCharacterProgress } from '../domain/character-rank/automatic-p
 import { cardIdentity, rarity } from './card-identity';
 import { bandItemsForDisplay } from './band-item-order';
 import { progressCharacters, characterDisplayOrder, characterRowsForDisplay } from './character-order';
-import { createMaterialsPage } from './materials';
+import { createMaterialsPage, bindMaterialCopy, materialShortageText } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
 import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
 type Theme = 'light' | 'dark' | 'system';
@@ -408,6 +408,7 @@ export function mountApp(root: HTMLElement): void {
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
     if (active === 'rating' || active === 'materials' || active === 'progress') bindTrainingSettings(root,trainingSettings);
+    if (active === 'materials') bindMaterialCopy(root,()=>materialShortageText(master,collection,trainingSettings.current()));
     if (active === 'progress') characterExpView?.bind(root,refreshProgress);
     if (active === 'inventory') inventoryView?.bind(root, inventory=>{
       const previous=collection;
