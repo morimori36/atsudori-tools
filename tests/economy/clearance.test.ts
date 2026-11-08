@@ -39,6 +39,25 @@ it('averages recurring reward cadence and applies the same receive rate continuo
  f.supply.fixedSources[0]!.intervalDays=null;expect(paper(f)).toMatchObject({dailySupply:null,knownDailySupply:5,status:'unknown'});
  f.scenario.fixedSources[0]!.claimPercent=0;expect(paper(f).dailySupply).toBe(5);
 });
+it('keeps unscoped missing inventory rewards unknown for every resource',()=>{
+ const f=economyFixture();f.scenario.includeEvents=false;
+ f.supply.fixedSources=[{id:'uncertain',name:'架空の周期不明報酬',basis:'独立した架空の不明条件',intervalDays:null,
+   rewards:{...reward(grant('paper',70)),unavailable:[{reason:'対象素材不明',resourceIds:[]}]}}];
+ f.scenario.fixedSources=[{sourceId:'uncertain',claimPercent:100}];
+ const unscoped=run(f);
+ expect(unscoped.issues).toContainEqual(expect.objectContaining({sourceId:'uncertain',resourceIds:[],blocksProjection:true}));
+ expect(unscoped.rows.find(r=>r.resource.id==='paper')).toMatchObject({dailySupply:null,supplyIncomplete:true,status:'unknown'});
+ expect(unscoped.rows.find(r=>r.resource.id==='member-exp')).toMatchObject({
+   shortage:999,knownDailySupply:0,dailySupply:null,supplyIncomplete:true,clearanceDays:null,status:'unknown'});
+ // A specified resource remains scoped; direct-only uncertainties must not block inventory.
+ f.supply.fixedSources[0]!.rewards.unavailable=[{reason:'紙のみ不明',resourceIds:['paper']}];
+ const scoped=run(f);
+ expect(scoped.rows.find(r=>r.resource.id==='paper')).toMatchObject({dailySupply:null,status:'unknown'});
+ expect(scoped.rows.find(r=>r.resource.id==='member-exp')).toMatchObject({dailySupply:0,supplyIncomplete:false,status:'unreachable'});
+ f.supply.fixedSources[0]!.rewards.unavailable=[{reason:'直接付与のみ不明',resourceIds:[],destination:'direct'}];
+ const direct=run(f);
+ expect(direct.rows.find(r=>r.resource.id==='member-exp')).toMatchObject({dailySupply:0,supplyIncomplete:false,status:'unreachable'});
+});
 it('rounds collection rewards before daily averaging and never invents a partial end collection',()=>{
  const f=economyFixture();f.scenario.includeEvents=false;
  Object.assign(f.scenario.studio,{enabled:true,levels:[{bandId:8101,level:8}],minutesPerDay:25,claimEveryMinutes:120});

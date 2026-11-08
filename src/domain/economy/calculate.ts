@@ -66,7 +66,9 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
   }
   function missingRewards(source:Named,r:Rewards,reason:string):void {
     const unknown=r.unavailable.filter(u=>!u.destination||u.destination==='inventory');
-    const ids=[...new Set([...inventoryIds(r),...unknown.flatMap(u=>u.resourceIds)])];
+    // An unscoped inventory unknown affects all resources, even when known grants have IDs.
+    const unscoped=unknown.some(u=>u.resourceIds.length===0);
+    const ids=unscoped?[]:[...new Set([...inventoryIds(r),...unknown.flatMap(u=>u.resourceIds)])];
     issue(source.id,reason,ids,ids.length>0||unknown.length>0);
   }
   if(!definition)issue('supply','供給定義が未登録です。日平均供給を計算できません');
