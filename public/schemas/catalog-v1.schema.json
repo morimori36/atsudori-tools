@@ -429,6 +429,3135 @@
         "bindings"
       ]
     },
+    "supplyDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "catalogRevision": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+          "not": {
+            "enum": [
+              "__proto__",
+              "prototype",
+              "constructor"
+            ]
+          }
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+          "not": {
+            "enum": [
+              "__proto__",
+              "prototype",
+              "constructor"
+            ]
+          }
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "utcOffsetMinutes": {
+          "type": "integer",
+          "minimum": -840,
+          "maximum": 840
+        },
+        "currencies": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+            "not": {
+              "enum": [
+                "__proto__",
+                "prototype",
+                "constructor"
+              ]
+            }
+          }
+        },
+        "lives": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                "not": {
+                  "enum": [
+                    "__proto__",
+                    "prototype",
+                    "constructor"
+                  ]
+                }
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "mode": {
+                "enum": [
+                  "play",
+                  "skip"
+                ]
+              },
+              "scoreRank": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "lbMultiplier": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "perLb": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "perPlay": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "basis",
+              "mode",
+              "scoreRank",
+              "lbMultiplier",
+              "perLb",
+              "perPlay"
+            ]
+          }
+        },
+        "studios": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "bandId": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "tickMinutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "rewardScale": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "numerator": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "denominator": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "numerator",
+                  "denominator"
+                ]
+              },
+              "normalMinutes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "capMinutes": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "overflowRate": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "numerator": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "denominator": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "numerator",
+                      "denominator"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rounding": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "claim",
+                      "tick"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lotteryRounding": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "floor",
+                      "fractional"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rewards": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "bandId",
+              "level",
+              "tickMinutes",
+              "rewardScale",
+              "normalMinutes",
+              "capMinutes",
+              "overflowRate",
+              "rounding",
+              "lotteryRounding",
+              "rewards",
+              "basis"
+            ]
+          }
+        },
+        "ranks": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rank": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "studioMultiplier": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "numerator": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "denominator": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "numerator",
+                      "denominator"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "daily": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "fixed": {
+                        "type": "array",
+                        "maxItems": 1000,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "resourceId": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                              "not": {
+                                "enum": [
+                                  "__proto__",
+                                  "prototype",
+                                  "constructor"
+                                ]
+                              }
+                            },
+                            "quantity": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "destination": {
+                              "enum": [
+                                "inventory",
+                                "direct",
+                                "entitlement"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "resourceId",
+                            "quantity",
+                            "destination"
+                          ]
+                        }
+                      },
+                      "lotteries": {
+                        "type": "array",
+                        "maxItems": 1000,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "draws": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "numerator": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "denominator": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "numerator",
+                                "denominator"
+                              ]
+                            },
+                            "totalWeight": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            },
+                            "outcomes": {
+                              "type": "array",
+                              "maxItems": 1000,
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "weight": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "rewards": {
+                                    "type": "array",
+                                    "maxItems": 1000,
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "resourceId": {
+                                          "type": "string",
+                                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                          "not": {
+                                            "enum": [
+                                              "__proto__",
+                                              "prototype",
+                                              "constructor"
+                                            ]
+                                          }
+                                        },
+                                        "quantity": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "destination": {
+                                          "enum": [
+                                            "inventory",
+                                            "direct",
+                                            "entitlement"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "resourceId",
+                                        "quantity",
+                                        "destination"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "weight",
+                                  "rewards"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "draws",
+                            "totalWeight",
+                            "outcomes"
+                          ]
+                        }
+                      },
+                      "unavailable": {
+                        "type": "array",
+                        "maxItems": 1000,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "reason": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "\\S"
+                            },
+                            "resourceIds": {
+                              "type": "array",
+                              "maxItems": 1000,
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                "not": {
+                                  "enum": [
+                                    "__proto__",
+                                    "prototype",
+                                    "constructor"
+                                  ]
+                                }
+                              }
+                            },
+                            "destination": {
+                              "enum": [
+                                "inventory",
+                                "direct",
+                                "entitlement"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason",
+                            "resourceIds"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "fixed",
+                      "lotteries",
+                      "unavailable"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "rank",
+              "studioMultiplier",
+              "daily"
+            ]
+          }
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                "not": {
+                  "enum": [
+                    "__proto__",
+                    "prototype",
+                    "constructor"
+                  ]
+                }
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "startsAt": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+              },
+              "endsAt": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+              },
+              "milestones": {
+                "type": "array",
+                "maxItems": 1000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "points": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "excludeOnFullCollection": {
+                      "type": "boolean"
+                    },
+                    "rewards": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "fixed": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "resourceId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                "not": {
+                                  "enum": [
+                                    "__proto__",
+                                    "prototype",
+                                    "constructor"
+                                  ]
+                                }
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "destination": {
+                                "enum": [
+                                  "inventory",
+                                  "direct",
+                                  "entitlement"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "resourceId",
+                              "quantity",
+                              "destination"
+                            ]
+                          }
+                        },
+                        "lotteries": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "draws": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "numerator": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "denominator": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ]
+                              },
+                              "totalWeight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "outcomes": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "weight": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "rewards": {
+                                      "type": "array",
+                                      "maxItems": 1000,
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "resourceId": {
+                                            "type": "string",
+                                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                            "not": {
+                                              "enum": [
+                                                "__proto__",
+                                                "prototype",
+                                                "constructor"
+                                              ]
+                                            }
+                                          },
+                                          "quantity": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "destination": {
+                                            "enum": [
+                                              "inventory",
+                                              "direct",
+                                              "entitlement"
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "resourceId",
+                                          "quantity",
+                                          "destination"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "weight",
+                                    "rewards"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "draws",
+                              "totalWeight",
+                              "outcomes"
+                            ]
+                          }
+                        },
+                        "unavailable": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "reason": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S"
+                              },
+                              "resourceIds": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                  "not": {
+                                    "enum": [
+                                      "__proto__",
+                                      "prototype",
+                                      "constructor"
+                                    ]
+                                  }
+                                }
+                              },
+                              "destination": {
+                                "enum": [
+                                  "inventory",
+                                  "direct",
+                                  "entitlement"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "resourceIds"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "fixed",
+                        "lotteries",
+                        "unavailable"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "points",
+                    "excludeOnFullCollection",
+                    "rewards"
+                  ]
+                }
+              },
+              "repeat": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "startsAfter": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "everyPoints": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "rewards": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "fixed": {
+                            "type": "array",
+                            "maxItems": 1000,
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "resourceId": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                  "not": {
+                                    "enum": [
+                                      "__proto__",
+                                      "prototype",
+                                      "constructor"
+                                    ]
+                                  }
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "destination": {
+                                  "enum": [
+                                    "inventory",
+                                    "direct",
+                                    "entitlement"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "resourceId",
+                                "quantity",
+                                "destination"
+                              ]
+                            }
+                          },
+                          "lotteries": {
+                            "type": "array",
+                            "maxItems": 1000,
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "draws": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "numerator": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "denominator": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "numerator",
+                                    "denominator"
+                                  ]
+                                },
+                                "totalWeight": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                },
+                                "outcomes": {
+                                  "type": "array",
+                                  "maxItems": 1000,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "weight": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "rewards": {
+                                        "type": "array",
+                                        "maxItems": 1000,
+                                        "items": {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "resourceId": {
+                                              "type": "string",
+                                              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                              "not": {
+                                                "enum": [
+                                                  "__proto__",
+                                                  "prototype",
+                                                  "constructor"
+                                                ]
+                                              }
+                                            },
+                                            "quantity": {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "destination": {
+                                              "enum": [
+                                                "inventory",
+                                                "direct",
+                                                "entitlement"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "resourceId",
+                                            "quantity",
+                                            "destination"
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "weight",
+                                      "rewards"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "draws",
+                                "totalWeight",
+                                "outcomes"
+                              ]
+                            }
+                          },
+                          "unavailable": {
+                            "type": "array",
+                            "maxItems": 1000,
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "reason": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "\\S"
+                                },
+                                "resourceIds": {
+                                  "type": "array",
+                                  "maxItems": 1000,
+                                  "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                    "not": {
+                                      "enum": [
+                                        "__proto__",
+                                        "prototype",
+                                        "constructor"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "enum": [
+                                    "inventory",
+                                    "direct",
+                                    "entitlement"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "reason",
+                                "resourceIds"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "fixed",
+                          "lotteries",
+                          "unavailable"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "startsAfter",
+                      "everyPoints",
+                      "rewards"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "basis",
+              "startsAt",
+              "endsAt",
+              "milestones",
+              "repeat"
+            ]
+          }
+        },
+        "offers": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                "not": {
+                  "enum": [
+                    "__proto__",
+                    "prototype",
+                    "constructor"
+                  ]
+                }
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "scope": {
+                "enum": [
+                  "catalog",
+                  "seal",
+                  "event",
+                  "other"
+                ]
+              },
+              "eventId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                "not": {
+                  "enum": [
+                    "__proto__",
+                    "prototype",
+                    "constructor"
+                  ]
+                }
+              },
+              "minimumRank": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "costs": {
+                "type": "array",
+                "maxItems": 1000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "resourceId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                      "not": {
+                        "enum": [
+                          "__proto__",
+                          "prototype",
+                          "constructor"
+                        ]
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "resourceId",
+                    "quantity"
+                  ]
+                }
+              },
+              "rewards": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "limit": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reset": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "once",
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ]
+                  },
+                  "hour": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  },
+                  "weekday": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 6
+                  },
+                  "day": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 28
+                  }
+                },
+                "required": [
+                  "kind",
+                  "hour"
+                ]
+              },
+              "window": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "startsAt": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                      }
+                    },
+                    "required": [
+                      "startsAt",
+                      "endsAt"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "basis",
+              "scope",
+              "minimumRank",
+              "costs",
+              "rewards",
+              "limit",
+              "reset",
+              "window"
+            ]
+          }
+        },
+        "passes": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                "not": {
+                  "enum": [
+                    "__proto__",
+                    "prototype",
+                    "constructor"
+                  ]
+                }
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "durationDays": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3660
+              },
+              "priceYen": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "purchase": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "daily": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "weekly": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "weeklyReset": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "once",
+                          "daily",
+                          "weekly",
+                          "monthly"
+                        ]
+                      },
+                      "hour": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 23
+                      },
+                      "weekday": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6
+                      },
+                      "day": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 28
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "hour"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "eventDaily": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "features": {
+                "type": "array",
+                "maxItems": 1000,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "\\S"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "basis",
+              "durationDays",
+              "priceYen",
+              "purchase",
+              "daily",
+              "weekly",
+              "weeklyReset",
+              "eventDaily",
+              "features"
+            ]
+          }
+        },
+        "fixedSources": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                "not": {
+                  "enum": [
+                    "__proto__",
+                    "prototype",
+                    "constructor"
+                  ]
+                }
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "category": {
+                "enum": [
+                  "permanent",
+                  "oneTime",
+                  "paid"
+                ]
+              },
+              "reset": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "once",
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ]
+                  },
+                  "hour": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  },
+                  "weekday": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 6
+                  },
+                  "day": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 28
+                  }
+                },
+                "required": [
+                  "kind",
+                  "hour"
+                ]
+              },
+              "window": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "startsAt": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+                      }
+                    },
+                    "required": [
+                      "startsAt",
+                      "endsAt"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rewards": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "fixed": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resourceId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                          "not": {
+                            "enum": [
+                              "__proto__",
+                              "prototype",
+                              "constructor"
+                            ]
+                          }
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "resourceId",
+                        "quantity",
+                        "destination"
+                      ]
+                    }
+                  },
+                  "lotteries": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "draws": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "numerator": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "denominator": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "numerator",
+                            "denominator"
+                          ]
+                        },
+                        "totalWeight": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "outcomes": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "weight": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "rewards": {
+                                "type": "array",
+                                "maxItems": 1000,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "resourceId": {
+                                      "type": "string",
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                                      "not": {
+                                        "enum": [
+                                          "__proto__",
+                                          "prototype",
+                                          "constructor"
+                                        ]
+                                      }
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "destination": {
+                                      "enum": [
+                                        "inventory",
+                                        "direct",
+                                        "entitlement"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "resourceId",
+                                    "quantity",
+                                    "destination"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "weight",
+                              "rewards"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "draws",
+                        "totalWeight",
+                        "outcomes"
+                      ]
+                    }
+                  },
+                  "unavailable": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "resourceIds": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                            "not": {
+                              "enum": [
+                                "__proto__",
+                                "prototype",
+                                "constructor"
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "enum": [
+                            "inventory",
+                            "direct",
+                            "entitlement"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason",
+                        "resourceIds"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "fixed",
+                  "lotteries",
+                  "unavailable"
+                ]
+              },
+              "priceYen": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "basis",
+              "category",
+              "reset",
+              "window",
+              "rewards",
+              "priceYen"
+            ]
+          }
+        },
+        "unavailable": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "resourceIds": {
+                "type": "array",
+                "maxItems": 1000,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$",
+                  "not": {
+                    "enum": [
+                      "__proto__",
+                      "prototype",
+                      "constructor"
+                    ]
+                  }
+                }
+              },
+              "destination": {
+                "enum": [
+                  "inventory",
+                  "direct",
+                  "entitlement"
+                ]
+              }
+            },
+            "required": [
+              "reason",
+              "resourceIds"
+            ]
+          }
+        },
+        "eventCoverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "startsAt": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            },
+            "endsAt": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          },
+          "required": [
+            "startsAt",
+            "endsAt"
+          ]
+        }
+      },
+      "required": [
+        "catalogRevision",
+        "revision",
+        "basis",
+        "utcOffsetMinutes",
+        "currencies",
+        "lives",
+        "studios",
+        "ranks",
+        "events",
+        "offers",
+        "passes",
+        "fixedSources",
+        "unavailable"
+      ]
+    },
     "skillCategories": {
       "type": "array",
       "maxItems": 20000,

@@ -7,6 +7,7 @@ import { tableFields, optionalTableFields } from '../src/data/catalog/fields.ts'
 import type { CatalogTable } from '../src/data/catalog/fields.ts';
 import { eventPlannerSchema } from '../src/domain/event-planner/schema.ts';
 import { conversionProfileSchema } from '../src/domain/conversion/schema.ts';
+import { supplyDefinitionSchema, economyScenarioSchema } from '../src/domain/economy/schema.ts';
 const int = {type:'integer',minimum:1,maximum:Number.MAX_SAFE_INTEGER};
 const zero = {...int,minimum:0};
 const text = {type:'string',minLength:1,maxLength:200,pattern:'\\S'};
@@ -20,7 +21,7 @@ const catalog = {
   $id:'https://morimori36.github.io/atsudori-tools/schemas/catalog-v1.schema.json',
   title:'atsudori-tools catalog v1',
   description:'Structural schema only. See docs/import-format.md for references, completeness, units and arithmetic constraints.',
-  ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,rankDefinition:rankDefinitionSchema,materialDefinition:materialDefinitionSchema,
+  ...object({format:{const:'atsudori-tools/catalog'},schemaVersion:{const:1},catalogId:identity,revision:identity,rankDefinition:rankDefinitionSchema,materialDefinition:materialDefinitionSchema,supplyDefinition:supplyDefinitionSchema,
     skillCategories:array(object({id:int,kind:{enum:['live','gekisou','support','gekisouSupport']},name:text})),
     songClearCounts:{type:'object',maxProperties:20000,propertyNames:{pattern:'^[1-9][0-9]*$'},additionalProperties:zero},
     stamps:array(object({id:int,name:text,characterIds:{type:'array',maxItems:10000,uniqueItems:true,items:int}})),
@@ -40,3 +41,4 @@ mkdirSync('public/schemas',{recursive:true});
 for (const [name,value] of [['catalog',catalog],['collection',collection],['event-planner',eventPlannerSchema]] as const)
   writeFileSync('public/schemas/' + name + '-v1.schema.json',JSON.stringify(value,null,2)+'\n');
 writeFileSync('public/schemas/conversion-profile-v2.schema.json',JSON.stringify(conversionProfileSchema,null,2)+'\n');
+writeFileSync('public/schemas/economy-scenario-v1.schema.json',JSON.stringify(economyScenarioSchema,null,2)+'\n');

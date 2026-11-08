@@ -1,5 +1,6 @@
 import { collectionCardAttributes, collectionCardIdentity, editableStages } from './collection-card';
 import { createResourceInventoryView } from './resource-inventory';
+import { createEconomyView } from './economy';
 import { createCharacterExpView } from './character-exp';
 import { applyTrainingConditions } from '../app/training-conditions';
 import { trainingConditions } from '../app/hypothetical-training';
@@ -51,10 +52,11 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'inventory' | 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
+type Tab = 'inventory' | 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event' | 'economy';
+const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['economy', '素材・経済シミュレーター'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
   ['inventory', '素材在庫'], ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
 const headings: Record<Tab, [string, string]> = {
+  economy: ['素材・経済シミュレーター', '指定期間の供給・交換・通貨収支と、育成目標までの不足を試算します。'],
   inventory: ['素材在庫', '素材の現在庫を登録します。変更は自動保存されます。'],
   materials: ['必要素材', '共通育成条件で必要な素材と、素材別の消費内訳を確認します。'],
   event: ['イベント周回プランナー', '通常とチャレンジの候補を比較し、目標イベントptまでの最小周回数を計算します。'],
@@ -105,6 +107,7 @@ export function mountApp(root: HTMLElement): void {
   const rankRules = createRankRules(()=>master);
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(editableProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
+  const economy = createEconomyView(storage,()=>({master,collection,protected:!allowWrites||!allowCatalogWrites}),trainingSettings,download,syncSaveState);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
   const expView={targetRank:30};
@@ -371,6 +374,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function pageBody(): string {
     if (active === 'event') return '<div id="event-planner"></div>';
+    if (active === 'economy') return '<div id="economy-simulator"></div>';
     try { return catalogIssues(master).length && ['members','snaps','stamps','progress','items','materials','inventory'].includes(active) ? missingCatalog() : active === 'rating' ? ratingPage() : active === 'members' ? membersPage() : active === 'snaps' ? snapsPage() : active === 'stamps' ? stampsMarkup(master,collection,stampFilters) : active === 'progress' ? progressPage() : active === 'items' ? itemsPage() : active === 'materials' ? (!allowWrites || !allowCatalogWrites ? '<section class="panel"><p>保存データを保護中のため必要素材を計算できません。JSON Import / Exportで復旧してください。</p></section>' : createMaterialsPage(master,collection,trainingSettings).html) : active === 'inventory' ? (inventoryView=createResourceInventoryView(master,collection,inventoryState)).html : active === 'exchange' ? exchangePage() : manualPage(); }
     catch (error) { return '<section class="panel"><h2>入力データを確認してください</h2><p role="alert">' + escape(errorMessage(error)) + '</p></section>'; }
   }
@@ -388,7 +392,7 @@ export function mountApp(root: HTMLElement): void {
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
       ${pageBody()}
       <footer><p>非公式ツールです。ゲームの運営・開発元とは関係ありません。計算結果は推定式によるもので、ゲーム内の結果を保証しません。</p>
-        <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
+        <p><a href="https://github.com/morimori36/atsudori-tools/blob/main/docs/${active === 'event' ? 'event-planner' : active === 'economy' ? 'economy' : 'calculation'}.md" target="_blank" rel="noreferrer">計算と未検証範囲</a> · <a href="https://github.com/morimori36/atsudori-tools" target="_blank" rel="noreferrer">ソース</a> · <a href="./THIRD_PARTY_NOTICES.txt">権利表示</a></p></footer></main></div>`;
     root.querySelectorAll<HTMLDetailsElement>('#progress-form details[data-progress-section]').forEach(d=>{d.open=progressExpanded.get(d.dataset.progressSection!)??false;});
     const themeSelect = root.querySelector<HTMLSelectElement>('[data-theme]')!;
     themeSelect.value = getTheme();
@@ -424,6 +428,7 @@ export function mountApp(root: HTMLElement): void {
       syncSaveState();
     });
     if (active === 'event') eventPlanner.mount(root.querySelector<HTMLElement>('#event-planner')!);
+    if (active === 'economy') economy.mount(root.querySelector<HTMLElement>('#economy-simulator')!);
     if (active === 'exchange') conversionExport.mount(root.querySelector<HTMLElement>('#conversion-export')!);
     bindStamps(root,master,collection,stampFilters, ids => {
       const previous=collection;
@@ -434,7 +439,7 @@ export function mountApp(root: HTMLElement): void {
     });
     bindMembers(); bindSnaps(); bindProgress(); bindExchange(); bindManual(); bindNotes(); syncSaveState();
   }
-  trainingSettings.subscribe(()=>{if(active==='progress')refreshProgress();else if(active==='rating'||active==='materials') preserveTrainingView(root,render);});
+  trainingSettings.subscribe(()=>{if(active==='progress')refreshProgress();else if(active==='rating'||active==='materials'||active==='economy') preserveTrainingView(root,render);});
   function memberFormValue(form: HTMLFormElement): OwnedMember {
     const data = new FormData(form);
     const result: OwnedMember = { cardId: Number(data.get('cardId')), level: Number(data.get('memberLevel')),
@@ -444,8 +449,8 @@ export function mountApp(root: HTMLElement): void {
   }
   function syncSaveState(): void {
     const state = root.querySelector<HTMLElement>('.save-state');
-    if (active === 'event') {
-      const eventState = eventPlanner.saveState();
+    if (active === 'event' || active === 'economy') {
+      const eventState = active==='event'?eventPlanner.saveState():economy.saveState();
       if (state) { state.textContent = eventState.label; state.classList.toggle('unsaved', eventState.unsaved); }
       return;
     }
