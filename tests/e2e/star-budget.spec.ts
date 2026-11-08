@@ -138,6 +138,16 @@ test('retains invalid drafts across navigation and ignores an import overtaken b
   await page.locator('nav [data-tab=manual]').click(); await page.locator(menu).click();
   await expect(field(page, 'scenario.rank')).toHaveValue('0'); await expect(page.locator('.save-state')).toContainText('未保存');
   await field(page, 'scenario.rank').fill('13'); await expect(balance(page)).toHaveText('+106.17');
+  await field(page, 'scenario.rank').focus();
+  await field(page, 'scenario.rank').press('ControlOrMeta+A');
+  await field(page, 'scenario.rank').pressSequentially('-');
+  expect(await field(page, 'scenario.rank').evaluate(el => (el as HTMLInputElement).validity.badInput)).toBe(true);
+  await expect(page.locator('.save-state')).toContainText('未保存');
+  await page.locator('nav [data-tab=manual]').click(); await page.locator(menu).click();
+  await expect(page.locator('.save-state')).toContainText('未保存');
+  await expect(balance(page)).toHaveCount(0);
+  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).scenario.rank, STAR_BUDGET_STORAGE_KEY)).toBe(13);
+  await field(page, 'scenario.rank').fill('13'); await expect(balance(page)).toHaveText('+106.17');
   await page.evaluate(() => {
     const original = File.prototype.text;
     File.prototype.text = function () { return new Promise<string>(resolve => { (window as unknown as { releaseBudgetImport: () => void }).releaseBudgetImport = () => { void original.call(this).then(resolve); }; }); };

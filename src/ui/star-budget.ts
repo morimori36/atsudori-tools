@@ -17,6 +17,9 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
   const store = createStarBudgetStore(storage);
   let message = '', invalid = '', importId = 0;
   const rawDraft = new Map<string, string | boolean>();
+  // Browsers expose incomplete number tokens as an empty value. Keep their invalid
+  // state across remounts so they cannot be mistaken for intentionally unknown input.
+  const incompleteNumbers = new Set<string>();
   const field = (path: string, label: string, value: unknown, numeric = false, min = 0, step = '1'): string =>
     `<label class="field">${esc(label)}<input name="${path}" data-path="${path}" type="${numeric ? 'number' : 'text'}" ${numeric ? `min="${min}" step="${step}" placeholder="未確認"` : 'maxlength="300"'} value="${esc(value ?? '')}"></label>`;
   const metric = (path: string, label: string, m: BudgetValue, unit: string, min = 0, step = '1'): string =>
@@ -51,7 +54,10 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
         for (const part of parts) parent = (parent as Record<string, unknown>)[part];
         let value: unknown = el.value;
         if (el instanceof HTMLInputElement) {
-          if (el.validity.badInput) throw new Error('数値の入力を確認してください');
+          if (el.validity.badInput || incompleteNumbers.has(el.name)) {
+            const label = el.closest('.budget-metric')?.querySelector('legend')?.textContent ?? el.closest('label')?.textContent?.trim() ?? '数値';
+            throw new Error(label + 'の入力を確認してください。画面切替後は数値を入れ直してください。');
+          }
           if (el.type === 'number') value = el.value.trim() ? Number(el.value) : null;
           if (el.type === 'checkbox') value = el.checked;
         }
@@ -110,13 +116,19 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
     form.addEventListener('submit', e => { e.preventDefault(); save(); });
     form.addEventListener('input', event => {
       const el = event.target as Control, name = el.name;
+      if (el instanceof HTMLInputElement && el.type === 'number') {
+        if (el.validity.badInput) incompleteNumbers.add(name); else incompleteNumbers.delete(name);
+      }
       if (name.endsWith('.value')) {
         const base = name.slice(0, -6), status = form.elements.namedItem(base + '.status') as HTMLSelectElement;
         const basis = form.elements.namedItem(base + '.basis') as HTMLInputElement;
         if (!el.value) status.value = 'unconfirmed';
         else { status.value = 'assumed'; if (!basis.value.trim()) basis.value = '手入力の仮定'; }
       }
-      if (name.endsWith('.status') && el.value === 'unconfirmed') (form.elements.namedItem(name.replace(/\.status$/, '.value')) as HTMLInputElement).value = '';
+      if (name.endsWith('.status') && el.value === 'unconfirmed') {
+        const valueName = name.replace(/\.status$/, '.value');
+        (form.elements.namedItem(valueName) as HTMLInputElement).value = ''; incompleteNumbers.delete(valueName);
+      }
       save();
     });
     function action(fn: () => void): void { try { fn(); } catch (error) { message = errorText(error); } updateMessages(); }
@@ -126,7 +138,7 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
     host.querySelector('[data-budget-reset]')!.addEventListener('click', () => {
       if (!window.confirm('スター予算の条件・定義を空にします。必要なJSONをExport済みですか？')) return;
       importId++;
-      action(() => { store.update(emptyStarBudget(), { recover: true, atomic: true }); rawDraft.clear(); invalid = ''; message = 'スター予算を初期化しました'; mount(host); });
+      action(() => { store.update(emptyStarBudget(), { recover: true, atomic: true }); rawDraft.clear(); incompleteNumbers.clear(); invalid = ''; message = 'スター予算を初期化しました'; mount(host); });
     });
     const file = host.querySelector<HTMLInputElement>('[data-budget-file]')!;
     host.querySelector('[data-budget-import]')!.addEventListener('click', () => file.click());
@@ -138,7 +150,7 @@ export function createStarBudgetView(storage: StoragePort | undefined, download:
         const raw = await selected.text(); if (id !== importId) return;
         const next = importStarBudget(raw); calculateStarBudget(next);
         if (store.protected() && !window.confirm('保護中のスター予算をImportしたJSONで置き換えます。元JSONをExport済みですか？')) return;
-        store.update(next, { recover: true, atomic: true }); rawDraft.clear(); invalid = ''; message = 'スター予算をImport・保存しました';
+        store.update(next, { recover: true, atomic: true }); rawDraft.clear(); incompleteNumbers.clear(); invalid = ''; message = 'スター予算をImport・保存しました';
         if (host.isConnected) mount(host);
       } catch (error) { if (id === importId) { message = errorText(error); if (host.isConnected) updateMessages(); } }
     });
