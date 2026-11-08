@@ -7,8 +7,6 @@ export interface Unavailable { reason: string; resourceIds: string[]; destinatio
 /** An empty lottery outcome explicitly represents a miss. All weights must sum to totalWeight. */
 export interface Lottery { draws: Ratio; totalWeight: number; outcomes: { weight: number; rewards: Grant[] }[] }
 export interface Rewards { fixed: Grant[]; lotteries: Lottery[]; unavailable: Unavailable[] }
-export interface Reset { kind: 'daily' | 'weekly' | 'monthly'; hour: number; weekday?: number; day?: number }
-export interface Window { startsAt: string; endsAt: string }
 export interface Named { id: string; name: string; basis: string }
 export interface LiveSupply extends Named {
   mode: 'play' | 'skip'; scoreRank: string; lbMultiplier: number; perLb: Rewards; perPlay: Rewards;
@@ -22,32 +20,31 @@ export interface StudioSupply {
 export interface RankSupply { rank: number; studioMultiplier: Ratio | null; daily: Rewards | null }
 export interface StandardEvent { intervalDays: number; basis: string; cumulative: Rewards; limited: Rewards }
 export interface FixedSupply extends Named {
-  reset: Reset; window: Window | null;
+  intervalDays: Ratio | null;
   rewards: Rewards;
 }
 /** All resource IDs refer to materialDefinition; types never imply conversion between IDs. */
 export interface SupplyDefinition {
-  schemaVersion: 3;
-  catalogRevision: string; revision: string; basis: string; utcOffsetMinutes: number;
+  schemaVersion: 4;
+  catalogRevision: string; revision: string; basis: string;
   currencies: string[]; lives: LiveSupply[]; studios: StudioSupply[]; ranks: RankSupply[];
   standardEvent: StandardEvent | null; fixedSources: FixedSupply[];
   unavailable: Unavailable[];
 }
 export interface EconomyScenario {
-  format: 'atsudori-tools/economy-scenario'; schemaVersion: 4; catalogId: string;
-  startDate: string; endDate: string; rank: number | null;
+  format: 'atsudori-tools/economy-scenario'; schemaVersion: 5; catalogId: string;
+  rank: number | null;
   live: { enabled: boolean; lbPerDay: number; skipPercent: number; playId: string | null; skipId: string | null;
     playsPerDay: number | null; skipsPerDay: number | null };
   studio: { enabled: boolean; levels: { bandId: number; level: number }[]; claimEveryMinutes: number; minutesPerDay: number };
-  dailyClaims: number;
+  includeRankDaily: boolean;
   includeEvents: boolean;
-  fixedSources: { sourceId: string; claims: number }[];
+  fixedSources: { sourceId: string; claimPercent: number }[];
 
 }
-export type Certainty = 'confirmed' | 'conditional' | 'expected' | 'estimated';
-export interface LedgerEntry {
-  at: string; sourceId: string; sourceName: string; basis: string; resourceId: string;
-  destination: Destination; certainty: Certainty; quantity: number;
-  conditional: boolean;
+export type Certainty = 'confirmed' | 'expected' | 'estimated';
+export interface DailySupplyEntry {
+  sourceId: string; sourceName: string; basis: string; resourceId: string;
+  destination: Destination; certainty: Certainty; dailyQuantity: number;
 }
 export interface EconomyIssue { sourceId: string; reason: string; resourceIds: string[]; blocksProjection: boolean }

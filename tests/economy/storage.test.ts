@@ -12,7 +12,7 @@ it('loads without rewriting bytes; protects damaged storage until explicit recov
 });
 it('retains valid conditions for export after save failure and keeps imports atomic',()=>{
   const f=economyFixture();const s=createEconomyStore({getItem:()=>null,setItem:()=>{throw new Error('quota');}},f.scenario);
-  const next={...f.scenario,endDate:'2024-01-02'};
+  const next={...f.scenario,includeRankDaily:true};
   expect(s.update(next)).toBe(false);expect(s.current()).toEqual(next);expect(s.unsaved()).toBe(true);expect(s.message()).toContain('保存できません');
   expect(()=>s.update(f.scenario,true,true)).toThrow('保存できません');expect(s.current()).toEqual(next);
 });

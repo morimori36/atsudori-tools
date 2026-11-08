@@ -9,7 +9,7 @@ export const reward=(...fixed:Grant[]):Rewards=>({fixed,lotteries:[],unavailable
 export function economyFixture(){
   const {m,c}=materialFixture();
   m.materialDefinition!.resources.push(...['tokens-a','tokens-b'].map(id=>({id,name:'架空資源 '+id,unit:'item' as const})));
-  const supply:SupplyDefinition={schemaVersion:3,catalogRevision:m.revision,revision:'fictional-supply-3',basis:'独立した架空経済モデル',utcOffsetMinutes:0,
+  const supply:SupplyDefinition={schemaVersion:4,catalogRevision:m.revision,revision:'fictional-supply-4',basis:'独立した架空経済モデル',
     currencies:['tokens-a','tokens-b'],
     lives:[{id:'alto',name:'架空ライブ Alto',basis:'架空の基礎報酬',mode:'play',scoreRank:'Alto',lbMultiplier:3,
       perLb:reward(grant('paper',7),grant('member-exp',11),grant('snap-exp',13)),perPlay:reward(grant('member-exp',19,'direct'))},
@@ -23,7 +23,7 @@ export function economyFixture(){
     fixedSources:[],unavailable:[]};
   m.supplyDefinition=supply;
   c.resourceInventory=Object.fromEntries(m.materialDefinition!.resources.map(r=>[r.id,0]));
-  const scenario=emptyEconomyScenario(m.catalogId,'2024-01-01');scenario.rank=6;
+  const scenario=emptyEconomyScenario(m.catalogId);scenario.rank=6;
   const requirements:MaterialRequirements={cards:[],totals:[{resourceId:'paper',quantity:2000},{resourceId:'member-exp',quantity:999}],resources:m.materialDefinition!.resources,incomplete:false};
   return {m,c,supply,scenario,requirements};
 }

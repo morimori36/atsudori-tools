@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Economy scenario v4",
+  "title": "Material clearance scenario v5",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -8,7 +8,7 @@
       "const": "atsudori-tools/economy-scenario"
     },
     "schemaVersion": {
-      "const": 4
+      "const": 5
     },
     "catalogId": {
       "type": "string",
@@ -20,14 +20,6 @@
           "constructor"
         ]
       }
-    },
-    "startDate": {
-      "type": "string",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
-    },
-    "endDate": {
-      "type": "string",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
     },
     "rank": {
       "anyOf": [
@@ -178,10 +170,8 @@
         "minutesPerDay"
       ]
     },
-    "dailyClaims": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
+    "includeRankDaily": {
+      "type": "boolean"
     },
     "includeEvents": {
       "type": "boolean"
@@ -204,15 +194,15 @@
               ]
             }
           },
-          "claims": {
+          "claimPercent": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 9007199254740991
+            "maximum": 100
           }
         },
         "required": [
           "sourceId",
-          "claims"
+          "claimPercent"
         ]
       }
     }
@@ -221,12 +211,10 @@
     "format",
     "schemaVersion",
     "catalogId",
-    "startDate",
-    "endDate",
     "rank",
     "live",
     "studio",
-    "dailyClaims",
+    "includeRankDaily",
     "includeEvents",
     "fixedSources"
   ]

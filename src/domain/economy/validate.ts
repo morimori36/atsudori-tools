@@ -1,8 +1,7 @@
 import { jsonValue } from '../../data/json';
 import type { Masterdata } from '../../data/catalog/model';
-import type { EconomyScenario, Rewards, Reset, SupplyDefinition, Window } from './model';
+import type { EconomyScenario, Rewards, SupplyDefinition } from './model';
 import { economyScenarioSchema, supplyDefinitionSchema } from './schema';
-import { period } from './time';
 
 type Shape = {type?:string;enum?:readonly unknown[];const?:unknown;anyOf?:Shape[];not?:Shape;
   minimum?:number;maximum?:number;minLength?:number;maxLength?:number;pattern?:string;
@@ -39,16 +38,6 @@ function structural<T>(value:unknown,schema:unknown):T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 const unique=(values:readonly (string|number)[],label:string):void=>{if(new Set(values).size!==values.length)throw new Error(label+'が重複しています');};
-function reset(rule:Reset):void {
-  if((rule.kind==='weekly')!==(rule.weekday!==undefined)||(rule.kind==='monthly')!==(rule.day!==undefined))throw new Error('リセットの曜日・日を正しく指定してください');
-}
-function window(value:Window):void {
-  for(const text of [value.startsAt,value.endsAt]){
-    const n=Date.parse(text);
-    if(!Number.isFinite(n)||new Date(n).toISOString()!==text.replace('Z','.000Z'))throw new Error('開催期間の日時が不正です');
-  }
-  if(value.startsAt>=value.endsAt)throw new Error('開催期間の終了は開始より後が必要です');
-}
 export function validateSupplyDefinition(value:unknown):SupplyDefinition {
   const d=structural<SupplyDefinition>(value,supplyDefinitionSchema);
   for(const rows of [d.lives,d.fixedSources])unique(rows.map(r=>r.id),'供給ID');
@@ -60,7 +49,6 @@ export function validateSupplyDefinition(value:unknown):SupplyDefinition {
     if(r.normalMinutes%r.tickMinutes||r.capMinutes!==null&&(r.capMinutes<r.normalMinutes||r.capMinutes%r.tickMinutes))throw new Error('練習時間・上限は蓄積単位の倍数で指定してください');
     if(r.overflowRate&&r.overflowRate.numerator>r.overflowRate.denominator)throw new Error('超過時の練習効率は1以下で指定してください');
   }
-  for(const f of d.fixedSources){reset(f.reset);if(f.window)window(f.window);}
   const all:Rewards[]=[...d.lives.flatMap(r=>[r.perLb,r.perPlay]),...d.studios.map(r=>r.rewards),
     ...d.ranks.flatMap(r=>r.daily?[r.daily]:[]),...(d.standardEvent?[d.standardEvent.cumulative,d.standardEvent.limited]:[]),
     ...d.fixedSources.map(f=>f.rewards)];
@@ -97,16 +85,14 @@ export function supplyIssues(master:Masterdata):string[] {
 }
 export function validateEconomyScenario(value:unknown):EconomyScenario {
   const s=structural<EconomyScenario>(value,economyScenarioSchema);
-  const {days}=period(s.startDate,s.endDate,0);
-  if(s.dailyClaims>days)throw new Error('デイリー受取日数が試算期間を超えます');
   unique(s.studio.levels.map(r=>r.bandId),'練習バンド');unique(s.fixedSources.map(r=>r.sourceId),'固定報酬');
   return s;
 }
 export function importEconomyScenario(text:string):EconomyScenario {return validateEconomyScenario(jsonValue(text,5*1024*1024));}
 export function exportEconomyScenario(value:EconomyScenario):string {return JSON.stringify(validateEconomyScenario(value),null,2)+'\n';}
-export function emptyEconomyScenario(catalogId:string,date:string):EconomyScenario {
-  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:4,catalogId,startDate:date,endDate:date,rank:null,
+export function emptyEconomyScenario(catalogId:string):EconomyScenario {
+  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:5,catalogId,rank:null,
     live:{enabled:false,lbPerDay:0,skipPercent:0,playId:null,skipId:null,playsPerDay:null,skipsPerDay:null},
-    studio:{enabled:false,levels:[],claimEveryMinutes:1440,minutesPerDay:1440},dailyClaims:0,includeEvents:true,
+    studio:{enabled:false,levels:[],claimEveryMinutes:1440,minutesPerDay:1440},includeRankDaily:false,includeEvents:true,
     fixedSources:[]});
 }
