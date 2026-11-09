@@ -347,8 +347,8 @@ export function mountApp(root: HTMLElement): void {
           const pair=theory.pairs.find(p=>(p.characterA===c.id&&p.characterB===other.id)||(p.characterB===c.id&&p.characterA===other.id));
           return pair?[`<tr data-bond-rank="${pair.rank}"><th scope="row">${escape(other.name)}</th><td>${number(pair.rank)}</td></tr>`]:[];
         }).join(''):'';
-        return `<article class="panel progress-card character-rank" data-character-rank="${c.id}" data-bond-character="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary><span>現在ランク <strong data-effective-rank>${rank.effectiveRank??'未算出'}</strong></span><span class="rank-source" data-rank-source>${rank.overrideRank===undefined?rank.estimatedRank===null?'定義未登録・不一致':'自動推定':'手動上書き中'}</span></div>
-          <div class="bond-rank">育成理論値 <strong data-bond-final aria-label="育成理論値">${theoretical ? number(theoretical.finalRank) : '未算出'}</strong>${uncertain ? '<small>バンド内の進捗に未入力あり</small>' : ''}</div>${characterExpView!.summary(c.id)}
+        return `<article class="panel progress-card character-rank" data-character-rank="${c.id}" data-bond-character="${c.id}"><h2>${escape(c.name)}</h2><div data-rank-summary><span>現在ランク <strong data-effective-rank>${rank.effectiveRank??'未算出'}</strong></span><span class="rank-source" data-rank-source ${rank.overrideRank===undefined&&rank.estimatedRank!==null?'hidden':''}>${rank.overrideRank===undefined?rank.estimatedRank===null?'定義未登録・不一致':'':'手動上書き中'}</span></div>
+          ${characterExpView!.summary(c.id,`<div class="bond-rank"><span>育成理論値</span><strong data-bond-final aria-label="育成理論値">${theoretical ? number(theoretical.finalRank) : '未算出'}</strong>${uncertain ? '<small>バンド内の進捗に未入力あり</small>' : ''}</div>`)}
           <details data-progress-section="rank-input-${c.id}"><summary>進捗・ランク入力</summary><div class="rank-editor"><section><h3>進捗入力</h3>
           <div class="rank-list">${Object.entries(progressLabels).map(([key,label]) => `<label class="inline-field" for="progress-${c.id}-${key}"><span>${escape(label)}</span><input id="progress-${c.id}-${key}" name="progress-${c.id}-${key}" type="number" inputmode="numeric" min="0" max="${Number.MAX_SAFE_INTEGER}" step="1" placeholder="不明" value="${draftValue(`progress-${c.id}-${key}`, collection.characterProgress?.[c.id]?.[key as keyof CharacterProgress])}"></label>`).join('')}</div></section>
           <section class="rank-override"><h3>ランク上書き</h3>
@@ -675,7 +675,9 @@ export function mountApp(root: HTMLElement): void {
         row.querySelector('[data-estimated-rank]')!.textContent = String(rank.estimatedRank??'—');
         row.querySelector('[data-rank-exp]')!.textContent = String(rank.exp??'—');
         row.querySelector('[data-effective-rank]')!.textContent = String(rank.effectiveRank??'未算出');
-        row.querySelector('[data-rank-source]')!.textContent = rank.overrideRank === undefined ? rank.estimatedRank===null?'定義未登録・不一致':'自動推定' : '手動上書き中';
+        const source=row.querySelector<HTMLElement>('[data-rank-source]')!;
+        source.textContent = rank.overrideRank === undefined ? rank.estimatedRank===null?'定義未登録・不一致':'' : '手動上書き中';
+        source.hidden=rank.overrideRank===undefined&&rank.estimatedRank!==null;
         row.querySelector('[data-rank-reason]')!.textContent = rankReason(rank);
         row.querySelector('[data-missing-progress]')!.textContent = rank.missingProgress.length ? '進捗に未入力あり' : '';
         row.querySelector('[data-rank-breakdown]')!.innerHTML = rankBreakdown(rank);

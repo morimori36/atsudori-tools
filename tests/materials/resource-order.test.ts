@@ -14,11 +14,11 @@ test('optional resource order round trips; ties and missing values retain catalo
   const before=JSON.stringify(m);
   expect(valid(m)).toBe(true);
   expect(importCatalog(exportCatalog(m))).toEqual(m);
-  expect(resourcesForDisplay(resources).map(r=>r.id)).toEqual(['copy','paper','retired','member-exp','snap-exp']);
+  expect(resourcesForDisplay(resources).map(r=>r.id)).toEqual(['paper','retired','copy','member-exp','snap-exp']);
   expect(JSON.stringify(m)).toBe(before);
   resources.forEach(r=>delete r.displayOrder);
   expect(importCatalog(exportCatalog(m))).toEqual(m);
-  expect(resourcesForDisplay(resources)).toEqual(resources);
+  expect(resourcesForDisplay(resources).map(r=>r.id)).toEqual(['paper','retired','copy','member-exp','snap-exp']);
 });
 for(const displayOrder of [-1,0.5,9007199254740992,null,'2'])test(`rejects invalid resource order ${displayOrder}`,()=>{
   const {m}=inventoryFixture();Object.assign(m.materialDefinition!.resources[0]!,{displayOrder});

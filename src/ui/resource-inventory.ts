@@ -2,7 +2,7 @@ import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
 import { validateResourceInventory } from '../domain/materials/inventory';
 import type { ResourceInventory } from '../domain/materials/inventory';
-import { resourcesForDisplay } from './resource-order';
+import { resourcesForDisplay, RESOURCE_SECTIONS } from './resource-order';
 import { escape } from './collection-card';
 
 export interface InventoryViewState { query:string; drafts:Map<string,string> }
@@ -10,7 +10,7 @@ export function createResourceInventoryView(master:Masterdata,collection:Collect
   let inventory={...collection.resourceInventory};
   const resources=master.materialDefinition?.resources??[];
   const supported=resourcesForDisplay(resources);
-  const sections=[{unit:'item',title:'素材'},{unit:'card',title:'カード複製'},{unit:'exp',title:'EXP'}] as const;
+  const sections=RESOURCE_SECTIONS;
   const unsupported=Object.entries(inventory).filter(([id])=>!supported.some(r=>r.id===id));
   return {
     html:`<section class="inventory-management"><section class="panel catalog-tools" aria-label="一覧の絞り込み"><div class="catalog-toolbar"><label class="field catalog-search"><span>素材名・IDで検索</span><input type="search" data-inventory-query value="${escape(state.query)}" placeholder="素材名を入力"></label></div><p class="muted catalog-help">変更は自動保存 · 空欄は未登録、0は在庫0</p><p class="muted catalog-count" data-inventory-count role="status"></p></section>

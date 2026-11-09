@@ -35,3 +35,34 @@ test('protects old period conditions and rejects their import without overwritin
  expect(await page.evaluate(()=>localStorage.getItem('atsudori-tools.economy-scenario.v4'))).toBe(old);
  expect(await page.evaluate(key=>localStorage.getItem(key),ECONOMY_STORAGE_KEY)).toBeNull();
 });
+
+for(const width of [1280,390,320])test(`consistent material order and compact conditions at ${width}px`,async({page})=>{
+ const f=economyFixture();
+ f.m.materialDefinition!.resources.find(r=>r.id==='paper')!.displayOrder=9;
+ f.m.materialDefinition!.resources.find(r=>r.id==='tokens-a')!.displayOrder=2;
+ f.m.materialDefinition!.resources.find(r=>r.id==='tokens-b')!.displayOrder=2;
+ await page.setViewportSize({width,height:900});await page.goto('./');
+ await page.evaluate(({f,key})=>{
+  localStorage.setItem('atsudori-tools.catalog.v1',JSON.stringify(f.m));localStorage.setItem('atsudori-tools.collection.v1',JSON.stringify(f.c));
+  localStorage.setItem(key,JSON.stringify(f.scenario));
+ },{f,key:ECONOMY_STORAGE_KEY});await page.reload();
+ const before=await page.evaluate(()=>localStorage.getItem('atsudori-tools.collection.v1'));
+ await page.locator('nav [data-tab=inventory]').click();
+ const inventory=await page.locator('[data-inventory-row]').evaluateAll(rows=>rows.map(r=>(r as HTMLElement).dataset.inventoryRow));
+ expect(inventory).toEqual(['tokens-a','tokens-b','paper','copy','member-exp','snap-exp']);
+ await page.locator('nav [data-tab=materials]').click();
+ for(const section of await page.locator('[data-material-kind]').all()){
+  const ids=await section.locator('[data-material-resource]').evaluateAll(rows=>rows.map(r=>(r as HTMLElement).dataset.materialResource));
+  expect(ids).toEqual(inventory.filter(id=>ids.includes(id)));
+ }
+ await page.locator('nav [data-tab=economy]').click();
+ expect(await page.locator('[data-economy-resource]').evaluateAll(rows=>rows.map(r=>(r as HTMLElement).dataset.economyResource))).toEqual(inventory);
+ await expect(page.getByRole('heading',{name:'試算条件',exact:true})).toBeVisible();
+ const lb=page.getByLabel('LB消費 / 日',{exact:true});await expect(lb).toBeVisible();
+ expect(await lb.evaluate(el=>el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+ await page.locator('[name=includeEvents]').uncheck();await page.getByRole('button',{name:'試算して条件を保存',exact:true}).click();
+ await expect(page.locator('[data-economy-message]')).toHaveText('保存・試算しました');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(await page.evaluate(()=>localStorage.getItem('atsudori-tools.collection.v1'))).toBe(before);
+ await page.screenshot({path:`test-results/economy-conditions-${width}.png`,fullPage:true});
+});

@@ -20,10 +20,10 @@ export function createCharacterExpView(master:Masterdata,collection:Collection,s
   const targetError='マスタに登録された合法ランクを入力してください。';
   return {
     targetMarkup:`<div class="exp-target"><label class="field" for="exp-target"><span>目標キャラランク</span><input id="exp-target" type="number" inputmode="numeric" min="1" step="1" data-exp-target value="${escape(raw)}" aria-invalid="${!valid(raw)}" aria-describedby="exp-target-error"></label><p id="exp-target-error" role="alert">${valid(raw)?'':targetError}</p></div>`,
-    summary(id:number) {
+    summary(id:number,theoryMarkup:string) {
       const result=goalResult(id);
       const recovery:ExpResult<number>=protectedData?{status:'pending',reason:'保存データを保護中です。JSON Import / Exportで復旧してください。'}:scenarios.recoverable(id);
-      return `<div class="exp-overview" data-exp-recoverable><span>現在 → 理論値</span><span>回収可能EXP（育成＋絆）</span><strong>${exp(recovery)}</strong>${recovery.status==='pending'?`<small>${escape(recovery.reason)}</small>`:''}</div><div class="exp-overview" data-exp-goal><span>理論値 → 目標${number(state.targetRank)}</span><span>目標までの不足EXP</span><strong>${result.status==='ready'?`${number(result.value.missingExp)} EXP`:'未算出'}</strong>${result.status==='pending'?`<small>${escape(result.reason)}</small>`:''}</div>`;
+      return `<div class="exp-overview" data-exp-recoverable><span>回収可能EXP</span><strong>${exp(recovery)}</strong>${recovery.status==='pending'?`<small>${escape(recovery.reason)}</small>`:''}</div>${theoryMarkup}<div class="exp-overview exp-goal" data-exp-goal><span>目標までの不足EXP</span><strong>${result.status==='ready'?`${number(result.value.missingExp)} EXP`:'未算出'}</strong><small>目標ランク <span data-exp-goal-rank>${number(state.targetRank)}</span></small>${result.status==='pending'?`<small>${escape(result.reason)}</small>`:''}</div>`;
     },
     button(id:number) {return `<button type="button" class="secondary small exp-detail-button" data-exp-detail="${id}" ${protectedData?'disabled':''}>カード別EXP</button>`;},
     bind(host:HTMLElement,rerender:()=>void) {
