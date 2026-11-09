@@ -441,11 +441,18 @@ footer { overflow-wrap: anywhere; }
 
 .rating-candidate { display: block; }
 
-/* Keep band cards, stacking bands vertically and their item fields horizontally. */
+/* Band items retain horizontal scrolling, but dedicate width to touch-safe +/- controls. */
 .progress-cards[data-progress-scroll="items"] { flex-direction: column; align-items: stretch; }
-.progress-cards .band-items.panel { flex: 0 0 auto; width: max-content; min-width: 100%; }
-.progress-cards .band-items > .rank-list { flex-direction: row; }
-.progress-cards .band-items .inline-field { flex: 1 0 168px; width: 168px; }
+.progress-cards .band-items.panel { flex: 0 0 auto; width: max-content; min-width: 100%; padding: 10px; }
+.progress-cards .band-items > .rank-list { flex-direction: row; gap: 8px; padding: 0; }
+.progress-cards .band-items .item-field { flex: 0 0 144px; width: 144px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.progress-cards .band-items .item-field > label { font-size: 12px; line-height: 1.4; min-height: 2.8em; overflow-wrap: anywhere; }
+.progress-cards .band-items .item-stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; align-items: center; }
+.progress-cards .band-items .item-stepper button { min-width: 44px; min-height: 44px; padding: 0; font-size: 20px; line-height: 1; touch-action: manipulation; }
+.progress-cards .band-items .item-stepper button:disabled { opacity: .45; cursor: default; }
+.progress-cards .band-items .item-stepper input { width: 100%; text-align: center; padding: 4px 0; font-variant-numeric: tabular-nums; appearance: textfield; }
+.progress-cards .band-items .item-stepper input::-webkit-inner-spin-button,
+.progress-cards .band-items .item-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 .rank-help { margin-bottom: 12px; }
 .rank-help > summary { min-height: 44px; padding-block: 10px; color: var(--accent-dark); }

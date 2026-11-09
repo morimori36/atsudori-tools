@@ -304,10 +304,25 @@ export function mountApp(root: HTMLElement): void {
   function progressActions(items = false): string {
     return `<div class="progress-actions"><span data-progress-state role="status">${saved ? '変更後は保存してください' : 'ブラウザ保存未完了'}</span><button class="primary" type="submit" id="progress-save">${items ? 'バンドアイテム' : 'キャラランク'}を保存</button></div>`;
   }
+  // 0 is an explicit unowned choice; positive values must exist in the catalog.
+  function itemLevelChoices(itemId: number): number[] {
+    return [0, ...new Set(master.bandItemLevels.filter(row => row.itemId === itemId).map(row => row.level))]
+      .sort((a, b) => a - b);
+  }
   function itemsPage(): string {
-    const draftValue = (name: string, fallback: unknown) => escape(progressDraft.get(name) ?? fallback ?? '');
+    const itemField = (item: Masterdata['bandItems'][number]): string => {
+      const name = `item-${item.id}`;
+      const value = progressDraft.get(name) ?? String(collection.bandItems[item.id] ?? 0);
+      const max = itemLevelChoices(item.id).at(-1) ?? 0;
+      return `<div class="item-field"><label for="${name}">${escape(item.name)}</label>
+        <div class="item-stepper" role="group" aria-label="${escape(item.name)}のレベル">
+          <button type="button" class="secondary" data-item-step="${item.id}" data-step="-1" aria-label="${escape(item.name)}のレベルを下げる">−</button>
+          <input name="${name}" id="${name}" type="number" inputmode="numeric" min="0" max="${max}" step="1" required aria-label="${escape(item.name)}のレベル" value="${escape(value)}">
+          <button type="button" class="secondary" data-item-step="${item.id}" data-step="1" aria-label="${escape(item.name)}のレベルを上げる">＋</button>
+        </div></div>`;
+    };
     return `<form id="progress-form" data-edit-scope="items"><section class="progress-section" aria-labelledby="band-items-heading"><h2 id="band-items-heading">バンドアイテムLv</h2><p class="muted progress-scroll-hint">各バンドのアイテムは横にスクロールして編集できます。0 は未解放です。</p>
-      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${bandItemsForDisplay(master.bandItems.filter(item => item.bandId === b.id)).map(item => `<label class="inline-field" for="item-${item.id}"><span>${escape(item.name)}<small>0 は未解放</small></span><input name="item-${item.id}" id="item-${item.id}" type="number" inputmode="numeric" min="0" max="${Math.max(...master.bandItemLevels.filter(l => l.itemId === item.id).map(l => l.level))}" step="1" required value="${draftValue(`item-${item.id}`, collection.bandItems[item.id] ?? 0)}"></label>`).join('')}</div></article>`).join('')}</div></section>${progressActions(true)}</form>`;
+      <div class="progress-cards" data-progress-scroll="items" role="region" aria-label="バンドアイテムの編集欄" tabindex="0">${master.bands.map(b => `<article class="panel progress-card band-items"><h3>${escape(b.name)}</h3><div class="rank-list">${bandItemsForDisplay(master.bandItems.filter(item => item.bandId === b.id)).map(itemField).join('')}</div></article>`).join('')}</div></section>${progressActions(true)}</form>`;
   }
   function progressPage(): string {
     const band = master.bands.find(b => b.id === progressBand) ?? master.bands[0];
@@ -643,7 +658,16 @@ export function mountApp(root: HTMLElement): void {
       form.classList.toggle('is-dirty', dirty);
       form.querySelector('[data-progress-state]')!.textContent = !saved ? 'ブラウザ保存未完了' : dirty ? '未保存の変更あり' : '変更後は保存してください';
       syncSaveState();
-      if (form.dataset.editScope === 'items') return;
+      if (form.dataset.editScope === 'items') {
+        form.querySelectorAll<HTMLButtonElement>('[data-item-step]').forEach(button => {
+          const input = form.elements.namedItem(`item-${button.dataset.itemStep}`) as HTMLInputElement | null;
+          const raw = input?.value ?? '';
+          const choices = itemLevelChoices(Number(button.dataset.itemStep));
+          const at = raw !== '' && input?.validity.valid && /^\d+$/.test(raw) ? choices.indexOf(Number(raw)) : -1;
+          button.disabled = at < 0 || choices[at + Number(button.dataset.step)] === undefined;
+        });
+        return;
+      }
       const previewRanks=estimateCharacterRanks(master,next,rankRules.current());
       for (const c of master.characters) {
         const row = form.querySelector<HTMLElement>(`[data-character-rank="${c.id}"]`);
@@ -672,6 +696,20 @@ export function mountApp(root: HTMLElement): void {
       if (input.name) progressDraft.set(input.name, input.value);
       update();
     });
+    if (form.dataset.editScope === 'items') {
+      form.querySelectorAll<HTMLButtonElement>('[data-item-step]').forEach(button => button.addEventListener('click', () => {
+        const itemId = Number(button.dataset.itemStep);
+        const input = form.elements.namedItem(`item-${itemId}`) as HTMLInputElement | null;
+        if (!input || !input.validity.valid || !/^\d+$/.test(input.value)) return;
+        const choices = itemLevelChoices(itemId);
+        const at = choices.indexOf(Number(input.value));
+        if (at < 0) return; // Do not replace invalid or incomplete manual input.
+        const next = choices[at + Number(button.dataset.step)];
+        if (next === undefined) return;
+        input.value = String(next);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }));
+    }
     form.querySelectorAll<HTMLButtonElement>('[data-progress-band]').forEach(button => button.addEventListener('click', () => {
       if (!form.reportValidity()) return;
       const restore = captureProgressView();
