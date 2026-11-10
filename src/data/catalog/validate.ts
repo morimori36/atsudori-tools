@@ -194,10 +194,18 @@ export function importCatalog(text: string): Masterdata {
   if (issues.length) throw new Error('catalogの不足・不整合:\n' + issues.join('\n'));
   return m;
 }
-export function exportCatalog(m: Masterdata): string {
-  const text=JSON.stringify(validateCatalog(m),null,2)+'\n';
+function serializeCatalog(m: Masterdata, formatted: boolean): string {
+  const value = validateCatalog(m);
+  const text = formatted ? JSON.stringify(value, null, 2) + '\n' : JSON.stringify(value);
   if(new TextEncoder().encode(text).length>CATALOG_LIMIT)throw new Error('マスタJSONの上限は10MiBです');
   return text;
+}
+export function exportCatalog(m: Masterdata): string {
+  return serializeCatalog(m, true);
+}
+/** Browser persistence only. Keep exported files human-readable. */
+export function serializeCatalogForStorage(m: Masterdata): string {
+  return serializeCatalog(m, false);
 }
 
 /** Legacy hashes covered only the original catalog tables. Used solely for migration/compatibility. */
