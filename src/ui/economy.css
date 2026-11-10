@@ -5,3 +5,25 @@
 #economy-simulator details { margin-block:1rem; }
 #economy-simulator pre { max-height:30rem; overflow:auto; }
 #economy-simulator input[type=checkbox] { width:auto; }
+.economy-conditions h2,.economy-results h2 { margin:0 0 1rem; }
+.economy-group { min-width:0; margin:0 0 1rem; padding:1rem 0; border:0; border-bottom:1px solid var(--line); }
+.economy-group legend,.economy-group > summary { font-size:14px; font-weight:700; line-height:1.5; }
+#economy-simulator .economy-group { margin-block:0 1rem; }
+.economy-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr)); gap:.75rem 1rem; align-items:start; }
+.economy-fields .field { min-width:0; margin:0; display:grid; gap:.35rem; font-size:13px; font-weight:500; line-height:1.5; }
+.economy-fields input,.economy-fields select { width:100%; min-width:0; min-height:44px; padding:8px 10px; font-size:16px; }
+.economy-fields input { text-align:right; font-variant-numeric:tabular-nums; }
+.economy-toggle { display:flex; gap:.6rem; align-items:center; min-height:44px; font-size:13px; line-height:1.5; }
+.economy-toggle input { flex:0 0 auto; margin:0; }
+.economy-options { grid-column:span 2; }
+.economy-note { color:var(--muted); font-size:12px; line-height:1.6; }
+.economy-help { font-size:13px; line-height:1.6; }
+#economy-simulator .economy-help { margin-block:.5rem 0; }
+.economy-help summary,.economy-json > summary { min-height:44px; align-content:center; font-size:13px; cursor:pointer; }
+.economy-help p { margin:.5rem 0; }
+.economy-actions { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+.economy-actions button { min-height:44px; }
+.economy-result-notes { display:flex; flex-wrap:wrap; gap:.4rem 1rem; color:var(--muted); font-size:12px; }
+.economy-warnings { border-inline-start:3px solid var(--accent); padding-inline-start:.75rem; font-size:13px; }
+[data-economy-message]:empty { display:none; }
+@media(max-width:600px) { .economy-options { grid-column:1 / -1; } }

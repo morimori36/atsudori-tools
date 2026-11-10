@@ -15,10 +15,12 @@ for(const width of [1280,390,320])test(`integrated ranks, independent actions an
   await expect(char.locator('[data-bond-final]')).toHaveText('30');
   await expect(char.locator('[data-exp-owned],[data-exp-unowned]')).toHaveCount(0);
   await expect(char.locator('[data-exp-goal]')).toContainText('0 EXP');
-  await expect(char.locator('[data-exp-recoverable]')).toHaveText('現在 → 理論値回収可能EXP（育成＋絆）+42 EXP');
+  await expect(char.locator('[data-exp-recoverable]')).toHaveText('回収可能EXP+42 EXP');
   await expect(page.locator('[data-exp-target]')).toHaveValue('30');await expect(page.locator('[data-exp-target]')).toHaveAttribute('type','number');
   await page.locator('[data-exp-target]').fill('32');await page.locator('[data-exp-target]').press('Enter');
   await expect(char.locator('[data-exp-goal]')).toContainText('13 EXP');
+  await expect(char.locator('[data-exp-goal-rank]')).toHaveText('32');
+  expect(await char.locator('[data-effective-rank],[data-exp-recoverable] strong,[data-bond-final],[data-exp-goal] strong').allTextContents()).toEqual(['32','+42 EXP','30','13 EXP']);
   await expect(char.locator('[data-exp-recoverable]')).toContainText('+42 EXP');
   for(const invalid of ['31','0','30.5','']) {
     await page.locator('[data-exp-target]').fill(invalid);await page.locator('[data-exp-target]').press('Enter');

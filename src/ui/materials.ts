@@ -8,6 +8,7 @@ import { trainingSettingsMarkup } from './training-settings';
 import type { CardRequirement } from '../domain/materials/calculate';
 import type { MaterialAxis } from '../domain/materials/model';
 import { materialInventoryBalances } from '../domain/materials/inventory';
+import { resourcesForDisplay } from './resource-order';
 const escape=(v:unknown):string=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]!);
 const number=(v:number|null|undefined):string=>v==null?'保留':v.toLocaleString('ja-JP');
 const labels:Record<MaterialAxis,string>={trainingStage:'特訓',awakeningStage:'覚醒',liveSkillLevel:'ライブスキル',gekisouSkillLevel:'撃奏スキル',level:'レベル',rank:'上限解放'};
@@ -54,7 +55,7 @@ function materialSection(materials:Simulation['materials'],collection:Collection
     const cards=materials.cards.filter(c=>c.kind===kind);
     const pending=cards.flatMap(card=>card.axes.filter(a=>a.status==='unavailable'));
     const consumers=materialConsumers(materials);
-    const consumption=materials.resources.map(resource=>{
+    const consumption=resourcesForDisplay(materials.resources).map(resource=>{
       const rows=(consumers.get(resource.id)??[]).filter(c=>c.card.kind===kind);
       return {resource,rows,quantity:rows.reduce((sum,row)=>sum+row.quantity,0)};
     }).filter(row=>row.rows.length);
