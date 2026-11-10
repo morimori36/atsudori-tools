@@ -16,6 +16,34 @@ it.each([CATALOG_STORAGE_KEY,STORAGE_KEY])('preserves broken storage verbatim: %
   const result=key===CATALOG_STORAGE_KEY?loadCatalog(port):loadCollection(port,syntheticCatalog());
   expect(result).toMatchObject({status:'invalid',raw:'{broken'});expect(port.data.get(key)).toBe('{broken');
 });
+it('persists compact catalogs while retaining readable exports and old stored JSON',()=>{
+  const port=memory(),m=syntheticCatalog(),readable=exportCatalog(m);
+  port.data.set(CATALOG_STORAGE_KEY,readable);
+  expect(loadCatalog(port)).toEqual({status:'loaded',value:validateCatalog(m)});
+  expect(port.data.get(CATALOG_STORAGE_KEY)).toBe(readable); // Loading does not rewrite a legacy value.
+
+  expect(saveCatalog(port,m).status).toBe('saved');
+  const stored=port.data.get(CATALOG_STORAGE_KEY)!;
+  expect(stored).toBe(JSON.stringify(validateCatalog(m)));
+  expect(stored.length).toBeLessThan(readable.length);
+  expect(loadCatalog(port)).toEqual({status:'loaded',value:validateCatalog(m)});
+  expect(exportCatalog(m)).toBe(readable);
+});
+it('saves under a synthetic storage quota that rejects indented catalog JSON',()=>{
+  const m=syntheticCatalog(),compact=JSON.stringify(validateCatalog(m)),readable=exportCatalog(m);
+  const bytes=(s:string)=>new TextEncoder().encode(s).length;
+  const quota=Math.floor((bytes(compact)+bytes(readable))/2);
+  expect(bytes(compact)).toBeLessThan(quota);
+  expect(bytes(readable)).toBeGreaterThan(quota);
+  const port=memory(),write=port.setItem;
+  port.setItem=(key,value)=>{
+    if(bytes(value)>quota)throw new Error('quota');
+    write(key,value);
+  };
+  expect(saveCatalog(port,m).status).toBe('saved');
+  expect(port.data.get(CATALOG_STORAGE_KEY)).toBe(compact);
+  expect(loadCatalog(port)).toEqual({status:'loaded',value:validateCatalog(m)});
+});
 it('reports unavailable storage and quota failures truthfully',()=>{
   const m=syntheticCatalog();expect(loadCatalog(undefined).status).toBe('unavailable');
   expect(saveCatalog(undefined,m).status).toBe('failed');
