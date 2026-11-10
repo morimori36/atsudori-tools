@@ -1,7 +1,7 @@
 import { importCollection, exportCollection } from './collection';
 import type { Collection } from './collection';
 import type { Masterdata } from '../data/catalog/model';
-import { validateCatalog, jsonValue, exportCatalog, CATALOG_LIMIT } from '../data/catalog/validate';
+import { validateCatalog, jsonValue, serializeCatalogForStorage, CATALOG_LIMIT } from '../data/catalog/validate';
 
 export const STORAGE_KEY = 'atsudori-tools.collection.v1';
 export const CATALOG_STORAGE_KEY = 'atsudori-tools.catalog.v1';
