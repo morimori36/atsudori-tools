@@ -404,6 +404,7 @@ footer { overflow-wrap: anywhere; }
 .progress-card h2, .progress-card h3 { font-size: 14px; margin: 0 0 8px; }
 .progress-card [data-rank-summary] { font-size: 12px; line-height: 1.7; font-variant-numeric: tabular-nums; }
 .progress-card [data-rank-summary] > span { display: block; }
+.progress-card [data-rank-source][hidden] { display: none; }
 .progress-card [data-effective-rank] { font-size: 20px; color: var(--accent-dark); }
 .progress-card .rank-editor { padding: 12px 0 0; margin: 10px 0 0; background: transparent; border-top: 1px solid var(--line); }
 .progress-card .inline-field { display: flex; flex-direction: column; align-items: stretch; gap: 4px; font-size: 12px; }
@@ -520,6 +521,11 @@ footer { overflow-wrap: anywhere; }
 .exp-overview > strong { margin-top: 3px; }
 .progress-card .bond-rank { color: inherit; }
 .progress-card .bond-rank strong { font-size: 20px; color: var(--accent-dark); }
+.progress-card [data-rank-summary] > span:first-child,.progress-card .bond-rank,.progress-card .exp-overview { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; gap:4px 8px; }
+.progress-card .bond-rank { margin-top:10px; font-size:12px; font-variant-numeric:tabular-nums; }
+.progress-card .bond-rank small,.progress-card .exp-overview small { grid-column:1 / -1; font-size:11px; color:var(--muted); }
+.progress-card .exp-overview > strong { margin:0; white-space:nowrap; }
+.progress-card .exp-goal { border-top:1px solid var(--line); margin-top:12px; padding-top:10px; }
 .progress-card .rank-source { margin-left: 0; font-size: 11px; color: var(--muted); }
 .exp-detail-button { width: 100%; margin-top: 12px; min-height: 44px; white-space: normal; }
 .exp-target { margin-block: 16px; }

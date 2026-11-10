@@ -182,7 +182,7 @@ test('rank estimation, manual progress, overrides, reset, persistence and export
   await expect(summary).toContainText(/現在ランク 3.*手動上書き中/);await expect(page.locator('[data-rank-exp]')).toHaveText('3');
   await openRank(page);await page.locator('#rank-8201').fill('');await openRankInput(page,8201);await page.locator('#progress-8201-bondRankTotal').fill('9');
   await page.locator('#progress-form button[type=submit]').click();
-  await expect(summary).toContainText(/現在ランク 2.*自動推定/);await expect(page.locator('[data-rank-exp]')).toHaveText('16');
+  await expect(summary).toContainText('現在ランク 2');await expect(page.locator('[data-rank-source]')).toBeHidden();await expect(page.locator('[data-rank-exp]')).toHaveText('16');
   await expect(page.locator('[data-total-character-rank]')).toContainText('総合キャラクターランク 2');
   await tab(page,'rating');
   // Imported rank2: per-channel floors124/235/393, then floor752*1.118=840.
@@ -206,14 +206,14 @@ test('counts three skill contributions using fictional thresholds and preserves 
   await tab(page,'progress');await expect(page.locator('[data-rank-exp]')).toHaveText('3');await expect(page.locator('input[name*=skillLevel]')).toHaveCount(0);
   await page.locator('#progress-form button[type=submit]').click();expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).characterProgress,STORAGE_KEY)).toEqual(c.characterProgress);
   await tab(page,'members');for(const name of ['awakeningStage','liveSkillLevel','gekisouSkillLevel'])await page.locator('[data-member-card="8301"] input[name="'+name+'"][value="5"]').check();
-  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText(/現在ランク 7.*自動推定/);await expect(page.locator('[data-rank-exp]')).toHaveText('88');
+  await tab(page,'progress');await expect(page.locator('[data-rank-summary]')).toContainText('現在ランク 7');await expect(page.locator('[data-rank-exp]')).toHaveText('88');
   await openRank(page);await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空スキル集計'})).toContainText('3 → 2件62 EXP');
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-rank-exp]')).toHaveText('88');
 });
 test('manual progress uses imported nonuniform thresholds and survives JSON round trips',async({page})=>{
   await catalog(page);await collection(page);await tab(page,'progress');await openRank(page);
   await openRankInput(page,8201);await page.locator('#rank-8201').fill('');await openRankInput(page,8201);await page.locator('#progress-8201-liveClears').fill('10');await page.locator('#progress-form button[type=submit]').click();
-  await expect(page.locator('[data-rank-summary]')).toContainText(/現在ランク 3.*自動推定/);await expect(page.locator('[data-rank-exp]')).toHaveText('20');
+  await expect(page.locator('[data-rank-summary]')).toContainText('現在ランク 3');await expect(page.locator('[data-rank-exp]')).toHaveText('20');
   await page.reload();await tab(page,'progress');await openRank(page);await expect(page.locator('#progress-8201-liveClears')).toHaveValue('10');
   await expect(page.locator('[data-character-rank="8201"] li').filter({hasText:'架空進捗D'})).toContainText('10 → 1件17 EXP');
   await tab(page,'exchange');const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);const json=await readFile((await d.path())!,'utf8');
