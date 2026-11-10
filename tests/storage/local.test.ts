@@ -1,6 +1,7 @@
 import {it,expect} from 'vitest';
 import {loadCatalog,saveCatalog,loadCollection,saveCollection,CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
 import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
+import {exportCatalog,validateCatalog} from '../../src/data/catalog/validate';
 const memory=()=>{const data=new Map<string,string>();return {data,getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>{data.set(k,v);}};};
 it('stores catalog and collection independently without writing on load',()=>{
   const port=memory(),m=syntheticCatalog(),c=syntheticCollection(m);
