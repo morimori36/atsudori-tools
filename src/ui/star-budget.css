@@ -1,0 +1,36 @@
+.budget-form-body { border: 0; padding: 0; margin: 0; min-width: 0; }
+.budget-actions, .budget-checks { display: flex; gap: 12px; flex-wrap: wrap; margin-block: 16px; }
+.budget-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.budget-check input, .budget-products input { width: 20px; min-width: 20px; min-height: 20px; flex-shrink: 0; padding: 0; }
+.budget-scroll { overflow-x: auto; max-width: 100%; margin-block: 16px; }
+.budget-scroll:focus-visible { outline: 2px solid var(--accent); }
+.budget-products th { white-space: normal; min-width: 190px; }
+.budget-products label { display: flex; gap: 8px; align-items: center; }
+.budget-products td { min-width: 150px; }
+.budget-comparison { min-width: 760px; font-variant-numeric: tabular-nums; }
+.budget-comparison thead th { font-size: 15px; font-weight: 700; }
+.budget-comparison td { text-align: right; width: 19%; }
+.budget-comparison tr th:first-child { position: sticky; left: 0; z-index: 1; white-space: normal; min-width: 150px; }
+.budget-comparison .budget-surplus { color: light-dark(#286341, #a6dcbc); font-weight: 700; }
+.budget-comparison .budget-shortfall { color: light-dark(#a32d40, #ffadba); font-weight: 700; }
+.budget-definition > .field { max-width: 24rem; margin-block: 12px; }
+.budget-definition details { border-top: 1px solid var(--line); padding-block: 8px; }
+.budget-definition summary { min-height: 44px; cursor: pointer; padding-block: 12px; font-size: 14px; }
+.budget-definition details details { margin-inline-start: 10px; }
+.budget-metric { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(140px, 1fr) minmax(150px, 2fr); gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-block: 16px; min-width: 0; }
+.budget-metric legend { font-size: 13px; padding-inline: 6px; }
+.budget-metric .field { min-width: 0; }
+.budget-metric input, .budget-metric select, .budget-definition > .field input { width: 100%; min-width: 0; font-size: 16px; min-height: 44px; }
+#star-budget-form input:not([type="checkbox"]), #star-budget-form select { font-size: 16px; min-height: 44px; }
+.budget-tier { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin-bottom: 16px; }
+#star-budget-form details ul { line-height: 1.8; overflow-wrap: anywhere; }
+#star-budget-form [data-budget-results] summary { cursor: pointer; min-height: 44px; padding-block: 12px; }
+[data-budget-message]:empty { display: none; }
+@media (max-width: 700px) {
+  .budget-comparison { min-width: 650px; table-layout: fixed; }
+  .budget-comparison tr th:first-child { width: 110px; min-width: 110px; }
+  .budget-comparison td { width: auto; }
+  .budget-metric { grid-template-columns: minmax(0, 1fr); }
+  .budget-actions { flex-direction: column; align-items: stretch; }
+  .budget-definition details details { margin-inline-start: 0; }
+}

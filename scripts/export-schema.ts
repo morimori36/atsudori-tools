@@ -8,6 +8,7 @@ import type { CatalogTable } from '../src/data/catalog/fields.ts';
 import { eventPlannerSchema } from '../src/domain/event-planner/schema.ts';
 import { conversionProfileSchema } from '../src/domain/conversion/schema.ts';
 import { supplyDefinitionSchema, economyScenarioSchema } from '../src/domain/economy/schema.ts';
+import { starBudgetSchema } from '../src/domain/star-budget/schema.ts';
 const int = {type:'integer',minimum:1,maximum:Number.MAX_SAFE_INTEGER};
 const zero = {...int,minimum:0};
 const text = {type:'string',minLength:1,maxLength:200,pattern:'\\S'};
@@ -42,3 +43,4 @@ for (const [name,value] of [['catalog',catalog],['collection',collection],['even
   writeFileSync('public/schemas/' + name + '-v1.schema.json',JSON.stringify(value,null,2)+'\n');
 writeFileSync('public/schemas/conversion-profile-v2.schema.json',JSON.stringify(conversionProfileSchema,null,2)+'\n');
 writeFileSync('public/schemas/economy-scenario-v5.schema.json',JSON.stringify(economyScenarioSchema,null,2)+'\n');
+writeFileSync('public/schemas/star-budget-v1.schema.json',JSON.stringify(starBudgetSchema,null,2)+'\n');
