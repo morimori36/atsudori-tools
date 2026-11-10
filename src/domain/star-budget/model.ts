@@ -59,12 +59,17 @@ export interface StarBudgetInput {
   format: typeof STAR_BUDGET_FORMAT;
   schemaVersion: 1;
   definition: StarBudgetDefinition;
-  scenario: {
-    rank: number | null;
-    storyEventPercent: number | null;
-    eventPremium: boolean;
-    seasonPremium: boolean;
-    includeArena: boolean;
-    selectedProducts: ProductId[];
-  };
+  scenario: StarBudgetScenario & { rank: number | null };
+}
+export interface StarBudgetScenario {
+  storyEventPercent: number | null;
+  eventPremium: boolean;
+  seasonPremium: boolean;
+  includeArena: boolean;
+  selectedProducts: ProductId[];
+}
+
+/** Read defaults without materializing omitted collection fields. */
+export function defaultStarBudgetScenario(): StarBudgetScenario {
+  return { storyEventPercent: null, eventPremium: false, seasonPremium: false, includeArena: false, selectedProducts: [...PRODUCT_IDS] };
 }

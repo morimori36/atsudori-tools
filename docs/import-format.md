@@ -200,3 +200,20 @@ collectionの`ownedStampIds`は初期未記載（所持なし）で、新マス�
 catalogの配列順とImport/Exportの値は保持します。schemaVersion、collectionの形式・保存キー、入力の保存、評価計算・選出は変更せず、移行は不要です。追加フィールドに未対応の旧アプリには新catalogを渡せません。
 
 `materialDefinition.resources[]` は任意の `displayOrder`（0以上の安全な整数）を受け取ります。在庫表示用で、費用計算・所持には影響しません。省略した既存catalogもImport・Exportでき、既定値を書き足しません。各単位のセクション内で指定値の昇順、同値はcatalog順、未指定は末尾でcatalog順に表示します。
+
+## catalog／collection統合（第1段階）
+
+catalog v1の任意項目 `starBudgetDefinition` に静的値・根拠・未確認区分を保持します。構造は従来のdefinitionと同じで、定義のrevisionはcatalogのrevisionと一致必須です。全11商品、価格段階、区分と値・根拠の整合性を検証します。定義なしの旧catalogも有効です。
+
+collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必須にします。ランクは既存の `tgwRank` のみで、scenarioにrankは保存しません。
+
+| 項目 | 型・読み取り時の既定値 |
+| --- | --- |
+| storyEventPercent | 0〜100の整数またはnull（既定null） |
+| eventPremium / seasonPremium | boolean（既定false） |
+| includeArena | boolean（既定false） |
+| selectedProducts | 重複しない既知商品ID配列（既定は全11種、空配列も有効） |
+
+省略された条件を保存・Export時に補完しません。通常Importで項目がなければ保存中の条件を保持し、明示された条件はfalse・null・空配列を含め丸ごと採用します。完全復元では省略分を保持しません。catalog更新・定義の有無によって既存の条件や所持を削除しません。未確認を0に置き換えません。
+
+画面と旧専用保存・JSONは後続のUI対応まで従来経路を維持します。新契約のImport/Exportはcatalogとcollectionで行い、旧スター予算JSONの自動移行・復元は行いません。

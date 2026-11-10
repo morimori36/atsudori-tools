@@ -1,6 +1,6 @@
 import { jsonValue, strictObject } from '../../data/json';
 import { PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES, STAR_BUDGET_FORMAT } from './model';
-import type { BudgetValue, StarBudgetInput } from './model';
+import type { BudgetValue, StarBudgetInput, StarBudgetDefinition, StarBudgetScenario } from './model';
 
 export const STAR_BUDGET_JSON_LIMIT = 256 * 1024;
 const fail = (path: string, message: string): never => { throw new Error(path + ': ' + message); };
@@ -31,7 +31,17 @@ function measures(value: unknown, path: string, keys: readonly string[], dayKey?
 export function validateStarBudget(value: unknown): StarBudgetInput {
   const root = strictObject(value, 'スター予算', ['format', 'schemaVersion', 'definition', 'scenario']);
   if (root.format !== STAR_BUDGET_FORMAT || root.schemaVersion !== 1) fail('スター予算', '未対応の形式・versionです');
-  const d = strictObject(root.definition, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
+  validateStarBudgetDefinition(root.definition);
+  const legacy = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
+  if (legacy.rank !== null) integer(legacy.rank, 'rank', 1);
+  const { rank, ...scenario } = legacy;
+  validateStarBudgetScenario(scenario);
+  const result = structuredClone(value) as StarBudgetInput;
+  if (new TextEncoder().encode(JSON.stringify(result, null, 2) + '\n').length > STAR_BUDGET_JSON_LIMIT) fail('スター予算', 'JSONの上限は256KiBです');
+  return result;
+}
+export function validateStarBudgetDefinition(value: unknown): StarBudgetDefinition {
+  const d = strictObject(value, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
   if (typeof d.revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(d.revision)) fail('definition.revision', '版の識別子が不正です');
   for (const key of ['loginDaily', 'missionDaily', 'liveStampWeekly']) measure(d[key], 'definition.' + key);
   text(d.liveStampSelection, 'definition.liveStampSelection');
@@ -55,16 +65,16 @@ export function validateStarBudget(value: unknown): StarBudgetInput {
   }
   const names = (d.products as { name: string }[]).map(p => p.name.trim());
   if (new Set(names).size !== names.length) fail('products', '商品・対象バンドを区別できる異なる名前を指定してください');
-  const s = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
-  if (s.rank !== null) integer(s.rank, 'rank', 1);
+  return structuredClone(value) as StarBudgetDefinition;
+}
+export function validateStarBudgetScenario(value: unknown): StarBudgetScenario {
+  const s = strictObject(value, 'scenario', ['storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
   if (s.storyEventPercent !== null) integer(s.storyEventPercent, 'storyEventPercent', 0, 100);
   for (const key of ['eventPremium', 'seasonPremium', 'includeArena']) if (typeof s[key] !== 'boolean') fail(key, 'ON/OFFで指定してください');
   if (!Array.isArray(s.selectedProducts) || s.selectedProducts.length > PRODUCT_IDS.length
     || new Set(s.selectedProducts).size !== s.selectedProducts.length
     || s.selectedProducts.some(id => !PRODUCT_IDS.includes(id as never))) fail('selectedProducts', '選択商品が未対応または重複しています');
-  const result = structuredClone(value) as StarBudgetInput;
-  if (new TextEncoder().encode(JSON.stringify(result, null, 2) + '\n').length > STAR_BUDGET_JSON_LIMIT) fail('スター予算', 'JSONの上限は256KiBです');
-  return result;
+  return structuredClone(value) as StarBudgetScenario;
 }
 export function importStarBudget(raw: string): StarBudgetInput { return validateStarBudget(jsonValue(raw, STAR_BUDGET_JSON_LIMIT)); }
 export function exportStarBudget(input: StarBudgetInput): string { return JSON.stringify(validateStarBudget(input), null, 2) + '\n'; }

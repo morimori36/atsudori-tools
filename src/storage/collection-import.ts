@@ -8,6 +8,7 @@ export function prepareCollectionImport(incoming: Collection, current: Collectio
   const next = validateCollection(incoming, master);
   if (!preserveMissingProgress) return next;
   const previous = validateCollection(current, master);
+  const starBudgetScenario = next.starBudgetScenario ?? previous.starBudgetScenario;
   const tgwRank = next.tgwRank ?? previous.tgwRank;
   // An omitted field from a daily import preserves manual ownership. An explicit
   // array (including []) replaces it, allowing deliberate backup restoration.
@@ -18,5 +19,5 @@ export function prepareCollectionImport(incoming: Collection, current: Collectio
     // Explicit values, including zero, win. Omission never means clearing a saved field.
     characterProgress[id] = { ...characterProgress[id], ...progress };
   }
-  return validateCollection({ ...next, ...(resourceInventory===undefined?{}:{resourceInventory}), ...(ownedStampIds === undefined ? {} : {ownedStampIds}), ...(previous.characterProgress === undefined && next.characterProgress === undefined ? {} : {characterProgress}), ...(tgwRank === undefined ? {} : {tgwRank}) }, master);
+  return validateCollection({ ...next, ...(starBudgetScenario === undefined ? {} : {starBudgetScenario}), ...(resourceInventory===undefined?{}:{resourceInventory}), ...(ownedStampIds === undefined ? {} : {ownedStampIds}), ...(previous.characterProgress === undefined && next.characterProgress === undefined ? {} : {characterProgress}), ...(tgwRank === undefined ? {} : {tgwRank}) }, master);
 }

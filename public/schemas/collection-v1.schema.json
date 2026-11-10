@@ -164,6 +164,60 @@
       "minimum": 1,
       "maximum": 9007199254740991
     },
+    "starBudgetScenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storyEventPercent",
+        "eventPremium",
+        "seasonPremium",
+        "includeArena",
+        "selectedProducts"
+      ],
+      "properties": {
+        "storyEventPercent": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "eventPremium": {
+          "type": "boolean"
+        },
+        "seasonPremium": {
+          "type": "boolean"
+        },
+        "includeArena": {
+          "type": "boolean"
+        },
+        "selectedProducts": {
+          "type": "array",
+          "maxItems": 11,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "crystal-luck",
+              "crystal-miracle",
+              "skill-live",
+              "skill-gekisou",
+              "skill-basic",
+              "skill-sp",
+              "sr-1",
+              "sr-2",
+              "sr-3",
+              "sr-4",
+              "sr-5"
+            ]
+          }
+        }
+      }
+    },
     "totalRankBonus": {
       "type": "integer",
       "minimum": 0,
