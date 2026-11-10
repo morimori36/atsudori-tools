@@ -196,9 +196,10 @@ export function importCatalog(text: string): Masterdata {
 }
 function serializeCatalog(m: Masterdata, formatted: boolean): string {
   const value = validateCatalog(m);
-  const text = formatted ? JSON.stringify(value, null, 2) + '\n' : JSON.stringify(value);
-  if(new TextEncoder().encode(text).length>CATALOG_LIMIT)throw new Error('マスタJSONの上限は10MiBです');
-  return text;
+  const readable = JSON.stringify(value, null, 2) + '\n';
+  // The exported form must remain within the public 10 MiB limit even when storage is compact.
+  if(new TextEncoder().encode(readable).length>CATALOG_LIMIT)throw new Error('マスタJSONの上限は10MiBです');
+  return formatted ? readable : JSON.stringify(value);
 }
 export function exportCatalog(m: Masterdata): string {
   return serializeCatalog(m, true);
