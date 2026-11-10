@@ -35,5 +35,5 @@ export function loadCatalog(storage: StoragePort | undefined): JsonLoad<Masterda
   return loadJson(storage, CATALOG_STORAGE_KEY, text => validateCatalog(jsonValue(text, CATALOG_LIMIT)));
 }
 export function saveCatalog(storage: StoragePort | undefined, master: Masterdata): SaveResult {
-  return saveJson(storage, CATALOG_STORAGE_KEY, () => exportCatalog(master));
+  return saveJson(storage, CATALOG_STORAGE_KEY, () => serializeCatalogForStorage(master));
 }
