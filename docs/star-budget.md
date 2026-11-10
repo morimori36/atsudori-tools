@@ -2,9 +2,9 @@
 
 「スター予算」で、カタログ商品を毎週上限まで全交換する費用と、継続的な週平均スター供給を比較します。アワーノーツパスのなし／Lite／Standard／Premiumを同じ条件で横並びにします。正の差引はガチャ・貯蓄へ回せる平均余剰、負なら継続全交換にスターが不足する試算です。
 
-実ゲームの報酬・価格・解放条件・周期は同梱せず、すべて未確認から始めます。「定義・根拠」で入力するか、この画面でExportした専用JSONに合わせて外部で作成した定義をImportしてください。現在の画面は旧経路を維持し、マスタなしでも利用できます。
+実ゲームの報酬・価格・解放条件・周期は同梱しません。JSON Import / Exportからスター予算定義を含むcatalogを登録してください。定義がなければ計算できない旨を表示します。定義は読み取り専用で、供給の内訳・根拠と前提、価格の根拠から確認できます。
 
-## catalog／collection統合（第1段階）
+## catalog／collection統合
 
 catalog v1の任意項目 `starBudgetDefinition` に静的値・根拠・未確認区分を保持します。構造は従来のdefinitionと同じで、定義のrevisionはcatalogのrevisionと一致必須です。全11商品、価格段階、区分と値・根拠の整合性を検証します。定義なしの旧catalogも有効です。
 
@@ -19,11 +19,11 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 
 省略された条件を保存・Export時に補完しません。通常Importで項目がなければ保存中の条件を保持し、明示された条件はfalse・null・空配列を含め丸ごと採用します。完全復元では省略分を保持しません。catalog更新・定義の有無によって既存の条件や所持を削除しません。未確認を0に置き換えません。
 
-画面と旧専用保存・JSONは後続のUI対応まで従来経路を維持します。新契約のImport/Exportはcatalogとcollectionで行い、旧スター予算JSONの自動移行・復元は行いません。
+画面の条件変更は共通のcollection保存経路を使います。Import/Export・初期化はJSON Import / Export画面から行います。旧独立JSONと専用保存キーは読み取らず、移行・復元・削除もしません。
 
 ## 入力・計算
 
-各数値に値・根拠の区分・適用範囲を登録します。空欄は未確認、0は明示的な0です。数値を変更すると「仮定」へ戻し、根拠が空なら「手入力の仮定」を設定します。「確認済み」は登録者が根拠を確認して切り替える区分で、アプリが実ゲームの値を確認したという意味ではありません。
+マスタの根拠区分は未確認・仮定・確認済みを区別します。「確認済み」は登録者の申告です。画面ではTGWランク、Premium購入2種、ストーリー割合、アリーナ、交換商品だけを変更できます。TGWランクはキャラランク画面と共通で、空欄は不明です。
 
 | 供給源 | 週平均の計算と条件 |
 | --- | --- |
@@ -52,29 +52,11 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 
 ## 保存・JSON契約
 
-formatは`atsudori-tools/star-budget`、schemaVersionは`1`、保存キーは`atsudori-tools.star-budget.v1`。条件と定義を1つのJSONで管理します。[構造Schema](../public/schemas/star-budget-v1.schema.json)に加え、`src/domain/star-budget/validate.ts`の意味検証が必要です。
+静的定義はcatalog v1の `starBudgetDefinition`、個人条件はcollection v1の `starBudgetScenario`、ランクはcollectionの `tgwRank` が正本です。[catalog Schema](../public/schemas/catalog-v1.schema.json)・[collection Schema](../public/schemas/collection-v1.schema.json)と意味検証を併用します。
 
-| 項目 | 内容 |
-| --- | --- |
-| definition.revision | 英数字開始、英数字・ピリオド・下線・ハイフンの1〜80文字の版 |
-| definition.loginDaily / missionDaily / liveStampWeekly | 数値と根拠の組 |
-| definition.liveStampSelection | スタンプの報酬選択。正のスターを含める場合は必要 |
-| definition.event | intervalDays, points, missionFree, missionPremium, storyPerEpisode, storyEpisodes |
-| definition.season | intervalDays, free, premium |
-| definition.arena | intervalDays, recurringStars（反復分のみ） |
-| definition.passes | lite / standard / premiumごとのperiodDays, purchaseStars, dailyStars, priceYen |
-| definition.starCompatibility | unconfirmed / assumed-usable / confirmed-usable / restricted |
-| definition.starCompatibilityBasis | 合算可否の根拠。未確認以外は必須 |
-| definition.products | 全11商品。id, name, unlockRank, tiers[{starCost, weeklyLimit}] |
-| scenario | rank, storyEventPercent, eventPremium, seasonPremium, includeArena, selectedProducts |
+definitionはrevision、loginDaily、missionDaily、liveStampWeekly、liveStampSelection、event、season、arena、passes、starCompatibility、starCompatibilityBasis、productsを持ちます。productsは全11商品（crystal-luck、crystal-miracle、skill-live、skill-gekisou、skill-basic、skill-sp、sr-1〜sr-5）を各1回持ち、name、unlockRank、1〜20段階のtiers[{starCost, weeklyLimit}]を定義します。数値と根拠は `{value, status, basis}` で、nullはunconfirmed、数値ありはassumedまたはconfirmedと空白以外のbasisが必要です。日数は正の小数2桁以内、数量・価格は非負安全整数、解放ランクは正整数です。
 
-商品idは`crystal-luck`、`crystal-miracle`、`skill-live`、`skill-gekisou`、`skill-basic`、`skill-sp`、`sr-1`〜`sr-5`。ツール内の固定枠で上流ゲームIDを解釈しません。各枠は必ず1回、選択idは重複なし。配列順はImport/Exportで保持します。
-
-数値と根拠は`{value, status, basis}`。statusは`unconfirmed` / `assumed` / `confirmed`です。valueがnullならunconfirmed、数値があればassumedまたはconfirmedと空白以外のbasisが必要です。数量・円・価格・上限は0以上の安全な整数、ランクは1以上。日数は0より大きい小数2桁以内、最大安全整数/100以下。storyEventPercentはnullまたは0〜100の整数、rankのnullは不明です。根拠は300文字、商品名は200文字まで。未知キー・危険キー・不正型・未対応versionを拒否し補完・型変換しません。UTF-8で256KiBが上限。再Importできない大きさのExportも拒否します。
-
-起動・表示だけでは保存せず、有効な変更ごとに専用キーだけを自動保存します。手動入力の保存失敗ではメモリ内の条件を保持し、未完了を表示してExport・再試行できます。不正入力は未保存の下書きとして画面切替後も保持し、結果を隠します。数値の途中入力をブラウザが空文字として返す場合も、不正状態を保持し、空欄確定・保存済みとは扱わず再入力を促します。
-
-Importは検証・計算・保存に成功したときだけ反映します。読込中に画面を往復した場合も、完了時には現在表示中のスター予算へ結果・通知を反映します。新しい入力・Import・初期化に追い越された古いImportは無視します。破損・旧形式の保存は元文字列を保持して自動保存を停止し、元JSONをExportできます。確認付きImportか初期化で復旧します。保存に失敗したImport・初期化では現在の条件と保護状態を維持します。保存を読めない場合も未知の既存値を自動で置き換えません。
+起動・表示では保存しません。有効な条件変更は保存成功後に確定します。保存失敗や不正入力では共通の未保存警告を表示し、確定済みcollectionと計算結果を保持します。画面を切り替えると未確定の条件は破棄し、共通collectionから読み直します。破損した所持・マスタは保護し、スター予算の変更・計算を止めます。復旧は共通のImport／初期化を使います。マスタ更新では所持の条件を上書きしません。
 
 ## 外部定義の生成と未確認範囲
 

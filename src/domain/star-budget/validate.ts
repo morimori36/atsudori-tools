@@ -1,8 +1,7 @@
-import { jsonValue, strictObject } from '../../data/json';
-import { PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES, STAR_BUDGET_FORMAT } from './model';
+import { strictObject } from '../../data/json';
+import { PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES } from './model';
 import type { BudgetValue, StarBudgetInput, StarBudgetDefinition, StarBudgetScenario } from './model';
 
-export const STAR_BUDGET_JSON_LIMIT = 256 * 1024;
 const fail = (path: string, message: string): never => { throw new Error(path + ': ' + message); };
 function text(value: unknown, path: string, max = 300, required = false): void {
   if (typeof value !== 'string' || value.length > max || required && !value.trim()) fail(path, '文字列の長さ・内容を確認してください');
@@ -29,15 +28,13 @@ function measures(value: unknown, path: string, keys: readonly string[], dayKey?
   for (const key of keys) measure(row[key], path + '.' + key, key === dayKey ? 'days' : 'integer');
 }
 export function validateStarBudget(value: unknown): StarBudgetInput {
-  const root = strictObject(value, 'スター予算', ['format', 'schemaVersion', 'definition', 'scenario']);
-  if (root.format !== STAR_BUDGET_FORMAT || root.schemaVersion !== 1) fail('スター予算', '未対応の形式・versionです');
+  const root = strictObject(value, 'スター予算', ['definition', 'scenario']);
   validateStarBudgetDefinition(root.definition);
-  const legacy = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
-  if (legacy.rank !== null) integer(legacy.rank, 'rank', 1);
-  const { rank, ...scenario } = legacy;
+  const combined = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
+  if (combined.rank !== null) integer(combined.rank, 'rank', 1);
+  const { rank, ...scenario } = combined;
   validateStarBudgetScenario(scenario);
   const result = structuredClone(value) as StarBudgetInput;
-  if (new TextEncoder().encode(JSON.stringify(result, null, 2) + '\n').length > STAR_BUDGET_JSON_LIMIT) fail('スター予算', 'JSONの上限は256KiBです');
   return result;
 }
 export function validateStarBudgetDefinition(value: unknown): StarBudgetDefinition {
@@ -76,12 +73,10 @@ export function validateStarBudgetScenario(value: unknown): StarBudgetScenario {
     || s.selectedProducts.some(id => !PRODUCT_IDS.includes(id as never))) fail('selectedProducts', '選択商品が未対応または重複しています');
   return structuredClone(value) as StarBudgetScenario;
 }
-export function importStarBudget(raw: string): StarBudgetInput { return validateStarBudget(jsonValue(raw, STAR_BUDGET_JSON_LIMIT)); }
-export function exportStarBudget(input: StarBudgetInput): string { return JSON.stringify(validateStarBudget(input), null, 2) + '\n'; }
 export const unknownBudgetValue = (): BudgetValue => ({ value: null, status: 'unconfirmed', basis: '' });
 export function emptyStarBudget(): StarBudgetInput {
   const m = unknownBudgetValue;
-  return { format: STAR_BUDGET_FORMAT, schemaVersion: 1,
+  return {
     definition: { revision: '1', loginDaily: m(), missionDaily: m(), liveStampWeekly: m(), liveStampSelection: '',
       event: { intervalDays: m(), points: m(), missionFree: m(), missionPremium: m(), storyPerEpisode: m(), storyEpisodes: m() },
       season: { intervalDays: m(), free: m(), premium: m() }, arena: { intervalDays: m(), recurringStars: m() },
