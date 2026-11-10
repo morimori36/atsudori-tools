@@ -79,6 +79,20 @@ for(const kind of ['collection','catalog','profile'] as const) test(`${kind} rej
   await expect.poll(()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)!),key)).toMatchObject({...newer});
 });
 
+test('catalog uses compact browser storage but keeps human-readable export after reload',async({page})=>{
+  const {CATALOG_STORAGE_KEY}=await import('../../src/storage/local');
+  const beforeCollection=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  const stored=await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY);
+  expect(stored).not.toBeNull();
+  expect(stored).toBe(JSON.stringify(JSON.parse(stored!)));
+  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe(stored);
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(beforeCollection);
+  const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-export').click()]);
+  const exported=await readFile((await download.path())!,'utf8');
+  expect(exported).toContain('\n  "format":');
+  expect(JSON.parse(exported)).toEqual(JSON.parse(stored!));
+});
 test('failed master persistence preserves both previous master and collection',async({page})=>{
   const before=await page.evaluate(()=>({...localStorage}));
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});
