@@ -140,7 +140,7 @@ catalogIdは対応するcatalogと一致する必要があります。追加進�
 
 ## 保存と復旧
 
-キーはatsudori-tools.catalog.v1とatsudori-tools.collection.v1です。別々のJSON文字列として保存し、一方の更新で他方の保存バイト列を書き換えません。起動だけでは保存しません。
+キーはatsudori-tools.catalog.v1とatsudori-tools.collection.v1です。別々のJSON文字列として保存し、一方の更新で他方の保存バイト列を書き換えません。起動だけでは保存しません。catalogのブラウザ保存だけは容量節約のため空白・改行を除いたJSONとし、Import／Exportするファイルの整形形式は従来どおりです。過去にブラウザへ保存した整形済みcatalogもそのまま読み込めます。保存キーや所持データを移行・初期化する必要はありません。
 
 破損・未対応version・catalog不一致の元文字列は上書きせず、元JSONをExportできます。catalogの正しい再Importで既存のcollectionが再び検証できれば復旧します。collectionのImportは検証後に即保存・反映し、空にする操作は確認ダイアログを必要とします。Importの保存失敗はエラーとし、既存のメモリ・保存データを維持します。手動編集の保存失敗は未保存を表示し、メモリ内の有効データをExportできます。
 
