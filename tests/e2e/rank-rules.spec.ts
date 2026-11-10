@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { openRankInput } from '../helpers/rank-ui';
 import { test,expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -8,7 +9,7 @@ import { fictionalProfile } from '../helpers/conversion';
 import { CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
 const RANK_RULES_STORAGE_KEY='atsudori-tools.character-rank-rules.v1';
 const file=(v:unknown)=>({name:'fictional.json',mimeType:'application/json',buffer:Buffer.from(typeof v==='string'?v:JSON.stringify(v))});
-const tab=(p:Page,id:string)=>p.locator('nav [data-tab='+id+']').click();
+const tab=(p:Page,id:string)=>chooseScreen(p, p.locator('nav [data-tab='+id+']'));
 const download=async(p:Page,id:string)=>{const [d]=await Promise.all([p.waitForEvent('download'),p.locator(id).click()]);return readFile((await d.path())!,'utf8');};
 test.beforeEach(async({page})=>{
   const m=syntheticCatalog(),c={...syntheticCollection(m),characterProgress:{8201:{stamps:9,skillLevel5:97}}};
@@ -43,7 +44,7 @@ test('imports, backs up and restores all static definitions with catalog alone',
   await page.reload();await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('1');
   await tab(page,'exchange');await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
 
-  await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(backup));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));await page.locator('#catalog-import').setInputFiles(file(backup));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'progress');await expect(page.locator('[data-effective-rank]')).toHaveText('1');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

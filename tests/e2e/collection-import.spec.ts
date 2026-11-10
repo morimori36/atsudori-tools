@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
@@ -5,7 +6,7 @@ import { STORAGE_KEY } from '../../src/storage/local';
 const file = (value: unknown) => ({ name: 'fictional-import.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(value)) });
 const current = () => ({ ...syntheticCollection(), tgwRank: 12, characterProgress: {8201: { stamps: 8, bondRankTotal: 30, liveClears: 100, songClears: 10, skillLevel5: 2 }} });
 test.beforeEach(async ({ page }) => {
-  await page.goto('./');await page.locator('nav [data-tab=exchange]').click();
+  await page.goto('./');await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(syntheticCatalog()));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(current()));
@@ -19,7 +20,7 @@ test('automatic imports retain omitted progress and TGW, survive reload and expo
   const expected = { ...incoming, characterProgress: current().characterProgress, tgwRank:12 };
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY)).toEqual(expected);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export-button').click()]);
   expect(JSON.parse(await readFile((await download.path())!, 'utf8'))).toEqual(expected);
 });
@@ -85,7 +86,7 @@ test('catalog uses compact browser storage but keeps human-readable export after
   const stored=await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY);
   expect(stored).not.toBeNull();
   expect(stored).toBe(JSON.stringify(JSON.parse(stored!)));
-  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe(stored);
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(beforeCollection);
   const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-export').click()]);

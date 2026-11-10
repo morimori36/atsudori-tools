@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { fictionalCatalog } from '../helpers/rank-rules';
@@ -12,14 +13,14 @@ for (const width of [1280,390]) for (const snapCount of [1,3,4]) {
     collection.snaps = master.snaps.slice(0,snapCount).map(s => ({...collection.snaps[0]!,supportCardId:s.id}));
     master.members.reverse(); master.snaps.reverse(); collection.members.reverse(); collection.snaps.reverse();
     await page.setViewportSize({width,height:844}); await page.goto('./');
-    await page.locator('nav [data-tab=exchange]').click();
+    await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
     await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master)));
     await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
     await page.locator('#import-file').setInputFiles(file(collection));
     await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
     const bytes = () => page.evaluate(({mk,ck}) => [localStorage.getItem(mk),localStorage.getItem(ck)],{mk:CATALOG_STORAGE_KEY,ck:STORAGE_KEY});
     const before = await bytes();
-    await page.locator('nav [data-tab=rating]').click();
+    await chooseScreen(page, page.locator('nav [data-tab=rating]'));
     const rows = page.locator('[data-rating-slot]');
     await expect(rows).toHaveCount(3);
     expect(await rows.evaluateAll(els=>els.map(el=>el.getAttribute('data-rating-slot')))).toEqual(['member-8301','member-8302','member-8303']);
@@ -48,7 +49,7 @@ for (const width of [1280,390]) for (const snapCount of [1,3,4]) {
     await expect(rows).toHaveCount(3);
     expect(await bytes()).toEqual(before);
     await page.reload(); await expect(page.locator('.band-result .rating-total strong')).toHaveText(snapCount===1 ? '2,391' : '2,571');
-    await page.locator('nav [data-tab=exchange]').click();
+    await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
     const ownedDownload = page.waitForEvent('download'); await page.locator('#export-button').click();
     const exported = JSON.parse(await readFile((await (await ownedDownload).path())!,'utf8'));
     expect(exported.members).toHaveLength(4); expect(exported.snaps).toHaveLength(snapCount);

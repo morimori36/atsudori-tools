@@ -358,3 +358,8 @@ UIとE2Eではメンバー／スナップ区分ごとの必要・在庫・不足
 star-budget/integration.test.tsは既存の独立した架空catalog・所持と未確認定義を使用し、Schema／意味検証、JSON往復、catalogBase保持、旧catalog切替、省略保持、明示false・null・空配列、完全復元、不正な定義・条件の拒否を検証します。既定値は未確認null・false・全11商品という契約から直接期待し、算術は既存の独立計算テストで確認します。
 
 スター予算の画面回帰は共通catalog Import・collection保存へ置き換えています。TGW双方向共有、null/0/100・Premium・アリーナ・商品選択、所持Exportと省略Import、catalog更新、初期化、保存失敗・破損保存の保護、旧キー無視、スマホ幅を確認します。専用保存ストアとそのテストは廃止し、既存の算術テストを維持します。
+
+
+## 共通ナビゲーション
+
+`tests/e2e/navigation.spec.ts` は既存の完全な架空catalog/collectionを使い、全13画面、4幅・2テーマ、直接リンクと履歴、メニューのキーボード操作、下書き・自動保存・破損保護・保存失敗を検証します。計算の期待値は追加しません。[仕様と空状態の変更前後](navigation.md)を参照してください。

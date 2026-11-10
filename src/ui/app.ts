@@ -53,9 +53,8 @@ import { createEventPlanner } from './event-planner';
 import { createRankRules } from './rank-rules';
 import { createConversionExport } from './conversion-export';
 
-type Tab = 'inventory' | 'materials' | 'rating' | 'members' | 'snaps' | 'stamps' | 'progress' | 'items' | 'exchange' | 'manual' | 'event' | 'economy' | 'star-budget';
-const tabs: [Tab, string][] = [['rating', '評価値'], ['event', 'イベント周回プランナー'], ['economy', '素材別充足日数シミュレーター'], ['star-budget', 'スター予算'], ['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'],
-  ['inventory', '素材在庫'], ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム'], ['exchange', 'JSON Import / Export'], ['manual', '表示値で計算']];
+import { navigationGroups, routeFromHash, bindNavigation } from './navigation';
+import type { Tab } from './navigation';
 const headings: Record<Tab, [string, string]> = {
   'star-budget': ['スター予算', '毎週の全交換予算とスターの週平均供給を、アワーノーツパス4種類で比較します。'],
   economy: ['素材別充足日数シミュレーター', '通常プレイと標準イベントの日平均供給から、育成素材の充足日数を概算します。'],
@@ -104,7 +103,10 @@ export function mountApp(root: HTMLElement): void {
   let saved = loaded.status === 'loaded' || loaded.status === 'empty';
   let storageMessage = loaded.status === 'invalid' ? `保存データを読み込めません。元JSONを保持しています。${loaded.error}`
     : loaded.status === 'unavailable' ? loaded.error : '';
-  let active: Tab = 'rating';
+  let active: Tab = routeFromHash(location.hash);
+  history.replaceState(null, '', `${location.pathname}${location.search}#${active}`);
+  history.scrollRestoration = 'manual';
+  const manualDraft = new Map<string, {value: string; checked: boolean}>();
   const eventPlanner = createEventPlanner(storage, syncSaveState);
   const starBudget = createStarBudgetView(
     () => ({master, collection, protected: !allowWrites || !allowCatalogWrites, unsaved: !saved || !catalogSaved, message: storageMessage || catalogStorageMessage}),
@@ -406,13 +408,15 @@ export function mountApp(root: HTMLElement): void {
   }
   const progressExpanded = new Map<string,boolean>();
   function render(): void {
+    root.querySelectorAll<HTMLInputElement>('#manual-form input').forEach(input => manualDraft.set(input.id, {value: input.value, checked: input.checked}));
     root.querySelectorAll<HTMLDetailsElement>('#progress-form details[data-progress-section]').forEach(d=>progressExpanded.set(d.dataset.progressSection!,d.open));
     noteListenerController.abort(); noteListenerController = new AbortController();
     flushAutosaves();
     const [title, description] = headings[active];
-    root.innerHTML = `<header class="site-header"><div class="brand"><span class="brand-mark" aria-hidden="true">ON</span><div><strong>atsudori-tools</strong><small>${active === 'star-budget' ? 'スター予算' : active === 'event' ? 'イベント周回プランナー' : 'バンド評価値'}</small></div></div>
+    root.innerHTML = `<header class="site-header"><button class="menu-toggle secondary" data-menu-open aria-controls="navigation-dialog" aria-expanded="false" aria-haspopup="dialog">メニュー</button><div class="brand"><span class="brand-mark" aria-hidden="true">ON</span><div><strong>atsudori-tools</strong><small>${title}</small></div></div>
       <div class="header-meta"><label class="theme-setting">表示 <select data-theme aria-label="表示テーマ"><option value="system">システム</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label><span class="save-state ${saved ? '' : 'unsaved'}" role="status">${saved ? 'ブラウザ内に保存' : '保存未完了'}</span></div></header>
-      <div class="layout"><nav class="navigation" aria-label="メインメニュー">${tabs.map(([id, label]) => `<button data-tab="${id}" ${active === id ? 'class="active" aria-current="page"' : ''}>${label}${id === 'members' || id === 'snaps' ? `<span>${id === 'members' ? collection.members.length : collection.snaps.length}</span>` : ''}</button>`).join('')}</nav>
+      <dialog id="navigation-dialog" class="navigation-dialog" data-navigation-dialog aria-label="画面メニュー"><div class="menu-heading"><strong>画面メニュー</strong><button class="secondary" data-menu-close>閉じる</button></div></dialog>
+      <div class="layout"><nav class="navigation" aria-label="メインメニュー">${navigationGroups.map((group, index) => `<section class="navigation-group" aria-labelledby="nav-group-${index}"><h2 id="nav-group-${index}">${group.label}</h2>${group.tabs.map(([id, label]) => `<button data-tab="${id}" ${active === id ? 'class="active" aria-current="page"' : ''}>${label}${id === 'members' || id === 'snaps' ? `<span>${id === 'members' ? collection.members.length : collection.snaps.length}</span>` : ''}</button>`).join('')}</section>`).join('')}</nav>
       <main class="${active === 'rating' ? 'rating-page' : active === 'progress' || active === 'items' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'star-budget' ? 'STAR BUDGET' : active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
@@ -423,10 +427,7 @@ export function mountApp(root: HTMLElement): void {
     const themeSelect = root.querySelector<HTMLSelectElement>('[data-theme]')!;
     themeSelect.value = getTheme();
     themeSelect.addEventListener('change', () => setTheme(themeSelect.value));
-    root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach(button => button.addEventListener('click', () => {
-      active = button.dataset.tab as Tab; notice = undefined; render();
-      root.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true }); root.querySelector('h1')?.scrollIntoView({ block: 'start' });
-    }));
+    bindNavigation(root, tab => navigate(tab, true), noteListenerController.signal);
     root.querySelectorAll<HTMLInputElement>('input[name="rating-mode"]').forEach(input => input.addEventListener('change', () => {
       const expanded = [...root.querySelectorAll<HTMLDetailsElement>('.color-result')].map(d => ({ band: d.dataset.band, color: d.dataset.color, open: d.open }));
       ratingMode = input.value as typeof ratingMode;
@@ -476,12 +477,13 @@ export function mountApp(root: HTMLElement): void {
   }
   function syncSaveState(): void {
     const state = root.querySelector<HTMLElement>('.save-state');
-    if (active === 'event' || active === 'economy' || active === 'star-budget') {
+    if (state && (!allowWrites || !allowCatalogWrites)) {
+      state.textContent = '保存データを保護中'; state.classList.add('unsaved');
+    } else if (active === 'event' || active === 'economy' || active === 'star-budget') {
       const eventState = active === 'star-budget' ? starBudget.saveState() : active==='event'?eventPlanner.saveState():economy.saveState();
       if (state) { state.textContent = eventState.label; state.classList.toggle('unsaved', eventState.unsaved); }
-      return;
-    }
-    if (state) { state.textContent = !saved || !catalogSaved ? '保存未完了' : drafts.size || inventoryState.drafts.size || progressDraft.size ? '未保存の入力あり' : active === 'progress' || active === 'items' ? '保存済み' : '自動保存済み'; state.classList.toggle('unsaved', !saved || !catalogSaved || drafts.size > 0 || inventoryState.drafts.size > 0 || progressDraft.size > 0); }
+    } else if (state) { state.textContent = !saved || !catalogSaved ? '保存未完了' : drafts.size || inventoryState.drafts.size || progressDraft.size ? '未保存の入力あり' : active === 'progress' || active === 'items' ? '保存済み' : '自動保存済み'; state.classList.toggle('unsaved', !saved || !catalogSaved || drafts.size > 0 || inventoryState.drafts.size > 0 || progressDraft.size > 0); }
+    if (state) state.title = state.textContent ?? '';
     const warning = root.querySelector<HTMLElement>('#autosave-warning');
     if (warning) { warning.textContent = [catalogStorageMessage,storageMessage].filter(Boolean).join(' '); warning.hidden = !warning.textContent; }
     for (const kind of ['members', 'snaps'] as const) {
@@ -807,6 +809,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function bindManual(): void {
     const form = root.querySelector<HTMLFormElement>('#manual-form'); if (!form) return;
+    form.querySelectorAll<HTMLInputElement>('input').forEach(input => { const draft = manualDraft.get(input.id); if (draft) { input.value = draft.value; input.checked = draft.checked; } });
     const noSnap = form.querySelector<HTMLInputElement>('#noSnap')!;
     const toggle = (): void => { form.querySelectorAll<HTMLInputElement>('.manual-snap input').forEach(input => { input.disabled = noSnap.checked; input.required = !noSnap.checked; }); };
     noSnap.addEventListener('change', toggle); toggle();
@@ -826,6 +829,20 @@ export function mountApp(root: HTMLElement): void {
       } catch (error) { root.querySelector('#manual-output')!.innerHTML = `<p class="error-text">${escape(errorMessage(error))}</p>`; }
     });
   }
+  function navigate(tab: Tab, push = false): void {
+    // Flush while the outgoing screen is still active, as for an ordinary render.
+    flushAutosaves();
+    if (push && tab !== active) history.pushState(null, '', `${location.pathname}${location.search}#${tab}`);
+    active = tab; notice = undefined;
+    if (location.hash !== `#${tab}`) history.replaceState(null, '', `${location.pathname}${location.search}#${tab}`);
+    render();
+    document.title = `${headings[active][0]} | atsudori-tools`;
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    root.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+  }
+  window.addEventListener('popstate', () => navigate(routeFromHash(location.hash)));
+  window.addEventListener('hashchange', () => { const tab = routeFromHash(location.hash); if (tab !== active || location.hash !== `#${tab}`) navigate(tab); });
   window.addEventListener('pagehide', flushAutosaves);
   render();
+  document.title = `${headings[active][0]} | atsudori-tools`;
 }

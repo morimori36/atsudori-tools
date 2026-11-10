@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import {fictionalCatalog} from '../helpers/rank-rules';
 import { test, expect } from '@playwright/test';
 import type {Page} from '@playwright/test';
@@ -11,7 +12,7 @@ const master=()=>{const m=syntheticCatalog();m.members[0]!.liveSkillLevels=[1,2,
 const download=async(page:Page,id:string)=>{const [d]=await Promise.all([page.waitForEvent('download'),page.locator(id).click()]);return JSON.parse(await readFile((await d.path())!,'utf8'));};
 const profile=async(page:Page)=>{await page.locator('#conversion-profile-file').setInputFiles(file(await fictionalProfile(master())));await expect(page.locator('#conversion-export')).toContainText('プロファイルを更新しました');await expect(page.locator('#conversion-preview')).toBeEnabled();};
 test.beforeEach(async({page})=>{
-  await page.goto('./');await page.locator('nav [data-tab=exchange]').click();
+  await page.goto('./');await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master())));await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   const owned=syntheticCollection(master());owned.characterRanks={};
   await page.locator('#import-file').setInputFiles(file(owned));await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
@@ -30,7 +31,7 @@ test('one-click exports, shared saved settings and reload never change real owne
   await page.getByRole('button',{name:'閉じる',exact:true}).click();
   expect((await download(page,'#conversion-preview')).roster).toEqual([{id:8301,outLive:4,outGeki:4}]);
   expect(await page.evaluate(([c,m])=>[localStorage.getItem(c!),localStorage.getItem(m!)],[STORAGE_KEY,CATALOG_STORAGE_KEY])).toEqual(before);
-  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   expect((await download(page,'#conversion-preview')).roster).toEqual([{id:8301,outLive:4,outGeki:4}]);
   for(const width of [320,375,390,1280]) {await page.setViewportSize({width,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
   await page.screenshot({path:'test-results/json-exchange-desktop.png',fullPage:true});
@@ -68,28 +69,28 @@ test('catalog drift and missing item facts block downloads',async({page})=>{
 });
 
 test('shared training controls retain focus and share values with rating across navigation',async({page})=>{
-  await page.locator('nav [data-tab=rating]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=rating]'));
   await page.locator('[name=rating-mode][value=potential]').check();
   await page.getByRole('button',{name:'育成条件を変更'}).click();
   await page.locator('[data-training=awakeningStage]').focus();
   await page.locator('[data-training=awakeningStage]').selectOption('2');
   await expect(page.locator('[data-training=awakeningStage]')).toBeFocused();
   await page.keyboard.press('Escape');
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.getByRole('button',{name:'育成条件を変更'}).click();
   await expect(page.locator('[data-training=awakeningStage]')).toHaveValue('2');
   await page.locator('[data-training=liveSkillLevel]').focus();
   await page.locator('[data-training=liveSkillLevel]').selectOption('3');
   await expect(page.locator('[data-training=liveSkillLevel]')).toBeFocused();
   await page.keyboard.press('Escape');
-  await page.locator('nav [data-tab=rating]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=rating]'));
   await page.getByRole('button',{name:'育成条件を変更'}).click();
   await expect(page.locator('[data-training=liveSkillLevel]')).toHaveValue('3');
 });
 
 test('corrupt profiles remain recoverable until successful automatic replacement',async({page})=>{
   const raw='{"unknown":"original"}';await page.evaluate(([k,v])=>localStorage.setItem(k!,v!),[PROFILE_STORAGE_KEY,raw]);
-  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await expect(page.locator('#conversion-export')).toContainText('元JSONを保護');
   await page.locator('#conversion-profile-file').setInputFiles(file({invalid:true}));
   await expect(page.locator('#conversion-export')).toContainText('profile.invalid');

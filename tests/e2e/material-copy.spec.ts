@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test,expect } from '@playwright/test';
 import { maximumTrainingFixture } from '../helpers/maximum-training';
 import { CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
@@ -17,7 +18,7 @@ for(const width of [1280,390,320])test(`copy current material report at ${width}
     }}});
   });
   const saved=await page.evaluate(()=>JSON.stringify(localStorage));
-  await page.locator('nav [data-tab=materials]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   const copy=page.getByRole('button',{name:'不足状況をコピー',exact:true});
   await expect(copy).toBeVisible();
   const box=await copy.boundingBox();expect(box!.x+box!.width).toBeLessThanOrEqual(width);
