@@ -1,4 +1,3 @@
-export const STAR_BUDGET_FORMAT = 'atsudori-tools/star-budget';
 export const PASS_GRADES = ['lite', 'standard', 'premium'] as const;
 export type PassGrade = typeof PASS_GRADES[number];
 export const PRODUCT_NAMES = {
@@ -56,8 +55,6 @@ export interface StarBudgetDefinition {
   products: BudgetProduct[];
 }
 export interface StarBudgetInput {
-  format: typeof STAR_BUDGET_FORMAT;
-  schemaVersion: 1;
   definition: StarBudgetDefinition;
   scenario: StarBudgetScenario & { rank: number | null };
 }

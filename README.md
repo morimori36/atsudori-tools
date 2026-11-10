@@ -21,7 +21,7 @@
 
 「イベント周回プランナー」はマスタ登録なしで利用できます。通常・チャレンジ候補を各5件まで入力し、目標ptまでの最小周回数と上位10ペア、全ペアを比較します。1計画で使う候補は通常・チャレンジ各1種類です。CP内訳・推定時間・探索済み範囲も表示します。条件とランク基準は専用のブラウザ保存とJSON Import / Exportで管理します。[計算・入力と制約](docs/event-planner.md)を参照してください。
 
-「スター予算」は独立した条件・定義JSONを使い、週平均スター供給と毎週の全交換費用をアワーノーツパスなし／Lite／Standard／Premiumで横並び比較します。商品別・SRバンド別の全交換とT.G.Wランクを変更できます。実報酬・価格は同梱せず、未確認から入力・Importします。変更は自動保存し、根拠・仮定・未確認を表示します。[使い方・JSON契約](docs/star-budget.md)を参照してください。
+「スター予算」はcatalogの定義とcollectionの試算条件を使い、週平均スター供給と毎週の全交換費用をアワーノーツパスなし／Lite／Standard／Premiumで横並び比較します。商品別・SRバンド別の全交換とT.G.Wランクを変更できます。実報酬・価格は同梱せず、定義を含むcatalogをImportします。変更は自動保存し、根拠・仮定・未確認を表示します。[使い方・JSON契約](docs/star-budget.md)を参照してください。
 
 Node.js 24.5以降:
 
@@ -44,7 +44,7 @@ npm run audit:public
 - [catalog内のランク定義・推定と未算出時の扱い](docs/character-rank.md)
 - [変換プロファイルによるJSON出力](docs/profile-export.md)
 - [イベント周回プランナー](docs/event-planner.md) / [周回プランJSON Schema](public/schemas/event-planner-v1.schema.json)
-- [スター予算](docs/star-budget.md) / [スター予算JSON Schema](public/schemas/star-budget-v1.schema.json)
+- [スター予算](docs/star-budget.md)
 - [素材別充足日数シミュレーター](docs/economy.md) / [試算条件Schema](public/schemas/economy-scenario-v5.schema.json)（供給定義は外部catalogへ内包）
 - [公開手順](docs/deployment.md) / [公開データの範囲](docs/separation.md) / [非公開回帰の実行](docs/private-regression.md)
 - [開発参加](CONTRIBUTING.md) / [権利表示](THIRD_PARTY_NOTICES.md)

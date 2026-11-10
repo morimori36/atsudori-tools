@@ -1,4 +1,4 @@
-import { PASS_GRADES, PRODUCT_IDS, STAR_BUDGET_FORMAT } from './model.ts';
+import { PASS_GRADES, PRODUCT_IDS } from './model.ts';
 
 const integer = { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER };
 const text = { type: 'string', maxLength: 300 };
@@ -22,13 +22,3 @@ export const starBudgetScenarioSchema = object({ storyEventPercent: nullable({ .
   eventPremium: { type: 'boolean' }, seasonPremium: { type: 'boolean' }, includeArena: { type: 'boolean' },
   selectedProducts: { type: 'array', maxItems: PRODUCT_IDS.length, uniqueItems: true, items: { enum: PRODUCT_IDS } },
 });
-export const starBudgetSchema = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://morimori36.github.io/atsudori-tools/schemas/star-budget-v1.schema.json',
-  title: 'Independent star budget v1',
-  description: 'Definition and scenario, independent of catalog/collection. Evidence consistency and unique product slots also require semantic validation; see docs/star-budget.md.',
-  ...object({ format: { const: STAR_BUDGET_FORMAT }, schemaVersion: { const: 1 },
-    definition: starBudgetDefinitionSchema,
-    scenario: object({ rank: nullable(positive), ...starBudgetScenarioSchema.properties }),
-  }),
-};

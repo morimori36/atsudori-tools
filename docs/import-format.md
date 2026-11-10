@@ -1,6 +1,6 @@
 # JSONインポート仕様 v1
 
-スター予算は`atsudori-tools/star-budget` v1の独立した条件・定義JSONです。catalog・collection・素材供給定義を変更しません。[スター予算のJSON契約・保存と復旧](star-budget.md#保存json契約)を参照してください。
+スター予算はcatalog v1の任意項目 `starBudgetDefinition` とcollection v1の任意項目 `starBudgetScenario`／既存 `tgwRank` を使います。[スター予算のJSON契約・保存と復旧](star-budget.md#保存json契約)を参照してください。
 
 素材別充足日数シミュレーターはcatalog v1の任意項目 `supplyDefinition` を使用します。供給資源は `materialDefinition.resources` のIDを参照します。供給定義のない旧catalogは変更不要です。供給定義はv4、試算条件はv5を使用し、旧ドラフトの交換・契約・期間項目を含む形式は非対応です。ユーザーの試算条件は独立したformat・保存キーで管理します。[供給定義・シナリオの仕様](economy.md)を参照してください。
 
@@ -201,7 +201,7 @@ catalogの配列順とImport/Exportの値は保持します。schemaVersion、co
 
 `materialDefinition.resources[]` は任意の `displayOrder`（0以上の安全な整数）を受け取ります。在庫表示用で、費用計算・所持には影響しません。省略した既存catalogもImport・Exportでき、既定値を書き足しません。各単位のセクション内で指定値の昇順、同値はcatalog順、未指定は末尾でcatalog順に表示します。
 
-## catalog／collection統合（第1段階）
+## catalog／collection統合
 
 catalog v1の任意項目 `starBudgetDefinition` に静的値・根拠・未確認区分を保持します。構造は従来のdefinitionと同じで、定義のrevisionはcatalogのrevisionと一致必須です。全11商品、価格段階、区分と値・根拠の整合性を検証します。定義なしの旧catalogも有効です。
 
@@ -216,4 +216,4 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 
 省略された条件を保存・Export時に補完しません。通常Importで項目がなければ保存中の条件を保持し、明示された条件はfalse・null・空配列を含め丸ごと採用します。完全復元では省略分を保持しません。catalog更新・定義の有無によって既存の条件や所持を削除しません。未確認を0に置き換えません。
 
-画面と旧専用保存・JSONは後続のUI対応まで従来経路を維持します。新契約のImport/Exportはcatalogとcollectionで行い、旧スター予算JSONの自動移行・復元は行いません。
+画面も共通catalog／collectionから読み取り、共通保存・Import/Export・初期化を使います。旧独立JSON・専用保存キーは読み取り・移行・削除しません。

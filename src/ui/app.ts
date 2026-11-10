@@ -106,7 +106,14 @@ export function mountApp(root: HTMLElement): void {
     : loaded.status === 'unavailable' ? loaded.error : '';
   let active: Tab = 'rating';
   const eventPlanner = createEventPlanner(storage, syncSaveState);
-  const starBudget = createStarBudgetView(storage, download, syncSaveState);
+  const starBudget = createStarBudgetView(
+    () => ({master, collection, protected: !allowWrites || !allowCatalogWrites, unsaved: !saved || !catalogSaved, message: storageMessage || catalogStorageMessage}),
+    next => {
+      const previous = collection;
+      try { persist(next); } catch (error) { saved = false; storageMessage = errorMessage(error); }
+      if (!saved) collection = previous;
+      return saved;
+    }, syncSaveState);
   const rankRules = createRankRules(()=>master);
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(editableProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
