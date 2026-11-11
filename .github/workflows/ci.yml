@@ -36,8 +36,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm run check
+      - name: Verify summary behavior
+        id: summary_tests
+        run: node --test scripts/ci/report.test.mjs
+      - id: check
+        run: npm run check -- -- --reporter=default --reporter=json --outputFile=.cache/ci/unit.json
       - name: Check generated schemas have no drift
+        id: schemas
         run: |
           npm run schema:write
           git diff --exit-code -- public/schemas
@@ -50,11 +55,16 @@ jobs:
                   source.write_text(source.read_text().replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu'))
           PY_MIRROR
       - run: npx playwright install --with-deps --only-shell chromium
-      - run: npm run test:e2e
+      - id: chromium
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: .cache/ci/chromium.json
+        run: npm run test:e2e -- --reporter=list,json
       - name: Capture empty-state navigation before and after
+        id: navigation
         if: github.event_name == 'pull_request'
         run: node scripts/navigation-screenshots.ts "${{ github.event.pull_request.base.sha }}"
       - name: Attach navigation screenshots to PR checks
+        id: navigation_artifact
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -74,8 +84,20 @@ jobs:
           retention-days: 30
           if-no-files-found: error
       - run: npx playwright install --with-deps webkit
-      - run: npm run test:e2e:webkit
-      - run: npm run audit:public
+      - id: webkit
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: .cache/ci/webkit.json
+        run: npm run test:e2e:webkit -- --reporter=list,json
+      - id: audit
+        run: npm run audit:public
+      - name: Summarize executed and unexecuted verification
+        if: always()
+        continue-on-error: true
+        env:
+          CI_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CI_PHASE_OUTCOMES: >-
+            {"summary_tests":"${{ steps.summary_tests.outcome }}","check":"${{ steps.check.outcome }}","schemas":"${{ steps.schemas.outcome }}","chromium":"${{ steps.chromium.outcome }}","navigation":"${{ steps.navigation.outcome }}","navigation_artifact":"${{ steps.navigation_artifact.outcome }}","webkit":"${{ steps.webkit.outcome }}","audit":"${{ steps.audit.outcome }}"}
+        run: node scripts/ci/summary.mjs
       - name: Upload verified static app for Pages
         if: github.event.repository.private == false && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
