@@ -2,6 +2,8 @@
 
 Node.js 24.5以降でnpm ciを実行し、READMEの検証コマンドを使ってください。依存の版はlockを更新してレビュー可能にします。framework変更や追加機能は依頼範囲に合わせます。
 
+cloneごとに`npm run hooks:install`でローカルのpush前検査を有効にし、push前には`npm run audit:push`も実行してください。PR作成・編集前のメタデータ検査、既存hookの扱い、GitHub側の保護との違いは[公開前検査](docs/publication-checks.md)を参照してください。hookやCIの成功だけで公開可否を判断しないでください。
+
 mainから機能単位のブランチを作り、feat: / fix: / docs: / test: / chore:などのConventional Commitsでコミットし、PRで変更します。PRでは検証だけを行います。mainへの取り込みはSquash Mergeを使います。個人メールを作者に設定しないでください。
 
 PRには具体的な問題、変更後の挙動、テスト結果、未検証範囲を書いてください。UI変更ではモバイル幅と/atsudori-tools/での静的配信を確認します。CIは型・架空回帰・JSON Schema同期・ブラウザ・公開ファイル/履歴検査を実施します。

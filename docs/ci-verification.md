@@ -2,6 +2,8 @@
 
 Actionsの実行画面のSummaryに、verifyジョブの「検証範囲」を表示します。checkout SHAは実際に検証したcheckout（PRでは通常merge commit）、PR head SHAは提出ブランチの版です。PR以外でPR head SHAを取得できない場合は取得不可と表示します。
 
+公開予定メタデータの機械検査と、push前検査の回帰もステップ結果として表示します。PRのタイトル・本文等の編集でもverifyを再実行します。[公開前検査](publication-checks.md)のとおり、送信後のCI検出は送信前の阻止を保証しません。
+
 | 表示 | 意味 |
 | --- | --- |
 | ステップ結果 | GitHubのoutcome。元の検証の失敗を集計処理で成功へ変えません |
