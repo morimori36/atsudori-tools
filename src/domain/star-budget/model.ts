@@ -1,5 +1,7 @@
 export const PASS_GRADES = ['lite', 'standard', 'premium'] as const;
 export type PassGrade = typeof PASS_GRADES[number];
+export const STAR_PAID_SOURCE_IDS = ["login","missions","live-stamp","event-points","event-free","event-premium","story","season-free","season-premium","arena","pass-lite-purchase","pass-lite-daily","pass-standard-purchase","pass-standard-daily","pass-premium-purchase","pass-premium-daily"] as const;
+export type StarPaidSourceId = typeof STAR_PAID_SOURCE_IDS[number];
 export const PRODUCT_NAMES = {
   'crystal-luck': '幸運のクリスタル',
   'crystal-miracle': '奇跡のクリスタル',
@@ -50,6 +52,8 @@ export interface StarBudgetDefinition {
     dailyStars: BudgetValue;
     priceYen: BudgetValue;
   }>;
+  /** Paid-star amount in each source's original unit; free = existing total minus paid. Old catalogs may omit it. */
+  paidBySource?: Record<StarPaidSourceId, BudgetValue>;
   starCompatibility: 'unconfirmed' | 'assumed-usable' | 'confirmed-usable' | 'restricted';
   starCompatibilityBasis: string;
   products: BudgetProduct[];
