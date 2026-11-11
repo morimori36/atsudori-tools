@@ -141,8 +141,8 @@ export function calculateStarBudget(input: StarBudgetInput) {
   const comparisons: BudgetComparison[] = (['none', ...PASS_GRADES] as const).map(grade => {
     const p = grade === 'none' ? null : d.passes[grade];
     const extra = p ? sum([periodic(p.purchaseStars, p.periodDays, grade + '購入時スター'), periodic(p.dailyStars, 1, grade + '毎日スター')]) : known();
-    const extraPaid = p && grade !== 'none' ? sum([paidSource('pass-' + grade + '-purchase', p.periodDays, grade + '購入時スター'),
-      paidSource('pass-' + grade + '-daily', 1, grade + '毎日スター')]) : known();
+    const extraPaid = p && grade !== 'none' ? sum([paidSource(`pass-${grade}-purchase` as StarPaidSourceId, p.periodDays, grade + '購入時スター'),
+      paidSource(`pass-${grade}-daily` as StarPaidSourceId, 1, grade + '毎日スター')]) : known();
     const passSplit = splitSupply(extra, extraPaid, grade + 'パス');
     const total = sum([common, extra]), totalFree = sum([commonFree, passSplit.free]), totalPaid = sum([commonPaid, passSplit.paid]);
     const balance = !compatibility ? unknown('カタログ支払時のスター合算可否が未確認、または利用制約があります')
