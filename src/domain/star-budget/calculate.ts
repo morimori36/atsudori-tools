@@ -1,4 +1,4 @@
-import { PASS_GRADES } from './model';
+import { CURRENCY_SOURCES, PASS_GRADES } from './model';
 import type { BudgetValue, PassGrade, ProductId, StarBudgetInput } from './model';
 import { validateStarBudget } from './validate';
 
@@ -15,6 +15,10 @@ export interface BudgetComparison {
   status: 'unknown' | 'shortfall' | 'surplus' | 'balanced';
   yenPer30Days: BudgetAmount;
   evidence: string[];
+  freeSupply: BudgetAmount;
+  paidSupply: BudgetAmount;
+  freeBalance: BudgetAmount;
+  paidBalance: BudgetAmount;
 }
 interface Fraction { n: bigint; d: bigint }
 interface Amount { value: Fraction | null; subtotal: Fraction; reasons: string[] }
@@ -54,7 +58,8 @@ export function budgetEvidence(label: string, metric: BudgetValue): string {
   const status = { unconfirmed: '未確認', assumed: '仮定', confirmed: '確認済み（登録者の申告）' }[metric.status];
   return `${label}: ${metric.value ?? '未登録'} / ${status}${metric.basis ? ' / ' + metric.basis : ''}`;
 }
-export function calculateStarBudget(input: StarBudgetInput) {
+function calculateTotals(input: StarBudgetInput) {
+  const totals: Amount[] = [];
   const { definition: d, scenario: s } = validateStarBudget(input);
   const supply: BudgetSupplyRow[] = [], amounts: Amount[] = [];
   function source(id: string, name: string, amount: Amount, evidence: string[]): void {
@@ -107,20 +112,21 @@ export function calculateStarBudget(input: StarBudgetInput) {
   });
   const cost = sum(productAmounts);
   const compatibility = d.starCompatibility === 'assumed-usable' || d.starCompatibility === 'confirmed-usable';
-  const comparisons: BudgetComparison[] = (['none', ...PASS_GRADES] as const).map(grade => {
+  const comparisons = (['none', ...PASS_GRADES] as const).map(grade => {
     const p = grade === 'none' ? null : d.passes[grade];
     const extra = p ? sum([periodic(p.purchaseStars, p.periodDays, grade + '購入時スター'), periodic(p.dailyStars, 1, grade + '毎日スター')]) : known();
     const total = sum([common, extra]);
+    totals.push(total);
     const balance = !compatibility ? unknown('カタログ支払時のスター合算可否が未確認、または利用制約があります')
       : total.value === null || cost.value === null ? { value: null, subtotal: zero, reasons: [...new Set([...total.reasons, ...cost.reasons])] }
         : known(add(total.value, fraction(-cost.value.n, cost.value.d)));
     return { grade, commonSupply: publicAmount(common), passSupply: publicAmount(extra), totalSupply: publicAmount(total), weeklyCost: publicAmount(cost), balance: publicAmount(balance),
-      status: balance.value === null ? 'unknown' : balance.value.n < 0n ? 'shortfall' : balance.value.n > 0n ? 'surplus' : 'balanced',
+      status: balance.value === null ? 'unknown' as const : balance.value.n < 0n ? 'shortfall' as const : balance.value.n > 0n ? 'surplus' as const : 'balanced' as const,
       yenPer30Days: publicAmount(p ? periodic(p.priceYen, p.periodDays, grade + '参考料金', 30) : known()),
       evidence: p ? [ev('継続更新日数', p.periodDays), ev('購入時スター', p.purchaseStars), ev('毎日スター', p.dailyStars), ev('1契約の円価格', p.priceYen)] : ['アワーノーツパス未購入'],
     };
   });
-  return { supply, products, comparisons, commonSupply: publicAmount(common), weeklyCost: publicAmount(cost),
+  return { totals, cost, supply, products, comparisons, commonSupply: publicAmount(common), weeklyCost: publicAmount(cost),
     assumptions: [
       'アリーナは継続的なスター収入の根拠を確認できないため予算対象外です。旧設定は現在の収支に適用しません。初回到達・シーズン・交換報酬やアリーナピックも週平均スターへ換算しません。',
       '数量÷周期（日）×7で週平均へ換算。日次は×7、週次はそのまま。各回の対象報酬・毎日スターを全回収する想定です。',
@@ -131,4 +137,39 @@ export function calculateStarBudget(input: StarBudgetInput) {
       '週平均は資金繰りや獲得タイミングを保証しません。実開催日程・日時別残高・購入の最適化は扱いません。',
     ],
   };
+}
+
+/** Run the same applicability and periodic arithmetic for each currency. */
+export function calculateStarBudget(input: StarBudgetInput) {
+  const { totals, cost, ...result } = calculateTotals(input);
+  const split = input.definition.currencyBreakdown;
+  const separated = (currency: 'free' | 'paid') => {
+    if (!split) return null;
+    const copy = structuredClone(input);
+    delete copy.definition.currencyBreakdown;
+    for (const key of CURRENCY_SOURCES) {
+      const parts = key.split('.'), last = parts.pop()!;
+      const target = parts.reduce<unknown>((row, k) => (row as Record<string, unknown>)[k], copy.definition) as Record<string, unknown>;
+      target[last] = split.sources[key][currency];
+    }
+    return calculateTotals(copy).totals;
+  };
+  const free = separated('free'), paid = separated('paid');
+  const comparisons: BudgetComparison[] = result.comparisons.map((row, i) => {
+    const f = free?.[i] ?? unknown('通貨内訳が未登録'), p = paid?.[i] ?? unknown('通貨内訳が未登録');
+    let fb: Amount, pb: Amount;
+    if (row.balance.value === null || f.value === null || p.value === null || cost.value === null) {
+      fb = pb = { value: null, subtotal: zero, reasons: [...new Set([...row.balance.reasons, ...f.reasons, ...p.reasons])] };
+    } else {
+      const remaining = add(f.value, fraction(-cost.value.n, cost.value.d));
+      fb = known(remaining.n > 0n ? remaining : zero);
+      pb = known(add(p.value, remaining.n < 0n ? remaining : zero));
+    }
+    return {...row, freeSupply: publicAmount(f), paidSupply: publicAmount(p), freeBalance: publicAmount(fb), paidBalance: publicAmount(pb)};
+  });
+  return { ...result, comparisons, assumptions: [...result.assumptions,
+    '通貨別差引は無償を先に全交換費用へ充当し、不足分を有償から差し引きます。負の有償差引は全交換に必要な追加スターの不足を表し、実保有残高ではありません。',
+    '初期残高0の週平均の増減傾向です。ガチャ支出は差し引いていません。',
+    ...(split ? ['支払順序の根拠: ' + split.basis] : ['通貨内訳が未登録のため通貨別の供給・差引は保留します。']),
+  ] };
 }

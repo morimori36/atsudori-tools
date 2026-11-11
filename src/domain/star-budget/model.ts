@@ -28,7 +28,21 @@ export interface BudgetProduct {
   // All tiers are fully exchanged. Limits count exchanges, including a pack as one exchange.
   tiers: { starCost: BudgetValue; weeklyLimit: BudgetValue }[];
 }
+export const CURRENCY_SOURCES = [
+  'loginDaily', 'missionDaily', 'liveStampWeekly', 'event.points', 'event.missionFree',
+  'event.missionPremium', 'event.storyPerEpisode', 'season.free', 'season.premium',
+  ...PASS_GRADES.flatMap(grade =>
+    [`passes.${grade}.purchaseStars`, `passes.${grade}.dailyStars`] as const),
+] as const;
+export type CurrencySource = typeof CURRENCY_SOURCES[number];
+export interface CurrencyBreakdown {
+  version: 1;
+  paymentPriority: 'free-first';
+  basis: string;
+  sources: Record<CurrencySource, { free: BudgetValue; paid: BudgetValue }>;
+}
 export interface StarBudgetDefinition {
+  currencyBreakdown?: CurrencyBreakdown;
   revision: string;
   loginDaily: BudgetValue;
   missionDaily: BudgetValue;
