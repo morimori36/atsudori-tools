@@ -1,3 +1,4 @@
+import { hasTrackingScope, trackingUpdateMessage } from '../domain/materials/tracking';
 import { cardIdentity } from './card-identity';
 import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
@@ -45,7 +46,7 @@ function materialsPage(master:Masterdata,collection:Collection,result:Simulation
   return `<div class="growth-page"><section class="panel" data-material-total><h2>必要素材</h2><button type="button" class="secondary" data-material-copy>不足状況をコピー</button><p role="status" data-material-copy-status></p>
     <p class="muted material-help">在庫未登録は — · 素材を開くと消費内訳を表示</p>
     ${result.materials.incomplete?'<p class="warning">未計算項目あり・計算済み分の小計</p>':''}
-    ${!master.materialDefinition?'<p class="warning">素材マスタ未登録・未計算です。</p>':''}
+    ${!hasTrackingScope(master.materialDefinition)?`<p class="warning">${master.materialDefinition?trackingUpdateMessage:'素材マスタ未登録・未計算です。'}</p>`:''}
     ${sections}
     </section></div>`;
 }
@@ -78,6 +79,7 @@ export function materialShortageText(master:Masterdata,collection:Collection,set
   lines.push('メンバー／スナップ Lv：育成後の段階の上限まで（現在値を下げず合法な目標を適用）');
   lines.push('在庫未登録は不足未確認。区分ごとに在庫を比較し、区分間の在庫分配は行わない。');
   if(!master.materialDefinition)lines.push('素材マスタ未登録・必要量未計算');
+  else if(!hasTrackingScope(master.materialDefinition))lines.push(trackingUpdateMessage);
   lines.push(['区分','素材ID','名称','単位','必要数','登録済み在庫数','不足数','状態'].join('\t'));
   for(const kind of ['member','snap'] as const) {
     const label=kind==='member'?'メンバー':'スナップ';

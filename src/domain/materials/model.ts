@@ -13,6 +13,9 @@ export interface MaterialSchedule {
 }
 export interface MaterialDefinition {
   catalogRevision: string;
+  /** Explicit scope contract; absent only in legacy catalogs. */
+  trackingVersion?: 1;
+  excludedResourceIds?: string[];
   resources: MaterialResource[];
   schedules: MaterialSchedule[];
   bindings: { kind: CardKind; cardId: number; axis: MaterialAxis; scheduleId: string }[];

@@ -190,6 +190,7 @@ export function catalogIssues(m: Masterdata): string[] {
 }
 export function importCatalog(text: string): Masterdata {
   const m = validateCatalog(jsonValue(text,CATALOG_LIMIT));
+  if(m.materialDefinition&&m.materialDefinition.trackingVersion!==1)throw new Error('素材の追跡範囲を定義したマスタをImportしてください。');
   const issues = catalogIssues(m);
   if (issues.length) throw new Error('catalogの不足・不整合:\n' + issues.join('\n'));
   return m;

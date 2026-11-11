@@ -1,3 +1,4 @@
+import { hasTrackingScope, trackedInventory, trackedResources } from '../materials/tracking';
 import type { Masterdata } from '../../data/catalog/model';
 import type { MaterialRequirements } from '../materials/calculate';
 import { materialInventoryBalances, validateResourceInventory } from '../materials/inventory';
@@ -27,9 +28,10 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
   validateResourceInventory(inventory);
   const scenario=validateEconomyScenario(input);
   if(scenario.catalogId!==master.catalogId)throw new Error('試算条件のcatalogIdが一致しません');
-  const definition=master.supplyDefinition?validateSupplyDefinition(master.supplyDefinition):undefined;
+  const definition=hasTrackingScope(master.materialDefinition)&&master.supplyDefinition?validateSupplyDefinition(master.supplyDefinition):undefined;
   const referenceIssues=supplyIssues(master);if(referenceIssues.length)throw new Error(referenceIssues.join('\n'));
-  const resources=master.materialDefinition?.resources??[];
+  const resources=trackedResources(master.materialDefinition);
+  inventory=hasTrackingScope(master.materialDefinition)?trackedInventory(inventory,master.materialDefinition):{};
   const resourceSet=new Set(resources.map(r=>r.id));
   const breakdown:DailySupplyEntry[]=[],issues:EconomyIssue[]=[];
   const totals=new Map<string,Fraction>();
@@ -65,6 +67,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
     }
   }
   function missingRewards(source:Named,r:Rewards,reason:string):void {
+    if(!hasRewards(r))return;
     const unknown=r.unavailable.filter(u=>!u.destination||u.destination==='inventory');
     // An unscoped inventory unknown affects all resources, even when known grants have IDs.
     const unscoped=unknown.some(u=>u.resourceIds.length===0);
@@ -135,7 +138,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
       rewards(source,source.rewards,rate);
     }
   }
-  const balances=materialInventoryBalances(requirements,inventory);
+  const balances=materialInventoryBalances({...requirements,resources},inventory);
   const original=new Map(balances.balances.map(r=>[r.resource.id,r]));
   const rows=resources.map(resource=>{
     const entries=byResource.get(resource.id)??[];

@@ -8,11 +8,15 @@ type ReviewFixture = ReturnType<typeof import('../tests/helpers/economy').econom
 
 const base = process.argv[2];
 if (!base || !/^[a-f0-9]{40}$/.test(base)) throw new Error('Pass a full base commit SHA');
-const loader = await createServer({configFile:false, server:{middlewareMode:true, hmr:false}});
-let fixture: ReviewFixture;
-try { fixture = (await loader.ssrLoadModule('/tests/helpers/economy.ts')).economyFixture(); } finally { await loader.close(); }
-fixture.supply.fixedSources=[{id:'fictional-cycle',name:'架空の継続供給',basis:'独立した人工算術ケース',intervalDays:{numerator:2,denominator:1},rewards:{fixed:[{resourceId:'paper',quantity:8,destination:'inventory'}],lotteries:[],unavailable:[]}}];
-fixture.scenario.fixedSources=[{sourceId:'fictional-cycle',claimPercent:50}];
+async function reviewFixture(directory:string):Promise<ReviewFixture> {
+  // Each app reads its own versioned input contract, including historical catalogs.
+  const loader = await createServer({root:directory, configFile:false, server:{middlewareMode:true, hmr:false}});
+  let fixture: ReviewFixture;
+  try { fixture = (await loader.ssrLoadModule('/tests/helpers/economy.ts')).economyFixture(); } finally { await loader.close(); }
+  fixture.supply.fixedSources=[{id:'fictional-cycle',name:'架空の継続供給',basis:'独立した人工算術ケース',intervalDays:{numerator:2,denominator:1},rewards:{fixed:[{resourceId:'paper',quantity:8,destination:'inventory'}],lotteries:[],unavailable:[]}}];
+  fixture.scenario.fixedSources=[{sourceId:'fictional-cycle',claimPercent:50}];
+  return fixture;
+}
 const beforeOnly = process.argv[3] === 'before';
 const root = process.cwd(), output = resolve('.cache/economy-review');
 mkdirSync(output, {recursive:true});
@@ -27,6 +31,7 @@ try {
   browser = await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined});
   for (const [version, cwd, port] of [['before',source,4184], ['after',root,4185]] as const) {
     if (beforeOnly && version === 'after') continue;
+    const fixture = await reviewFixture(cwd);
     servers.push(spawn(process.execPath, [resolve('node_modules/vite/bin/vite.js'), 'preview','--host','127.0.0.1','--port',String(port),'--strictPort'], {cwd, stdio:'ignore'}));
     const url = `http://127.0.0.1:${port}${process.env.PAGES_BASE ?? '/atsudori-tools/'}`;
     let ready = false;

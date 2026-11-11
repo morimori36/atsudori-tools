@@ -1,3 +1,4 @@
+import { trackedInventory, hasTrackingScope, trackingUpdateMessage } from '../domain/materials/tracking';
 import { validateStarBudgetScenario } from '../domain/star-budget/validate';
 import type { StarBudgetScenario } from '../domain/star-budget/model';
 import { validateResourceInventory } from '../domain/materials/inventory';
@@ -136,7 +137,7 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     return level;
   });
   return { ...emptyCollection(master),
-    ...(root.starBudgetScenario === undefined ? {} : {starBudgetScenario:validateStarBudgetScenario(root.starBudgetScenario)}), ...(resourceInventory===undefined?{}:{resourceInventory}), ...(ownedStampIds === undefined ? {} : {ownedStampIds}), members, snaps, characterRanks, ...(characterProgress === undefined ? {} : {characterProgress}), bandItems,
+    ...(root.starBudgetScenario === undefined ? {} : {starBudgetScenario:validateStarBudgetScenario(root.starBudgetScenario)}), ...(resourceInventory===undefined?{}:{resourceInventory:trackedInventory(resourceInventory,master.materialDefinition)}), ...(ownedStampIds === undefined ? {} : {ownedStampIds}), members, snaps, characterRanks, ...(characterProgress === undefined ? {} : {characterProgress}), bandItems,
     ...(root.tgwRank === undefined ? {} : {tgwRank:integer(root.tgwRank,'$.tgwRank')}),
     ...(root.totalRankBonus === undefined ? {} : {totalRankBonus:integer(root.totalRankBonus,'$.totalRankBonus',0)}) };
 }
@@ -146,5 +147,6 @@ export function importCollection(text: string, master: Masterdata): Collection {
   return validateCollection(jsonValue(text, 5 * 1024 * 1024), master);
 }
 export function exportCollection(collection: Collection, master: Masterdata): string {
+  if(master.materialDefinition&&!hasTrackingScope(master.materialDefinition)&&Object.keys(collection.resourceInventory??{}).length)throw new Error(trackingUpdateMessage);
   return JSON.stringify(validateCollection(collection, master), null, 2) + '\n';
 }

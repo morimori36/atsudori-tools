@@ -251,6 +251,17 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
         },
+        "trackingVersion": {
+          "const": 1
+        },
+        "excludedResourceIds": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+          }
+        },
         "resources": {
           "type": "array",
           "maxItems": 20000,
