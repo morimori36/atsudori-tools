@@ -1,4 +1,5 @@
 import { emptyStarBudget } from '../../src/domain/star-budget/validate';
+import { STAR_PAID_SOURCE_IDS } from '../../src/domain/star-budget/model';
 import type { BudgetValue } from '../../src/domain/star-budget/model';
 
 export const assumedBudgetValue = (value: number): BudgetValue => ({ value, status: 'assumed', basis: '独立した人工算術ケース。ゲームの値ではない' });
@@ -23,6 +24,9 @@ export function starBudgetFixture() {
     p.tiers = p.id.startsWith('sr-') ? [{ starCost: m(4), weeklyLimit: m(20) }, { starCost: m(7), weeklyLimit: m(30) }]
       : [{ starCost: m(prices[i]!), weeklyLimit: m(5) }];
   }
+  d.paidBySource = Object.fromEntries(STAR_PAID_SOURCE_IDS.map(id => [id, m(0)])) as NonNullable<typeof d.paidBySource>;
+  d.paidBySource['season-premium'] = m(500);
+  for (const grade of ['lite', 'standard', 'premium'] as const) d.paidBySource[`pass-${grade}-purchase`] = m(d.passes[grade].purchaseStars.value!);
   d.starCompatibility = 'assumed-usable'; d.starCompatibilityBasis = '人工ケースでは全スターを支払に利用できると仮定';
   input.scenario = { rank: 13, storyEventPercent: 100, eventPremium: false, seasonPremium: true, includeArena: true, selectedProducts: d.products.map(p => p.id) };
   return input;
