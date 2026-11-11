@@ -36,10 +36,12 @@ try {
     for (const width of [1280,390]) for (const theme of ['light','dark'] as const) {
       const page = await browser.newPage({viewport:{width,height:900}});
       await page.goto(url);
+      const versionFixture = version === 'before' ? structuredClone(fixture) : fixture;
+      if (version === 'before') Reflect.deleteProperty(versionFixture.master.starBudgetDefinition!, 'paidBySource');
       await page.evaluate(({master,collection}) => {
         localStorage.setItem('atsudori-tools.catalog.v1', JSON.stringify(master));
         localStorage.setItem('atsudori-tools.collection.v1', JSON.stringify(collection));
-      },fixture);
+      },versionFixture);
       await page.goto(`${url}#star-budget`); await page.reload();
       await page.getByLabel('表示テーマ').selectOption(theme);
       await page.locator('[data-budget-balance=premium]').waitFor();
