@@ -68,6 +68,31 @@ describe('24-hour studio supply without receipt conditions',()=>{
   const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];f.supply.ranks[0]!.studioMultiplier={numerator:2,denominator:1};
   expect(paper(f)).toMatchObject({confirmedDaily:720,expectedDaily:240,dailySupply:960});
  });
+ it.each(['direct','inventory'] as const)('keeps exact paper supply when fractional %s EXP is unresolved',(destination)=>{
+  const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];
+  f.supply.studios[0]!.rewards=reward(grant('paper',4),grant('member-exp',1,destination));
+  // 4 * 7/4 = 7 per tick, 120 ticks/day = 840; EXP's 7/4 is independently unresolved.
+  expect(paper(f)).toMatchObject({dailySupply:840,knownDailySupply:840,clearanceDays:3});
+  const r=run(f);expect(r.issues.every(i=>!i.blocksProjection||!i.resourceIds.includes('paper'))).toBe(true);
+  expect(r.rows.find(r=>r.resource.id==='member-exp')!.dailySupply).toBe(destination==='direct'?0:null);
+ });
+ it('keeps an exact subtotal when another reward for the same inventory resource is unresolved',()=>{
+  const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];
+  const r=f.supply.studios[0]!;r.lotteryRounding='floor';
+  r.rewards={...reward(grant('paper',4)),lotteries:[{draws:{numerator:2,denominator:1},totalWeight:1,outcomes:[{weight:1,rewards:[grant('paper',1)]}]}]};
+  expect(paper(f)).toMatchObject({dailySupply:null,knownDailySupply:840,confirmedDaily:840,clearanceDays:null});
+ });
+ it('isolates uncertain lottery draws while retaining exact fixed and lottery rewards',()=>{
+  const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];
+  const r=f.supply.studios[0]!;r.lotteryRounding='floor';
+  r.rewards={...reward(grant('paper',4)),lotteries:[
+   {draws:{numerator:2,denominator:1},totalWeight:1,outcomes:[{weight:1,rewards:[grant('snap-exp',1)]}]},
+   {draws:{numerator:4,denominator:1},totalWeight:1,outcomes:[{weight:1,rewards:[grant('paper',2)]}]}
+  ]};
+  // Exact lottery: floor(4 * 7/4) * 2 * 120 = 1680; fixed paper adds 840.
+  expect(paper(f)).toMatchObject({dailySupply:2520,confirmedDaily:840,expectedDaily:1680,clearanceDays:1});
+  expect(run(f).rows.find(r=>r.resource.id==='snap-exp')!).toMatchObject({dailySupply:null,knownDailySupply:0});
+ });
  it('uses the shared rank and keeps missing multipliers or invalid levels unknown',()=>{
   const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];delete f.c.tgwRank;
   expect(paper(f).dailySupply).toBeNull();f.c.tgwRank=6;f.c.supplyConditions!.studioLevels[0]!.level=999;

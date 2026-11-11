@@ -101,10 +101,19 @@ export function calculateEconomy(master:Masterdata,collection:Collection,require
       // Claim rounding is usable only if each tick is already integral; otherwise
       // receipts would change the result and no supported daily conversion is known.
       const integral=(value:Fraction)=>value.n%value.d===0n;
-      const needsClaim=row.rounding==='claim'&&row.rewards.fixed.some(g=>!integral(times(units(g.quantity),multiplier)));
-      const needsLotteryClaim=row.rounding==='claim'&&row.lotteryRounding==='floor'&&row.rewards.lotteries.some(l=>!integral(times(fraction(l.draws),multiplier)));
-      if(needsClaim||needsLotteryClaim){missingRewards(source,row.rewards,'練習報酬の受取単位の丸めを日平均へ換算する方法が未確認です');continue;}
-      rewards(source,row.rewards,ratio(1440n,BigInt(row.tickMinutes)),multiplier,row.lotteryRounding);
+      const calculable:Rewards={fixed:[],lotteries:[],unavailable:row.rewards.unavailable};
+      const reason='練習報酬の受取単位の丸めを日平均へ換算する方法が未確認です';
+      for(const grant of row.rewards.fixed){
+        if(row.rounding==='claim'&&!integral(times(units(grant.quantity),multiplier)))
+          missingRewards(source,{fixed:[grant],lotteries:[],unavailable:[]},reason);
+        else calculable.fixed.push(grant);
+      }
+      for(const lottery of row.rewards.lotteries){
+        if(row.rounding==='claim'&&row.lotteryRounding==='floor'&&!integral(times(fraction(lottery.draws),multiplier)))
+          missingRewards(source,{fixed:[],lotteries:[lottery],unavailable:[]},reason);
+        else calculable.lotteries.push(lottery);
+      }
+      rewards(source,calculable,ratio(1440n,BigInt(row.tickMinutes)),multiplier,row.lotteryRounding);
     }
     {
       const source={id:'daily',name:'ランクのデイリー報酬',basis:definition.basis};
