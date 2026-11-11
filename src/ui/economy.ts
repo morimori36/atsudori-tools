@@ -61,8 +61,10 @@ export function createEconomyView(
    const stale=host.querySelector('[data-result-state]');if(stale)stale.textContent=dirty?'入力は未反映です。変更前の条件による結果です。':'';
    changed();
   };
-  function commit():void {
-   draft=Object.fromEntries(inputs().map(el=>[el.name,el instanceof HTMLInputElement&&el.type==='checkbox'?el.checked:el.value]));dirty=true;
+  function commit(edited?:HTMLInputElement|HTMLSelectElement):void {
+   // Untouched fields must come from the latest collection on the next mount.
+   if(edited)draft[edited.name]=edited instanceof HTMLInputElement&&edited.type==='checkbox'?edited.checked:edited.value;
+   dirty=true;
    try{
     const current=context();if(current.protected||training.damaged())throw Error('保存データ・育成条件を復旧してください');
     const number=(name:string,nullable=false):number|null=>{
@@ -79,15 +81,15 @@ export function createEconomyView(
     }}
     const supplyConditions=validateSupplyConditions({lbPerDay,scoreRank:String(new FormData(form).get('scoreRank')??'')||null,studioLevels});
     const {tgwRank:previousRank,...rest}=current.collection;void previousRank;
-    const next:Collection={...rest,...(rank===null?{}:{tgwRank:rank}),supplyConditions,starBudgetScenario:{...(current.collection.starBudgetScenario??defaultStarBudgetScenario()),eventPremium:draft.eventPremium===true,seasonPremium:draft.seasonPremium===true}};
+    const next:Collection={...rest,...(rank===null?{}:{tgwRank:rank}),supplyConditions,starBudgetScenario:{...(current.collection.starBudgetScenario??defaultStarBudgetScenario()),eventPremium:(form.elements.namedItem('eventPremium') as HTMLInputElement).checked,seasonPremium:(form.elements.namedItem('seasonPremium') as HTMLInputElement).checked}};
     const calculated=simulateEconomy(master,next,training.current());
     if(!persist(next))throw Error(context().message||'条件を保存できません。入力を保持しています。');
     dirty=false;draft={};result=calculated;message='自動保存しました';
     host.querySelector('[data-economy-results]')!.innerHTML=results();feedback(message);
    }catch(e){message=e instanceof Error?e.message:String(e);feedback(message);}
   }
-  form.oninput=e=>{if((e.target as HTMLInputElement).type==='number')commit();};
-  form.onchange=commit;form.onsubmit=e=>{e.preventDefault();commit();};
+  form.oninput=e=>{if((e.target as HTMLInputElement).type==='number')commit(e.target as HTMLInputElement);};
+  form.onchange=e=>commit(e.target as HTMLInputElement|HTMLSelectElement);form.onsubmit=e=>{e.preventDefault();commit();};
   form.addEventListener('wheel',e=>{if(document.activeElement instanceof HTMLInputElement&&form.contains(document.activeElement))e.preventDefault();},{passive:false});
   if(dirty)feedback(message||'未反映の入力を保持しています。');
   bindTrainingSettings(host.closest<HTMLElement>('#app')??host,training);changed();

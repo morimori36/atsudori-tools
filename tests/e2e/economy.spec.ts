@@ -67,3 +67,33 @@ test('shares rank and Premium purchases with star budget in both directions',asy
  const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),STORAGE_KEY);
  expect(saved.tgwRank).toBeUndefined();expect(saved.supplyConditions).not.toHaveProperty('rank');expect(saved.supplyConditions).not.toHaveProperty('eventPremium');
 });
+
+for(const invalidField of ['lb','band-8101'])test(`rebases untouched shared values while restoring an invalid ${invalidField} draft`,async({page})=>{
+ const {starBudgetFixture}=await import('../helpers/star-budget');const f=await setup(page);
+ f.m.starBudgetDefinition={...starBudgetFixture().definition,revision:f.m.revision};
+ await page.evaluate(f=>localStorage.setItem('atsudori-tools.catalog.v1',JSON.stringify(f.m)),f);await page.reload();
+ const invalid=page.locator(`[name="${invalidField}"]`);
+ await invalid.fill(invalidField==='lb'?'':'999');
+ await chooseScreen(page,page.locator('nav [data-tab=star-budget]'));
+ await page.locator('[name="scenario.rank"]').fill('9');
+ await page.locator('[name="scenario.eventPremium"]').check();await page.locator('[name="scenario.seasonPremium"]').check();
+ await chooseScreen(page,page.locator('nav [data-tab=economy]'));
+ await expect(invalid).toHaveValue(invalidField==='lb'?'':'999');
+ await expect(page.locator('[name=rank]')).toHaveValue('9');await expect(page.locator('[name=eventPremium]')).toBeChecked();await expect(page.locator('[name=seasonPremium]')).toBeChecked();
+ await invalid.fill(invalidField==='lb'?'13':'8');
+ const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),STORAGE_KEY);
+ expect(saved.tgwRank).toBe(9);expect(saved.starBudgetScenario.eventPremium).toBe(true);expect(saved.starBudgetScenario.seasonPremium).toBe(true);
+ await chooseScreen(page,page.locator('nav [data-tab=star-budget]'));await expect(page.locator('[name="scenario.rank"]')).toHaveValue('9');
+ await page.locator('[name="scenario.eventPremium"]').uncheck();await page.locator('[name="scenario.seasonPremium"]').uncheck();
+ await chooseScreen(page,page.locator('nav [data-tab=economy]'));await expect(page.locator('[name=eventPremium]')).not.toBeChecked();await expect(page.locator('[name=seasonPremium]')).not.toBeChecked();
+});
+test('keeps an explicitly edited shared field in a draft without restoring unrelated fields',async({page})=>{
+ const {starBudgetFixture}=await import('../helpers/star-budget');const f=await setup(page);
+ f.m.starBudgetDefinition={...starBudgetFixture().definition,revision:f.m.revision};
+ await page.evaluate(f=>localStorage.setItem('atsudori-tools.catalog.v1',JSON.stringify(f.m)),f);await page.reload();
+ await page.locator('[name=lb]').fill('');await page.locator('[name=rank]').fill('8');
+ await chooseScreen(page,page.locator('nav [data-tab=star-budget]'));await page.locator('[name="scenario.rank"]').fill('9');await page.locator('[name="scenario.eventPremium"]').check();
+ await chooseScreen(page,page.locator('nav [data-tab=economy]'));await expect(page.locator('[name=rank]')).toHaveValue('8');await expect(page.locator('[name=eventPremium]')).toBeChecked();
+ await page.locator('[name=lb]').fill('13');
+ const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),STORAGE_KEY);expect(saved.tgwRank).toBe(8);expect(saved.starBudgetScenario.eventPremium).toBe(true);
+});
