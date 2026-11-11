@@ -3284,6 +3284,1223 @@
         },
         "arena": {
           "deprecated": true
+        },
+        "currencyBreakdown": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "paymentPriority",
+            "basis",
+            "sources"
+          ],
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "paymentPriority": {
+              "const": "free-first"
+            },
+            "basis": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "sources": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "loginDaily",
+                "missionDaily",
+                "liveStampWeekly",
+                "event.points",
+                "event.missionFree",
+                "event.missionPremium",
+                "event.storyPerEpisode",
+                "season.free",
+                "season.premium",
+                "passes.lite.purchaseStars",
+                "passes.lite.dailyStars",
+                "passes.standard.purchaseStars",
+                "passes.standard.dailyStars",
+                "passes.premium.purchaseStars",
+                "passes.premium.dailyStars"
+              ],
+              "properties": {
+                "loginDaily": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "missionDaily": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "liveStampWeekly": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "event.points": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "event.missionFree": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "event.missionPremium": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "event.storyPerEpisode": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "season.free": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "season.premium": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "passes.lite.purchaseStars": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "passes.lite.dailyStars": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "passes.standard.purchaseStars": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "passes.standard.dailyStars": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "passes.premium.purchaseStars": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "passes.premium.dailyStars": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "free",
+                    "paid"
+                  ],
+                  "properties": {
+                    "free": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "paid": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value",
+                        "status",
+                        "basis"
+                      ],
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "unconfirmed",
+                            "assumed",
+                            "confirmed"
+                          ]
+                        },
+                        "basis": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

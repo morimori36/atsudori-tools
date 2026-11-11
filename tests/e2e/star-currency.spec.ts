@@ -1,0 +1,50 @@
+import {test,expect} from '@playwright/test';
+import type {Page} from '@playwright/test';
+import {currencyBudget} from '../helpers/currency-budget';
+import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
+import {chooseScreen} from '../helpers/navigation';
+import {CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
+const file=(value:unknown)=>({name:'fictional.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
+async function seed(page:Page) {
+  const input=currencyBudget(150),master=syntheticCatalog();master.starBudgetDefinition={...input.definition,revision:master.revision};
+  const {rank,...starBudgetScenario}=input.scenario;
+  const collection={...syntheticCollection(master),tgwRank:rank!,starBudgetScenario};
+  await page.goto('./');await chooseScreen(page,page.locator('nav [data-tab=exchange]'));
+  await page.locator('#catalog-import').setInputFiles(file(master));
+  await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+  await page.locator('#import-file').setInputFiles(file(collection));
+  await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
+  await chooseScreen(page,page.locator('nav [data-tab=star-budget]'));
+  return {master,collection};
+}
+for(const width of [320,375,390,1280])for(const theme of ['light','dark'])test(`currency comparison ${width} ${theme}`,async({page})=>{
+  await page.setViewportSize({width,height:900});await seed(page);
+  await page.getByLabel('表示テーマ').selectOption(theme);
+  const metric=(key:string)=>page.locator(`[data-budget-metric=${key}] td`).first();
+  await expect(metric('free-supply')).toHaveText('90');await expect(metric('paid-supply')).toHaveText('40');
+  await expect(metric('free-balance')).toHaveText('0');await expect(metric('paid-balance')).toHaveText('-20（不足）');
+  await expect(page.locator('.budget-interpretation')).toContainText('ガチャ支出は差し引いていません');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await page.reload();await expect(metric('paid-balance')).toHaveText('-20（不足）');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+});
+test('failed save retains split results and damaged catalog/collection stay protected',async({page})=>{
+  await seed(page);
+  const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
+  await page.evaluate(key=>{const set=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===key)throw Error('quota');set.call(this,k,v);};},STORAGE_KEY);
+  await page.locator('[name=selected-crystal-luck]').uncheck();
+  await expect(page.locator('[data-budget-result-state]')).toBeVisible();
+  await expect(page.locator('[data-budget-metric=paid-balance] td').first()).toHaveText('-20（不足）');
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
+  await page.reload();
+  await chooseScreen(page,page.locator('nav [data-tab=exchange]'));
+  const raw=await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY);
+  const invalid=JSON.parse(raw!);invalid.starBudgetDefinition.currencyBreakdown.sources.liveStampWeekly.paid.value=1;
+  await page.locator('#catalog-import').setInputFiles(file(invalid));
+  expect(await page.evaluate(k=>localStorage.getItem(k),CATALOG_STORAGE_KEY)).toBe(raw);
+  await page.evaluate(k=>localStorage.setItem(k,'broken'),STORAGE_KEY);await page.reload();
+  await chooseScreen(page,page.locator('nav [data-tab=star-budget]'));
+  await expect(page.locator('[name="scenario.rank"]')).toBeDisabled();
+  expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe('broken');
+});

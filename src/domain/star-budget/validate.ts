@@ -1,5 +1,5 @@
 import { strictObject } from '../../data/json';
-import { PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES } from './model';
+import { CURRENCY_SOURCES, PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES } from './model';
 import type { BudgetValue, StarBudgetInput, StarBudgetDefinition, StarBudgetScenario } from './model';
 
 const fail = (path: string, message: string): never => { throw new Error(path + ': ' + message); };
@@ -36,7 +36,8 @@ export function validateStarBudget(value: unknown): StarBudgetInput {
   return { definition, scenario: { ...validateStarBudgetScenario(scenario), rank: rank as number | null } };
 }
 export function validateStarBudgetDefinition(value: unknown): StarBudgetDefinition {
-  const d = strictObject(value, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products'], ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
+  const required = ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products'];
+  const d = strictObject(value, 'definition', [...required, 'arena', 'currencyBreakdown'], required);
   if (typeof d.revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(d.revision)) fail('definition.revision', '版の識別子が不正です');
   for (const key of ['loginDaily', 'missionDaily', 'liveStampWeekly']) measure(d[key], 'definition.' + key);
   text(d.liveStampSelection, 'definition.liveStampSelection');
@@ -59,7 +60,22 @@ export function validateStarBudgetDefinition(value: unknown): StarBudgetDefiniti
   }
   const names = (d.products as { name: string }[]).map(p => p.name.trim());
   if (new Set(names).size !== names.length) fail('products', '商品・対象バンドを区別できる異なる名前を指定してください');
-  // Discard only the named legacy field; never modify the caller's JSON.
+  if (Object.hasOwn(d, 'currencyBreakdown')) {
+    const split = strictObject(d.currencyBreakdown, 'currencyBreakdown', ['version', 'paymentPriority', 'basis', 'sources']);
+    if (split.version !== 1 || split.paymentPriority !== 'free-first') fail('currencyBreakdown', '未対応の版または支払順序です');
+    text(split.basis, 'currencyBreakdown.basis', 300, true);
+    const sources = strictObject(split.sources, 'currencyBreakdown.sources', CURRENCY_SOURCES);
+    for (const key of CURRENCY_SOURCES) {
+      const pair = strictObject(sources[key], 'currencyBreakdown.sources.' + key, ['free', 'paid']);
+      measure(pair.free, key + '.free'); measure(pair.paid, key + '.paid');
+      const total = key.split('.').reduce<unknown>((row, k) => (row as Record<string, unknown>)[k], d) as {value: number | null};
+      const free = (pair.free as {value: number | null}).value, paid = (pair.paid as {value: number | null}).value;
+      if (free !== null && paid !== null && (total.value === null || BigInt(free) + BigInt(paid) !== BigInt(total.value)))
+        fail(key, '総供給と通貨内訳が一致しません');
+      if (total.value !== null && (free !== null && free > total.value || paid !== null && paid > total.value))
+        fail(key, '通貨内訳が総供給を超えます');
+    }
+  }
   const { arena: _legacyArena, ...definition } = d;
   return structuredClone(definition) as unknown as StarBudgetDefinition;
 }

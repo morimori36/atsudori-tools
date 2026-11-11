@@ -1,4 +1,4 @@
-import { PASS_GRADES, PRODUCT_IDS } from './model.ts';
+import { CURRENCY_SOURCES, PASS_GRADES, PRODUCT_IDS } from './model.ts';
 
 const integer = { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER };
 const text = { type: 'string', maxLength: 300 };
@@ -17,11 +17,17 @@ const definition = object({ revision: { type: 'string', pattern: '^[A-Za-z0-9][A
   starCompatibility: { enum: ['unconfirmed', 'assumed-usable', 'confirmed-usable', 'restricted'] }, starCompatibilityBasis: text,
   products: { type: 'array', minItems: PRODUCT_IDS.length, maxItems: PRODUCT_IDS.length, items: product },
 });
+export const starBudgetDefinitionSchema = {
+  ...definition,
+  properties: { ...definition.properties, arena: { deprecated: true }, currencyBreakdown: object({
+    version: { const: 1 }, paymentPriority: { const: 'free-first' },
+    basis: { ...text, minLength: 1, pattern: '\\S' },
+    sources: object(Object.fromEntries(CURRENCY_SOURCES.map(key => [key, object({free: measure(), paid: measure()})]))),
+  }) },
+};
 const scenario = object({ storyEventPercent: nullable({ ...integer, maximum: 100 }),
   eventPremium: { type: 'boolean' }, seasonPremium: { type: 'boolean' },
   selectedProducts: { type: 'array', maxItems: PRODUCT_IDS.length, uniqueItems: true, items: { enum: PRODUCT_IDS } },
 });
-
 // Input-only compatibility: optional legacy fields are discarded by validation.
-export const starBudgetDefinitionSchema = { ...definition, properties: { ...definition.properties, arena: { deprecated: true } } };
 export const starBudgetScenarioSchema = { ...scenario, properties: { ...scenario.properties, includeArena: { deprecated: true } } };
