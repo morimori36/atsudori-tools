@@ -19,11 +19,11 @@ async function setup(page: Page) {
   await page.evaluate(() => localStorage.setItem('atsudori-tools.star-budget.v1', 'damaged legacy bytes'));
   await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const m = catalog();
-  m.starBudgetDefinition.arena = { recurringStars: { value: null, status: 'unconfirmed', basis: '' }, intervalDays: { value: null, status: 'unconfirmed', basis: '' } };
+  Object.assign(m.starBudgetDefinition, { arena: { recurringStars: { value: null, status: 'unconfirmed', basis: '' }, intervalDays: { value: null, status: 'unconfirmed', basis: '' } } });
   await page.locator('#catalog-import').setInputFiles(file(m));
   await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
   const { rank, ...starBudgetScenario } = starBudgetFixture().scenario;
-  await page.locator('#import-file').setInputFiles(file({ ...syntheticCollection(), resourceInventory: { fictional: 4 }, ownedStampIds: [], tgwRank: rank!, starBudgetScenario }));
+  await page.locator('#import-file').setInputFiles(file({ ...syntheticCollection(), resourceInventory: { fictional: 4 }, ownedStampIds: [], tgwRank: rank!, starBudgetScenario: { ...starBudgetScenario, includeArena: true } }));
   await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
   await chooseScreen(page, page.locator(menu));
 }
@@ -63,7 +63,7 @@ test('calculates from catalog, persists all personal controls and keeps ownershi
   await field(page, 'scenario.seasonPremium').check();
   await field(page, 'scenario.eventPremium').check();
   await expect(field(page, 'scenario.includeArena')).toHaveCount(0);
-  expect((await saved(page)).starBudgetScenario).toMatchObject({ storyEventPercent: 100, eventPremium: true, seasonPremium: true, includeArena: true });
+  expect((await saved(page)).starBudgetScenario).toMatchObject({ storyEventPercent: 100, eventPremium: true, seasonPremium: true });
   await field(page, 'scenario.storyEventPercent').fill(''); await expect(balance(page)).toHaveText('算出不可');
   expect((await saved(page)).starBudgetScenario.storyEventPercent).toBeNull();
   for (const checkbox of await page.locator('[name^=selected-]').all()) await checkbox.uncheck();
@@ -73,7 +73,7 @@ test('calculates from catalog, persists all personal controls and keeps ownershi
   expect(after.starBudgetScenario).not.toHaveProperty('rank');
   await page.reload(); await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'scenario.includeArena')).toHaveCount(0);
-  expect((await saved(page)).starBudgetScenario.includeArena).toBe(true);
+  expect((await saved(page)).starBudgetScenario).not.toHaveProperty('includeArena');
   expect(await page.evaluate(() => localStorage.getItem('atsudori-tools.star-budget.v1'))).toBe('damaged legacy bytes');
 });
 

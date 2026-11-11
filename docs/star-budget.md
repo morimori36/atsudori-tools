@@ -14,20 +14,23 @@
 
 catalog v1の任意項目 `starBudgetDefinition` に静的値・根拠・未確認区分を保持します。構造は従来のdefinitionと同じで、定義のrevisionはcatalogのrevisionと一致必須です。全11商品、価格段階、区分と値・根拠の整合性を検証します。定義なしの旧catalogも有効です。
 
-collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必須にします。ランクは既存の `tgwRank` のみで、scenarioにrankは保存しません。
+collection v1の任意項目 `starBudgetScenario` は次の項目だけを必須にします。ランクは既存の `tgwRank` のみで、scenarioにrankは保存しません。
 
 | 項目 | 型・読み取り時の既定値 |
 | --- | --- |
 | storyEventPercent | 0〜100の整数またはnull（既定null） |
 | eventPremium / seasonPremium | boolean（既定false） |
-| includeArena | boolean（既定false）。旧JSON互換用に保持し、計算には適用しない |
 | selectedProducts | 重複しない既知商品ID配列（既定は全11種、空配列も有効） |
 
 省略された条件を保存・Export時に補完しません。通常Importで項目がなければ保存中の条件を保持し、明示された条件はfalse・null・空配列を含め丸ごと採用します。完全復元では省略分を保持しません。catalog更新・定義の有無によって既存の条件や所持を削除しません。未確認を0に置き換えません。
 
 画面の条件変更は共通のcollection保存経路を使います。Import/Export・初期化はJSON Import / Export画面から行います。旧独立JSONと専用保存キーは読み取らず、移行・復元・削除もしません。
 
-`includeArena` と `definition.arena` はSchema・検証APIを維持します。旧 `includeArena: true` も受理し、自動保存・Export/Importで元の値と定義の根拠区分を保持します。移行や読込時の書換えは行いません。計算APIはtrue/falseや定義の未確認・0・正数にかかわらずアリーナを算入せず、旧設定による増額・算出保留はありません。供給行に0スターとして表示することもありません。無関係な所持・マスタは変更しません。初回到達・シーズン・交換報酬・アリーナピックを週平均スターへ換算しません。再導入には定期スター報酬の存在と周期の裏付けが必要です。
+旧 `includeArena` と `definition.arena` は入力専用の互換項目です。省略可能で、値や内部構造を解釈・検証せず読み捨てます。内部モデル・既定値・新規保存・Exportには含めません。それ以外の未知キーや不正な現行項目は従来どおり拒否します。JSON全体のサイズ・構文・危険キーの保護は維持します。
+
+旧JSONと現行JSONを同じversion 1で受理する明示的な入力正規化です。読込時は元のファイル・ブラウザ保存を上書きせず、メモリ上だけで旧項目を除去します。次の明示的なImport・正常な自動保存・Exportでは旧項目を出力しません。無関係な所持・マスタは変更しません。旧版アプリへの逆Import互換性は保証しません（旧版は削除済み項目を要求する場合があります）。保存失敗・破損保存は従来どおり保護します。
+
+アリーナは継続的なスター収入の根拠未確認による予算対象外で、0スターと確定した意味ではありません。旧設定・定義の有無や値による増額・保留はありません。初回到達・シーズン・交換報酬・アリーナピックも週平均スターへ換算しません。再導入には定期スター報酬の存在と周期の裏付けが必要です。
 
 ## 入力・計算
 
@@ -62,7 +65,7 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 
 静的定義はcatalog v1の `starBudgetDefinition`、個人条件はcollection v1の `starBudgetScenario`、ランクはcollectionの `tgwRank` が正本です。[catalog Schema](../public/schemas/catalog-v1.schema.json)・[collection Schema](../public/schemas/collection-v1.schema.json)と意味検証を併用します。
 
-definitionはrevision、loginDaily、missionDaily、liveStampWeekly、liveStampSelection、event、season、arena、passes、starCompatibility、starCompatibilityBasis、productsを持ちます。productsは全11商品（crystal-luck、crystal-miracle、skill-live、skill-gekisou、skill-basic、skill-sp、sr-1〜sr-5）を各1回持ち、name、unlockRank、1〜20段階のtiers[{starCost, weeklyLimit}]を定義します。数値と根拠は `{value, status, basis}` で、nullはunconfirmed、数値ありはassumedまたはconfirmedと空白以外のbasisが必要です。日数は正の小数2桁以内、数量・価格は非負安全整数、解放ランクは正整数です。
+definitionはrevision、loginDaily、missionDaily、liveStampWeekly、liveStampSelection、event、season、passes、starCompatibility、starCompatibilityBasis、productsを持ちます。productsは全11商品（crystal-luck、crystal-miracle、skill-live、skill-gekisou、skill-basic、skill-sp、sr-1〜sr-5）を各1回持ち、name、unlockRank、1〜20段階のtiers[{starCost, weeklyLimit}]を定義します。数値と根拠は `{value, status, basis}` で、nullはunconfirmed、数値ありはassumedまたはconfirmedと空白以外のbasisが必要です。日数は正の小数2桁以内、数量・価格は非負安全整数、解放ランクは正整数です。
 
 起動・表示では保存しません。有効な条件変更は保存成功後に確定します。保存失敗や不正入力では共通の未保存警告を表示し、確定済みcollectionと計算結果を保持します。画面を切り替えると未確定の条件は破棄し、共通collectionから読み直します。破損した所持・マスタは保護し、スター予算の変更・計算を止めます。復旧は共通のImport／初期化を使います。マスタ更新では所持の条件を上書きしません。
 

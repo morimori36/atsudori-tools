@@ -64,8 +64,6 @@ export function createStarBudgetView(
       return validateStarBudget({ definition: current().master.starBudgetDefinition,
         scenario: { rank: number('scenario.rank'), storyEventPercent: number('scenario.storyEventPercent'),
           eventPremium: input('scenario.eventPremium').checked, seasonPremium: input('scenario.seasonPremium').checked,
-          // Preserve the legacy JSON field; calculateStarBudget never applies it.
-          includeArena: current().collection.starBudgetScenario?.includeArena ?? false,
           selectedProducts: d!.products.filter(p => input('selected-' + p.id).checked).map(p => p.id) } });
     }
     function updateMessages(): void {

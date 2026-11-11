@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { loadCatalog, loadCollection, CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
 import Ajv from 'ajv/dist/2020.js';
 import { readFileSync } from 'node:fs';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
@@ -37,16 +38,18 @@ it.each([
   expect(() => importCatalog(JSON.stringify(m))).toThrow();
 });
 
-it.each([false, true])('preserves ownership and legacy arena=%s across JSON and old/new catalog revisions', includeArena => {
+it.each([false, true])('preserves ownership and discards legacy arena=%s across JSON and old/new catalog revisions', includeArena => {
   const m = master(), scenario = { ...defaultStarBudgetScenario(), storyEventPercent: 67, eventPremium: true, seasonPremium: true, includeArena };
   const c = { ...syntheticCollection(m), tgwRank: 7, resourceInventory: { 'fictional-resource': 0 }, starBudgetScenario: scenario };
   expect(schema('collection')(c)).toBe(true);
-  expect(importCollection(exportCollection(c, m), m)).toEqual(c);
-  expect(validateCollection(c, { ...syntheticCatalog(), revision: 'next' })).toEqual(c);
-  expect(validateCollection(c, m)).toEqual(c);
+  const { includeArena: _discarded, ...normalizedScenario } = scenario;
+  const normalized = { ...c, starBudgetScenario: normalizedScenario };
+  expect(importCollection(exportCollection(c, m), m)).toEqual(normalized);
+  expect(validateCollection(c, { ...syntheticCatalog(), revision: 'next' })).toEqual(normalized);
+  expect(validateCollection(c, m)).toEqual(normalized);
   const legacy = syntheticCollection(m);
   expect(importCollection(exportCollection(legacy, m), m)).not.toHaveProperty('starBudgetScenario');
-  expect(prepareCollectionImport(legacy, c, m).starBudgetScenario).toEqual(scenario);
+  expect(prepareCollectionImport(legacy, c, m).starBudgetScenario).toEqual(normalizedScenario);
   expect(prepareCollectionImport(legacy, c, m, false)).not.toHaveProperty('starBudgetScenario');
   const explicit = { ...legacy, starBudgetScenario: { ...defaultStarBudgetScenario(), selectedProducts: [] } };
   expect(prepareCollectionImport(explicit, c, m).starBudgetScenario).toEqual(explicit.starBudgetScenario);
@@ -64,9 +67,31 @@ it.each([
 
 it('returns fresh reading defaults, accepting explicit zero and preserving omitted JSON', () => {
   const defaults = defaultStarBudgetScenario();
-  expect(defaults).toEqual({ storyEventPercent: null, eventPremium: false, seasonPremium: false, includeArena: false, selectedProducts: PRODUCT_IDS });
+  expect(defaults).toEqual({ storyEventPercent: null, eventPremium: false, seasonPremium: false, selectedProducts: PRODUCT_IDS });
   defaults.selectedProducts.pop();
   expect(defaultStarBudgetScenario().selectedProducts).toHaveLength(11);
   const m = master(), c = { ...syntheticCollection(m), starBudgetScenario: { ...defaultStarBudgetScenario(), storyEventPercent: 0 } };
   expect(importCollection(exportCollection(c, m), m)).toEqual(c);
+});
+
+
+it.each([null, 'discarded legacy value', { intervalDays: null, recurringStars: null }])('discards legacy fields without mutating source JSON or storage: %j', legacy => {
+  const m = master(), c = { ...syntheticCollection(m), starBudgetScenario: defaultStarBudgetScenario() };
+  const oldMaster = { ...m, starBudgetDefinition: { ...m.starBudgetDefinition, arena: legacy } };
+  const oldCollection = { ...c, starBudgetScenario: { ...c.starBudgetScenario, includeArena: legacy } };
+  const rawMaster = JSON.stringify(oldMaster), rawCollection = JSON.stringify(oldCollection);
+  expect(schema('catalog')(oldMaster)).toBe(true);
+  expect(schema('collection')(oldCollection)).toBe(true);
+  expect(importCatalog(rawMaster)).toEqual(m);
+  expect(importCollection(rawCollection, m)).toEqual(c);
+  expect(JSON.parse(exportCatalog(oldMaster))).toEqual(m);
+  expect(JSON.parse(exportCollection(oldCollection as unknown as typeof c, m))).toEqual(c);
+  const storage = { getItem: (key: string) => key === CATALOG_STORAGE_KEY ? rawMaster : key === STORAGE_KEY ? rawCollection : null, setItem: vi.fn() };
+  expect(loadCatalog(storage)).toEqual({ status: 'loaded', value: m });
+  expect(loadCollection(storage, m)).toEqual({ status: 'loaded', collection: c });
+  expect(storage.setItem).not.toHaveBeenCalled();
+  expect(JSON.stringify(oldMaster)).toBe(rawMaster);
+  expect(JSON.stringify(oldCollection)).toBe(rawCollection);
+  expect(() => importCatalog(JSON.stringify({ ...oldMaster, starBudgetDefinition: { ...oldMaster.starBudgetDefinition, extra: 1 } }))).toThrow();
+  expect(() => importCollection(JSON.stringify({ ...oldCollection, starBudgetScenario: { ...oldCollection.starBudgetScenario, eventPremium: null } }), m)).toThrow();
 });

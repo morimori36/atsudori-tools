@@ -357,7 +357,7 @@ UIとE2Eではメンバー／スナップ区分ごとの必要・在庫・不足
 
 star-budget/integration.test.tsは既存の独立した架空catalog・所持と未確認定義を使用し、Schema／意味検証、JSON往復、catalogBase保持、旧catalog切替、省略保持、明示false・null・空配列、完全復元、不正な定義・条件の拒否を検証します。既定値は未確認null・false・全11商品という契約から直接期待し、算術は既存の独立計算テストで確認します。
 
-スター予算の画面回帰は共通catalog Import・collection保存へ置き換えています。TGW双方向共有、null/0/100・Premium・商品選択・非表示の旧アリーナ設定true保持、所持Exportと省略Import、catalog更新、初期化、保存失敗・破損保存の保護、旧キー無視、スマホ幅を確認します。専用保存ストアとそのテストは廃止し、既存の算術テストを維持します。
+スター予算の画面回帰は共通catalog Import・collection保存へ置き換えています。TGW双方向共有、null/0/100・Premium・商品選択・旧アリーナ設定の読捨て、所持Exportと省略Import、catalog更新、初期化、保存失敗・破損保存の保護、旧キー無視、スマホ幅を確認します。専用保存ストアとそのテストは廃止し、既存の算術テストを維持します。
 
 
 ## 共通ナビゲーション
@@ -369,4 +369,6 @@ star-budget/integration.test.tsは既存の独立した架空catalog・所持と
 
 `star-budget-ui.spec.ts` は `star-budget-review.ts` の独立した人工算術fixtureを使い、4幅・2テーマで入力のラベル／補足・44px領域、タップ／キーボード、結果先行の階層、表の見出し固定、再計算・自動保存・再読込、未知／保存失敗／保護を確認します。計算の期待値は既存スター予算テストの人工ケースと同じ（週費用2190、Premium差引106.17、シーズンPremiumを除くと-313.83）です。商品名だけを新たな架空名にし、計算条件と独立検算の根拠は変えません。比較画像は空状態ではなく、このfixtureの入力・結果を同じ条件で両版に表示します。
 
-Issue #71: 架空collectionの旧includeArena true/falseをSchema・JSON往復で保持します。画面回帰は旧trueと未確認アリーナ定義で収支を算出し、チェックボックス除去、他条件の自動保存、Export/Import、保存失敗・破損保護を確認します。
+Issue #71: 架空collectionの旧includeArena true/falseを受理し、正規化後のJSON往復では除去します。画面回帰は旧trueと未確認アリーナ定義で収支を算出し、チェックボックス除去、他条件の自動保存、Export/Import、保存失敗・破損保護を確認します。
+
+アリーナ旧項目は省略・未確認・0・正数・旧構造外の値でも入力専用として読捨てます。元オブジェクトと保存バイト列の非変更、Exportからの除去、現行項目と未知キーの検証維持を確認します。
