@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -16,30 +17,30 @@ const catalog = () => {
 async function setup(page: Page) {
   await page.goto('./');
   await page.evaluate(() => localStorage.setItem('atsudori-tools.star-budget.v1', 'damaged legacy bytes'));
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(catalog()));
   await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
   const { rank, ...starBudgetScenario } = starBudgetFixture().scenario;
   await page.locator('#import-file').setInputFiles(file({ ...syntheticCollection(), resourceInventory: { fictional: 4 }, ownedStampIds: [], tgwRank: rank!, starBudgetScenario }));
   await expect(page.getByText('所持データをImportしました', { exact: true })).toBeVisible();
-  await page.locator(menu).click();
+  await chooseScreen(page, page.locator(menu));
 }
 const saved = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
 
 test('requires catalog definitions and ignores legacy storage', async ({ page }) => {
   await page.goto('./');
   await page.evaluate(() => localStorage.setItem('atsudori-tools.star-budget.v1', 'broken'));
-  await page.reload(); await page.locator(menu).click();
+  await page.reload(); await chooseScreen(page, page.locator(menu));
   await expect(page.getByText('マスタにスター予算定義がない', { exact: false })).toBeVisible();
   await expect(balance(page)).toHaveCount(0);
   await expect(page.locator('[data-budget-file],[data-budget-export],[data-add-tier]')).toHaveCount(0);
 });
 
 test('catalog import alone enables calculation using unsaved reading defaults', async ({ page }) => {
-  await page.goto('./'); await page.locator('nav [data-tab=exchange]').click();
+  await page.goto('./'); await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(catalog()));
   await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
-  await page.locator(menu).click();
+  await chooseScreen(page, page.locator(menu));
   await expect(page.locator('.budget-comparison thead th')).toHaveText(['項目', 'なし', 'Lite', 'Standard', 'Premium']);
   await expect(balance(page)).toHaveText('算出不可');
   await expect(field(page, 'scenario.rank')).toHaveValue('');
@@ -68,7 +69,7 @@ test('calculates from catalog, persists all personal controls and keeps ownershi
   const after = await saved(page);
   for (const key of ['members', 'snaps', 'resourceInventory', 'ownedStampIds', 'characterRanks', 'bandItems']) expect(after[key]).toEqual(before[key]);
   expect(after.starBudgetScenario).not.toHaveProperty('rank');
-  await page.reload(); await page.locator(menu).click();
+  await page.reload(); await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'scenario.includeArena')).toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem('atsudori-tools.star-budget.v1'))).toBe('damaged legacy bytes');
 });
@@ -76,15 +77,15 @@ test('calculates from catalog, persists all personal controls and keeps ownershi
 test('shares TGW rank with character ranks and keeps unknown rank unknown', async ({ page }) => {
   await setup(page);
   await field(page, 'scenario.rank').fill('12');
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await expect(page.locator('#tgwRank')).toHaveValue('12');
   await page.locator('#tgwRank').fill('14');
   await page.locator('#progress-save').click();
-  await page.locator(menu).click(); await expect(field(page, 'scenario.rank')).toHaveValue('14');
+  await chooseScreen(page, page.locator(menu)); await expect(field(page, 'scenario.rank')).toHaveValue('14');
   await field(page, 'scenario.rank').fill('');
   expect(await saved(page)).not.toHaveProperty('tgwRank');
   await expect(balance(page)).toHaveText('算出不可');
-  await page.reload(); await page.locator(menu).click();
+  await page.reload(); await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'scenario.rank')).toHaveValue('');
 });
 
@@ -92,7 +93,7 @@ test('exports common collection, preserves omitted fields, accepts explicit empt
   await setup(page);
   await field(page, 'selected-sr-1').uncheck();
   const before = await saved(page);
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export-button').click()]);
   expect(JSON.parse(await readFile((await download.path())!, 'utf8'))).toEqual(before);
   await page.locator('#import-file').setInputFiles(file(before));
@@ -105,13 +106,13 @@ test('exports common collection, preserves omitted fields, accepts explicit empt
   await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
   expect((await saved(page)).starBudgetScenario).toEqual(before.starBudgetScenario);
   await page.locator('#import-file').setInputFiles(file({ ...before, starBudgetScenario: { storyEventPercent: null, eventPremium: false, seasonPremium: false, includeArena: false, selectedProducts: [] } }));
-  await page.locator(menu).click();
+  await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'scenario.eventPremium')).not.toBeChecked();
   await expect(field(page, 'selected-sr-1')).not.toBeChecked();
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.getByText('データの初期化', { exact: true }).click();
   page.once('dialog', dialog => dialog.accept()); await page.locator('#reset-button').click();
-  await page.locator(menu).click();
+  await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'selected-sr-1')).toBeChecked();
   await expect(field(page, 'scenario.rank')).toHaveValue('');
   expect(await saved(page)).not.toHaveProperty('starBudgetScenario');
@@ -128,20 +129,20 @@ test('failed saves and invalid numbers keep confirmed collection intact', async 
   await field(page, 'scenario.rank').fill('12');
   await expect(page.locator('.save-state')).toContainText('未保存');
   expect(await saved(page)).toEqual(before);
-  await page.locator('nav [data-tab=manual]').click(); await page.locator(menu).click();
+  await chooseScreen(page, page.locator('nav [data-tab=manual]')); await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'scenario.rank')).toHaveValue('13');
 });
 
 test('damaged collection is protected and invalid catalog never overwrites it', async ({ page }) => {
   await setup(page);
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const before = await saved(page), raw = await page.evaluate(key => localStorage.getItem(key), CATALOG_STORAGE_KEY);
   const invalid = catalog(); invalid.starBudgetDefinition.products.pop();
   await page.locator('#catalog-import').setInputFiles(file(invalid));
   expect(await saved(page)).toEqual(before);
   expect(await page.evaluate(key => localStorage.getItem(key), CATALOG_STORAGE_KEY)).toEqual(raw);
   await page.evaluate(key => localStorage.setItem(key, 'broken collection'), STORAGE_KEY);
-  await page.reload(); await page.locator(menu).click();
+  await page.reload(); await chooseScreen(page, page.locator(menu));
   await expect(field(page, 'scenario.rank')).toBeDisabled();
   await expect(balance(page)).toHaveCount(0);
   expect(await page.evaluate(key => localStorage.getItem(key), STORAGE_KEY)).toBe('broken collection');

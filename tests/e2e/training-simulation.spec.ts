@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import {test,expect} from '@playwright/test';
 import type {Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
@@ -7,7 +8,7 @@ import {CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
 import {TRAINING_STORAGE_KEY} from '../../src/storage/training-settings';
 import {PROFILE_STORAGE_KEY} from '../../src/ui/conversion-export';
 const keep={trainingStage:null,awakeningStage:null,liveSkillLevel:null,gekisouSkillLevel:null,snapRank:null};
-const nav=async(page:Page,tab:string)=>page.locator(`nav [data-tab=${tab}]`).click();
+const nav=async(page:Page,tab:string)=>chooseScreen(page, page.locator(`nav [data-tab=${tab}]`));
 const open=async(page:Page)=>{await page.getByRole('button',{name:'育成条件を変更'}).click();return page.getByRole('dialog',{name:'育成条件'});};
 async function seed(page:Page,missing=false) {
   const {m,c}=trainingEvaluationFixture();if(missing)delete m.rankDefinition;

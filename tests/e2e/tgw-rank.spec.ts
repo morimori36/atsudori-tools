@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import {test,expect} from '@playwright/test';
 import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
 import {CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
@@ -9,7 +10,7 @@ for(const width of [1280,390]) test(`TGW draft, persistence and legacy import at
     if(!localStorage.getItem(ck)){localStorage.setItem(ck,JSON.stringify(master));localStorage.setItem(sk,JSON.stringify(collection));}
   },{master,collection,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});
   await page.goto('/');
-  const tab=async(name:string)=>{await page.locator(`nav [data-tab="${name}"]`).click();};
+  const tab=async(name:string)=>{await chooseScreen(page, page.locator(`nav [data-tab="${name}"]`));};
   await tab('progress');const input=page.locator('#tgwRank');
   await expect(input).toHaveValue('');
   await input.fill('1');await tab('members');await tab('progress');await expect(input).toHaveValue('1');

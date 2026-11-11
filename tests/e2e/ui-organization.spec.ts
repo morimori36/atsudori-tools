@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { openRankInput } from '../helpers/rank-ui';
 import { test, expect } from '@playwright/test';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
@@ -5,7 +6,7 @@ import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
 import { TRAINING_STORAGE_KEY } from '../../src/storage/training-settings';
 
 test.use({ hasTouch: true });
-const tab = (page: import('@playwright/test').Page, name: string) => page.locator(`nav [data-tab=${name}]`).click();
+const tab = (page: import('@playwright/test').Page, name: string) => chooseScreen(page, page.locator(`nav [data-tab=${name}]`));
 async function seed(page: import('@playwright/test').Page) {
   const master = syntheticCatalog(), collection = syntheticCollection(master);
   master.characters.push({id: 8202, bandId: 8101, name: '架空の長い名前の紙飛行機奏者'});

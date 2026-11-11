@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -27,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4173/') && !request.url().startsWith('data:')) external.push(request.url()); });
   (page as Page & { audit: () => void }).audit = () => { expect(errors).toEqual([]); expect(external).toEqual([]); };
-  await page.goto('./'); await eventTab(page).click();
+  await page.goto('./'); await chooseScreen(page, eventTab(page));
 });
 test.afterEach(async ({ page }) => { (page as Page & { audit: () => void }).audit(); });
 
@@ -67,7 +68,7 @@ test('recalculates edits and keeps invalid drafts across tool switches without s
   await page.locator('[data-common="targetPt"]').fill('');
   await expect(page.locator('[data-event-results] [role="alert"]')).toContainText('目標イベントpt');
   expect(await stored(page)).toBe(before);
-  await page.locator('nav [data-tab="rating"]').click(); await eventTab(page).click();
+  await chooseScreen(page, page.locator('nav [data-tab="rating"]')); await chooseScreen(page, eventTab(page));
   await expect(page.locator('[data-common="targetPt"]')).toHaveValue('');
   expect(await stored(page)).toBe(before);
   await page.locator('[data-common="targetPt"]').fill('1');
@@ -81,14 +82,14 @@ test('recalculates edits and keeps invalid drafts across tool switches without s
 test('restores input, exports all settings, and leaves rating storage bytes intact', async ({ page }) => {
   const catalog = JSON.stringify(syntheticCatalog()), collection = JSON.stringify(syntheticCollection());
   await page.evaluate(({ catalog, collection }) => { localStorage.setItem('atsudori-tools.catalog.v1', catalog); localStorage.setItem('atsudori-tools.collection.v1', collection); }, { catalog, collection });
-  await page.reload(); await eventTab(page).click(); await importInput(page, exampleEventInput());
+  await page.reload(); await chooseScreen(page, eventTab(page)); await importInput(page, exampleEventInput());
   await card(page, 'normal').locator('[data-candidate-field="name"]').fill('架空のテスト候補');
   const snapshot = await stored(page);
   expect(JSON.parse(await exported(page))).toEqual(JSON.parse(snapshot!));
-  await page.reload(); await eventTab(page).click();
+  await page.reload(); await chooseScreen(page, eventTab(page));
   await expect(card(page, 'normal').locator('[data-candidate-field="name"]')).toHaveValue('架空のテスト候補');
   await expect(page.locator('[data-best-runs]')).toHaveText('87');
-  await page.locator('nav [data-tab="rating"]').click();
+  await chooseScreen(page, page.locator('nav [data-tab="rating"]'));
   await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   expect(await page.evaluate(() => localStorage.getItem('atsudori-tools.catalog.v1'))).toBe(catalog);
   expect(await page.evaluate(() => localStorage.getItem('atsudori-tools.collection.v1'))).toBe(collection);
@@ -108,7 +109,7 @@ test('rejects invalid imports without overwriting valid input or saved bytes', a
 
 test('remains usable with corrupt rating storage and never overwrites it', async ({ page }) => {
   await page.evaluate(() => { localStorage.setItem('atsudori-tools.catalog.v1', '{broken catalog'); localStorage.setItem('atsudori-tools.collection.v1', '{broken collection'); });
-  await page.reload(); await eventTab(page).click();
+  await page.reload(); await chooseScreen(page, eventTab(page));
   await importInput(page, exampleEventInput());
   await expect(page.locator('[data-best-runs]')).toHaveText('87');
   await expect(page.locator('[data-event-storage-warning]')).toBeHidden();
@@ -118,7 +119,7 @@ test('remains usable with corrupt rating storage and never overwrites it', async
 
 test('protects corrupt saves until an explicit validated replacement and exports the original', async ({ page }) => {
   await page.evaluate(key => localStorage.setItem(key, '{broken original'), EVENT_STORAGE_KEY);
-  await page.reload(); await eventTab(page).click();
+  await page.reload(); await chooseScreen(page, eventTab(page));
   await expect(page.locator('[data-event-storage-warning]')).toContainText('元JSONを保護中');
   await page.locator('[data-common="targetPt"]').fill('1');
   expect(await stored(page)).toBe('{broken original');

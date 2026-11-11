@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { openRankInput } from '../helpers/rank-ui';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -30,18 +31,18 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     localStorage.setItem(keys[0]!, JSON.stringify(catalog));
     localStorage.setItem(keys[1]!, JSON.stringify(owned));
   }, { catalog, owned, keys: [CATALOG_STORAGE_KEY, STORAGE_KEY] });
-  await page.reload(); await page.locator('nav [data-tab=progress]').click();
+  await page.reload(); await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   const characters = page.locator('[data-progress-scroll=characters]'), items = page.locator('[data-progress-scroll=items]');
   await expect(characters.locator('article')).toHaveCount(5);
   await expect(characters.locator('.rank-editor h3').filter({hasText:'進捗入力'})).toHaveText(Array(5).fill('進捗入力'));
   await expect(characters.locator('.card-badges')).toHaveCount(0);
   await expect(items.locator('article')).toHaveCount(0);
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   await expect(items.locator('article')).toHaveCount(5);
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   expect(await characters.locator('article').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank'))))
     .toEqual(['8202', '8204', '8201', '8205', '8203']);
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   const bandBoxes = await items.locator('article').evaluateAll(els => els.map(el => ({x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y, bottom: el.getBoundingClientRect().bottom})));
   for (let band = 1; band <= 5; band++) {
     const card = items.locator('article').nth(band - 1);
@@ -60,7 +61,7 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     }
   }
   expect(await items.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(width < 700);
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await openRankInput(page);
   const numeric = page.locator('#progress-8201-bondRankTotal');
   await expect(numeric).toHaveAttribute('inputmode', 'numeric');
@@ -75,20 +76,20 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
     expect(boxes[1]!.x).toBeLessThan(width); // next card peeks into the viewport
     await characters.evaluate(el => { el.scrollLeft = 240; });
     expect(await characters.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
-    await page.locator('nav [data-tab=items]').click();
+    await chooseScreen(page, page.locator('nav [data-tab=items]'));
     expect(await items.evaluate(el => el.scrollLeft)).toBe(0);
-    await page.locator('nav [data-tab=progress]').click();
+    await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   }
   await openRankInput(page,8201);await page.locator('#rank-8201').fill('');
   await openRankInput(page,8201);await page.locator('#progress-8201-bondRankTotal').fill('9');
   await expect(page.locator('[data-character-rank="8201"] [data-estimated-rank]')).toHaveText('2');
   await openRankInput(page,8202);await page.locator('#rank-8202').fill('3');
   await openRankInput(page,8203);await page.locator('#rank-8203').fill('7');
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   for (let n = 1; n <= 5; n++) await page.locator(`#item-${8600+n}`).fill(String(n === 1 ? 2 : n));
   if (width < 700) await items.evaluate(el => { el.scrollLeft = 180; });
   await page.locator('#item-9014').fill('1');
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await page.locator('[data-progress-band="8102"]').click();
   await openRankInput(page,8222);
   await expect(page.locator('#rank-8222')).toBeVisible();
@@ -97,22 +98,22 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.locator('[data-progress-band="8101"]').click();
   await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('9');
   await expect(page.locator('#rank-8202')).toHaveValue('3');
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   await expect(page.locator('#item-9014')).toHaveValue('1');
   await page.locator('#progress-form button[type=submit]').click();
   const itemSaved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), STORAGE_KEY);
   expect(itemSaved.characterRanks).toEqual(owned.characterRanks);
   expect(itemSaved.characterProgress).toEqual(owned.characterProgress);
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await expect(page.locator('[data-total-character-rank]')).toContainText('19'); // 2+3+7+1+1+2+1+1+1
   await page.locator('#progress-form button[type=submit]').click();
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), STORAGE_KEY);
   expect(saved.bandItems).toEqual({ 8601:2, 8602:2, 8603:3, 8604:4, 8605:5, 9014:1 });
   expect(saved.characterProgress).toEqual({8201:{bondRankTotal:9}});
   expect(saved.characterRanks).toEqual({8202:3,8203:7,8222:2});
-  await page.reload(); await page.locator('nav [data-tab=progress]').click();
+  await page.reload(); await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('9');
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const downloadPromise = page.waitForEvent('download'); await page.locator('#export-button').click();
   const exported = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
   expect(exported).toEqual(saved);
@@ -122,9 +123,9 @@ for (const width of [1440, 390, 320]) test(`compact rank and item cards preserve
   await page.locator('#catalog-import').setInputFiles({ name:'catalog.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(exportedCatalog)) });
   await page.locator('#import-file').setInputFiles({ name:'cards.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify(exported)) });
   await expect(page.getByText('所持データをImportしました', {exact:true})).toBeVisible();
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await expect(page.locator('#rank-8203')).toHaveValue('7');
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   await page.locator('#item-8605').fill('1'); // in range but absent from master
   await page.locator('#progress-form button[type=submit]').click();
   await expect(page.locator('#item-8605')).toHaveValue('1');
@@ -147,7 +148,7 @@ for (const width of [320, 390]) test(`band-item +/- keeps legal levels, unsaved 
     localStorage.setItem(keys[1]!,JSON.stringify(owned));
   },{catalog,owned,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY]});
   await page.reload();
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   const input=page.locator('#item-8601');
   const minus=page.locator('[data-item-step="8601"][data-step="-1"]');
   const plus=page.locator('[data-item-step="8601"][data-step="1"]');
@@ -174,14 +175,14 @@ for (const width of [320, 390]) test(`band-item +/- keeps legal levels, unsaved 
   await expect(minus).toBeDisabled();
   await input.fill('2'); // In numeric range, but not a catalog-defined level.
   await expect(minus).toBeDisabled(); await expect(plus).toBeDisabled();
-  await page.locator('nav [data-tab=progress]').click();
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   await expect(input).toHaveValue('2'); // Do not guess or overwrite invalid drafts.
   await input.fill('3');
   await expect(minus).toBeEnabled(); await expect(plus).toBeDisabled();
   await page.locator('#progress-form button[type=submit]').click();
   expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)!).bandItems,STORAGE_KEY)).toEqual({8601:3});
-  await page.reload(); await page.locator('nav [data-tab=items]').click();
+  await page.reload(); await chooseScreen(page, page.locator('nav [data-tab=items]'));
   await expect(page.locator('#item-8601')).toHaveValue('3');
   await page.locator('#item-8601').fill('0');
   await page.locator('#progress-form button[type=submit]').click();
@@ -206,11 +207,11 @@ for (const count of [0, 1, 4, 6]) test(`non-five progress groups preserve all ${
     localStorage.setItem(keys[0]!, JSON.stringify(m));
     localStorage.setItem(keys[1]!, JSON.stringify(owned));
   }, {m, owned: syntheticCollection(m), keys: [CATALOG_STORAGE_KEY, STORAGE_KEY]});
-  await page.reload(); await page.locator('nav [data-tab=progress]').click();
+  await page.reload(); await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await page.locator('[data-progress-band="8180"]').click();
   expect(await page.locator('[data-character-rank]').evaluateAll(els => els.map(el => el.getAttribute('data-character-rank'))))
     .toEqual(Array.from({length: count}, (_, n) => String(8280-n)));
-  await page.locator('nav [data-tab=items]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=items]'));
   expect(await page.locator('.band-items').nth(1).locator('input').evaluateAll(els => els.map(el => el.id)))
     .toEqual(Array.from({length: count}, (_, n) => `item-${8680-n}`));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();

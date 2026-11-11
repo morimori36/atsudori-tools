@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { openRankInput } from '../helpers/rank-ui';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -9,7 +10,7 @@ for (const width of [1280,390,320]) test(`stamp ownership, automatic counts and 
   const {master,collection}=automaticFixture();collection.characterProgress={8201:{stamps:999,songClears:999}};
   const m=await fictionalCatalog(master);
   await page.setViewportSize({width,height:844});await page.goto('./');
-  const tab=(id:string)=>page.locator(`nav [data-tab=${id}]`).click();
+  const tab=(id:string)=>chooseScreen(page, page.locator(`nav [data-tab=${id}]`));
   await tab('exchange');await page.locator('#catalog-import').setInputFiles(file(m));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(collection));
@@ -75,16 +76,16 @@ for (const width of [1280,390,320]) test(`stamp ownership, automatic counts and 
 });
 test('failed stamp save and damaged collection protect original bytes and ownership',async({page})=>{
   const {master,collection}=automaticFixture();collection.ownedStampIds=[9101];
-  await page.goto('./');await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file(master));await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+  await page.goto('./');await chooseScreen(page, page.locator('nav [data-tab=exchange]'));await page.locator('#catalog-import').setInputFiles(file(master));await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(collection));await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await page.locator('nav [data-tab=stamps]').click();await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
+  await chooseScreen(page, page.locator('nav [data-tab=stamps]'));await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
   await page.locator('[data-stamp-owned="9102"]').click();await expect(page.locator('[data-stamp-owned="9102"]')).toHaveAttribute('aria-pressed','false');await expect(page.locator('[data-stamp-state]')).toContainText('保存できません');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
-  await page.reload();await page.locator('nav [data-tab=stamps]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=stamps]'));
   await page.locator('[data-stamp-owned="9102"]').click();
   await expect(page.locator('[data-stamp-state]')).toBeEmpty();
   await expect(page.locator('[data-stamp-owned="9102"]')).toHaveAttribute('aria-pressed','true');
-  await page.reload();await page.evaluate(k=>localStorage.setItem(k,'{broken'),STORAGE_KEY);await page.reload();await page.locator('nav [data-tab=stamps]').click();
+  await page.reload();await page.evaluate(k=>localStorage.setItem(k,'{broken'),STORAGE_KEY);await page.reload();await chooseScreen(page, page.locator('nav [data-tab=stamps]'));
   await page.locator('[data-stamp-owned="9102"]').click();await expect(page.locator('[data-stamp-owned="9102"]')).toHaveAttribute('aria-pressed','false');expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe('{broken');
 });
