@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test,expect } from '@playwright/test';
 import { characterExpFixture,expTraining } from '../helpers/character-exp';
 import { openRankInput } from '../helpers/rank-ui';
@@ -8,7 +9,7 @@ for(const width of [1280,390,320])test(`integrated ranks, independent actions an
   const {m,c}=characterExpFixture();
   await page.setViewportSize({width,height:844});await page.goto('./');
   await page.evaluate(({m,c,expTraining,keys})=>{[m,c,expTraining].forEach((v,i)=>localStorage.setItem(keys[i]!,JSON.stringify(v)));},{m,c,expTraining,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY,TRAINING_STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=progress]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   const saved=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[CATALOG_STORAGE_KEY,STORAGE_KEY,TRAINING_STORAGE_KEY]);
   const char=page.locator('[data-character-rank="8201"]'),bond=char.locator('[data-progress-section="bond-8201"]');
   await expect(char.locator('[data-effective-rank]')).toHaveText('32');await expect(char.locator('[data-rank-source]')).toHaveText('手動上書き中');
@@ -89,7 +90,7 @@ test('EXP sections page independently, search all candidates and retain pending 
   const {m,c}=characterExpFixture();m.members.push(...Array.from({length:23},(_,i)=>({...m.members[0]!,id:8400+i,name:`架空の追加紙${i}`})));
   delete m.rankDefinition;
   await page.goto('./');await page.evaluate(({m,c,keys})=>{localStorage.setItem(keys[0]!,JSON.stringify(m));localStorage.setItem(keys[1]!,JSON.stringify(c));},{m,c,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=progress]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   const char=page.locator('[data-character-rank="8201"]');await expect(char.locator('[data-exp-goal]')).toContainText('未算出');
   await char.getByRole('button',{name:'カード別EXP',exact:true}).click();const dialog=page.getByRole('dialog');
   await expect(dialog.locator('[data-exp-kind-section="member"] [data-exp-card]')).toHaveCount(2);
@@ -106,7 +107,7 @@ test('EXP sections page independently, search all candidates and retain pending 
 test('positive single-card deltas use current owned and fully-trained acquisition baselines',async({page})=>{
   const {m,c}=characterExpFixture();c.members=[c.members[0]!];c.snaps=[c.snaps[0]!];
   await page.goto('./');await page.evaluate(({m,c,settings,keys})=>{[m,c,settings].forEach((v,i)=>localStorage.setItem(keys[i]!,JSON.stringify(v)));},{m,c,settings:expTraining,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY,TRAINING_STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=progress]').click();await page.locator('[data-exp-detail="8201"]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));await page.locator('[data-exp-detail="8201"]').click();
   const dialog=page.getByRole('dialog');
   await expect(dialog.locator('[data-exp-card="snap-8501"] [data-exp-direct]')).toHaveText('直接EXP +0 EXP');
   await dialog.getByRole('tab',{name:'未所持カード',exact:true}).click();
@@ -129,13 +130,13 @@ for(const width of [1280,390,320])test(`five-stage read-only cards distinguish c
   const settings={trainingStage:4,awakeningStage:4,liveSkillLevel:4,gekisouSkillLevel:4,snapRank:4};
   await page.setViewportSize({width,height:844});await page.goto('./');
   await page.evaluate(({m,c,settings,keys})=>{[m,c,settings].forEach((v,i)=>localStorage.setItem(keys[i]!,JSON.stringify(v)));},{m,c,settings,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY,TRAINING_STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=progress]').click();await page.locator('[data-exp-detail="8201"]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));await page.locator('[data-exp-detail="8201"]').click();
   const dialog=page.getByRole('dialog'),stages=dialog.locator('[data-exp-card="member-8301"] .stage-projection').first();
   await expect(stages.locator('[role=listitem]')).toHaveCount(5);await expect(stages.locator('.is-current')).toHaveText('2現在');await expect(stages.locator('.is-target')).toHaveText('4目標');
   for(const row of await dialog.locator('.stage-projection').all())expect(await row.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   await dialog.locator('[data-exp-query]').fill('8301');
   await page.screenshot({path:`test-results/character-exp-five-stages-${width}.png`});
-  await page.keyboard.press('Escape');await page.locator('nav [data-tab=members]').click();
+  await page.keyboard.press('Escape');await chooseScreen(page, page.locator('nav [data-tab=members]'));
   await page.locator('[data-filter="query"]').fill('8301');await page.screenshot({path:`test-results/collection-reference-${width}.png`});
 });
 
@@ -147,7 +148,7 @@ test('all four ownership/kind pages are independent and switching never writes s
     if(i<23){c.members.push({...c.members[0]!,cardId:member.id});c.snaps.push({...c.snaps[0]!,supportCardId:snap.id});}
   }
   await page.goto('./');await page.evaluate(({m,c,keys})=>{[m,c].forEach((v,i)=>localStorage.setItem(keys[i]!,JSON.stringify(v)));},{m,c,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=progress]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   const saved=await page.evaluate(()=>JSON.stringify(localStorage));await page.locator('[data-exp-detail="8201"]').click();
   const dialog=page.getByRole('dialog'),members=dialog.locator('[data-exp-kind-section="member"]'),snaps=dialog.locator('[data-exp-kind-section="snap"]');
   await expect(members.locator('[data-exp-count]')).toHaveText('該当 25枚 / 表示 20枚');await expect(snaps.locator('[data-exp-card]')).toHaveCount(20);
@@ -163,17 +164,17 @@ test('all four ownership/kind pages are independent and switching never writes s
 test('recovery ignores progress drafts until saved and displays inconsistent EXP explicitly',async({page})=>{
   const {m,c}=characterExpFixture();c.characterProgress![8201]!.bondRankTotal=0;
   await page.goto('./');await page.evaluate(({m,c,settings,keys})=>{[m,c,settings].forEach((v,i)=>localStorage.setItem(keys[i]!,JSON.stringify(v)));},{m,c,settings:expTraining,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY,TRAINING_STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=progress]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   const recovery=page.locator('[data-character-rank="8201"] [data-exp-recoverable]');
   await expect(recovery).toContainText('+46 EXP');await openRankInput(page);
   await page.locator('#progress-8201-bondRankTotal').fill('999');
   await expect(recovery).toContainText('+46 EXP');
-  await page.locator('nav [data-tab=members]').click();await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=members]'));await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await expect(recovery).toContainText('+46 EXP');await expect(page.locator('#progress-8201-bondRankTotal')).toHaveValue('999');
   await page.getByRole('button',{name:'キャラランクを保存',exact:true}).click();await expect(recovery).toContainText('+42 EXP');
   c.characterProgress![8201]!.bondRankTotal=999;
   c.members=c.members.map(r=>({...r,level:2,trainingStage:2,awakeningStage:2,liveSkillLevel:2,gekisouSkillLevel:2}));
   c.snaps=c.snaps.map(r=>({...r,rank:2,level:2}));
-  await page.evaluate(({c,key})=>localStorage.setItem(key,JSON.stringify(c)),{c,key:STORAGE_KEY});await page.reload();await page.locator('nav [data-tab=progress]').click();
+  await page.evaluate(({c,key})=>localStorage.setItem(key,JSON.stringify(c)),{c,key:STORAGE_KEY});await page.reload();await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await expect(recovery).toContainText('未算出');await expect(recovery).toContainText('下回って');
 });

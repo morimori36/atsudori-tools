@@ -51,6 +51,17 @@ jobs:
           PY_MIRROR
       - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:e2e
+      - name: Capture empty-state navigation before and after
+        if: github.event_name == 'pull_request'
+        run: node scripts/navigation-screenshots.ts "${{ github.event.pull_request.base.sha }}"
+      - name: Attach navigation screenshots to PR checks
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: navigation-review
+          path: .cache/navigation-review/*.png
+          retention-days: 30
+          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e:webkit
       - run: npm run audit:public

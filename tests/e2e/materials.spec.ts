@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test,expect } from '@playwright/test';
 import { maximumTrainingFixture } from '../helpers/maximum-training';
 import { CATALOG_STORAGE_KEY,STORAGE_KEY } from '../../src/storage/local';
@@ -10,14 +11,14 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   m.materialDefinition!.schedules.find(s=>s.id==='train')!.stages[1]!.amounts.push({resourceId:'currency',quantity:23});
   await page.setViewportSize({width,height:900});await page.goto('./');
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'JSON Import / Export',exact:true}).first().click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles({name:'fictional-catalog.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(m))});
   await page.locator('#import-file').setInputFiles({name:'fictional-collection.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(c))});
   await page.getByLabel('表示テーマ').selectOption(theme);
   const saved=await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,CATALOG_STORAGE_KEY,TRAINING_STORAGE_KEY]);
   await expect(page.locator('nav [data-tab=members]')).toContainText('メンバー');
   await expect(page.locator('nav [data-tab=snaps]')).toContainText('スナップ');
-  await page.getByRole('button',{name:'必要素材',exact:true}).click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   const total=page.locator('[data-material-total]');
   await expect(page.locator('.training-settings')).toContainText('育成条件を変更');
   await expect(page.locator('[data-growth-overview]')).toHaveCount(0);
@@ -72,10 +73,10 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   await expect(page.locator('.growth-page .panel').first()).toHaveCSS('background-color',theme==='dark'?'rgb(41, 41, 41)':'rgb(255, 255, 255)');
   if(width===390)await page.screenshot({path:`test-results/growth-390-${theme}.png`,fullPage:true});
   expect(await page.evaluate(keys=>keys.map(k=>localStorage.getItem(k)),[STORAGE_KEY,CATALOG_STORAGE_KEY,TRAINING_STORAGE_KEY])).toEqual(saved);
-  await page.reload();await page.getByRole('button',{name:'必要素材',exact:true}).click();await expect(total.locator('[data-material-resource="paper"] [data-material-required]')).toHaveText('20');
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=materials]'));await expect(total.locator('[data-material-resource="paper"] [data-material-required]')).toHaveText('20');
   await expect(total.locator('[data-material-resource="snap-exp"] [data-material-shortage]')).toHaveText('26');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(saved[0]);
-  await page.getByRole('button',{name:'JSON Import / Export',exact:true}).first().click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   m.materialDefinition!.catalogRevision='incompatible';
   await page.locator('#catalog-import').setInputFiles({name:'wrong-revision.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(m))});
   await expect(page.locator('[role=alert]:visible')).toContainText('版が一致');
@@ -85,24 +86,24 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
 test('missing definitions and manual overrides stay distinct in the growth view',async({page})=>{
   const {m,c}=maximumTrainingFixture();c.characterRanks={8201:3};c.totalRankBonus=0;
   await page.goto('./');await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();
-  const open=async()=>{await page.locator('nav [data-tab=progress]').click();};
+  const open=async()=>{await chooseScreen(page, page.locator('nav [data-tab=progress]'));};
   await open();const char=page.locator('[data-bond-character="8201"]');
   await expect(char.locator('[data-bond-final]')).toHaveText('4');
   delete m.rankDefinition;delete m.materialDefinition;c.characterRanks={};delete c.totalRankBonus;
   await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();await open();
   await expect(char).toContainText('未算出');
-  await page.locator('nav [data-tab=materials]').click();await expect(page.locator('[data-material-total]')).toContainText('素材マスタ未登録・未計算');
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));await expect(page.locator('[data-material-total]')).toContainText('素材マスタ未登録・未計算');
 });
 
 test('shared conditions update material totals and theory ranks',async({page})=>{
   const {m,c}=maximumTrainingFixture();c.resourceInventory={'member-exp':20,'snap-exp':100};
   await page.goto('./');await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();
-  await page.getByRole('button',{name:'必要素材',exact:true}).click();
-  await page.locator('nav [data-tab=progress]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));
   await page.locator('[data-progress-section="bond-8201"] > summary').click();
-  await page.locator('nav [data-tab=materials]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   await page.locator('[data-material-resource="paper"] > summary').click();
-  await page.locator('nav [data-tab=progress]').click();await expect(page.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('4');await page.locator('nav [data-tab=materials]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));await expect(page.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('4');await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   await page.getByRole('button',{name:'育成条件を変更'}).click();
   const dialog=page.getByRole('dialog',{name:'育成条件'});
   for(const select of await dialog.locator('select').all())await select.selectOption('');
@@ -112,8 +113,8 @@ test('shared conditions update material totals and theory ranks',async({page})=>
   await expect(page.locator('[data-material-resource="snap-exp"] [data-material-stock]')).toHaveText('100');
   await expect(page.locator('[data-material-resource="snap-exp"] [data-material-shortage]')).toHaveText('26');
   await expect(page.locator('[data-material-resource="member-exp"]')).toHaveCount(0);
-  await page.locator('nav [data-tab=progress]').click();await expect(page.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('1');await expect(page.locator('[data-progress-section="bond-8201"]')).toHaveAttribute('open','');
-  await page.locator('nav [data-tab=materials]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));await expect(page.locator('[data-bond-character="8201"] [data-bond-final]')).toHaveText('1');await expect(page.locator('[data-progress-section="bond-8201"]')).toHaveAttribute('open','');
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   await page.locator('[data-material-resource="snap-exp"] > summary').click();
   await page.getByRole('button',{name:'育成条件を変更'}).click();
   await dialog.locator('[data-training="trainingStage"]').selectOption('2');
@@ -132,7 +133,7 @@ test('a shared resource has independent member and Snap subtotals whose sum is t
   const {m,c}=maximumTrainingFixture();
   for(const [i,stage] of m.materialDefinition!.schedules.find(s=>s.id==='snap-lv')!.stages.entries())stage.amounts.push({resourceId:'paper',quantity:[10,45,130][i]!});
   await page.goto('./');await page.evaluate(({m,c,ck,sk})=>{localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},{m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});await page.reload();
-  await page.getByRole('button',{name:'必要素材',exact:true}).click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   const resources=page.locator('[data-material-resource="paper"]');await expect(resources).toHaveCount(2);
   await expect(page.locator('[data-material-kind=member] [data-material-resource="paper"] [data-material-required]')).toHaveText('20');
   await expect(page.locator('[data-material-kind=snap] [data-material-resource="paper"] [data-material-required]')).toHaveText('70');
@@ -146,7 +147,7 @@ for(const width of [1280,390,320])test(`large EXP quantities and long names stay
   c.resourceInventory={'member-exp':100000,'snap-exp':Number.MAX_SAFE_INTEGER};
   await page.setViewportSize({width,height:900});await page.goto('./');
   await page.evaluate(({m,c,keys})=>{localStorage.setItem(keys[0]!,JSON.stringify(m));localStorage.setItem(keys[1]!,JSON.stringify(c));},{m,c,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=materials]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   const member=page.locator('[data-material-resource="member-exp"]');
   await expect(member.locator('[data-material-required]')).toHaveText('123,456');
   await expect(member.locator('[data-material-stock]')).toHaveText('100,000');

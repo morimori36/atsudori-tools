@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { openRankInput } from '../helpers/rank-ui';
 import {test,expect} from '@playwright/test';
 import type {Page} from '@playwright/test';
@@ -19,7 +20,7 @@ test('provisional selection notices remain available by hover and keyboard',asyn
   await page.locator('.note-marker').first().focus();await expect(tip).toBeVisible();
 });
 const file=(name:string,value:unknown)=>({name,mimeType:'application/json',buffer:Buffer.from(typeof value==='string'?value:JSON.stringify(value))});
-async function tab(page:Page,name:string):Promise<void>{await page.locator('nav [data-tab="'+name+'"]').click();}
+async function tab(page:Page,name:string):Promise<void>{await chooseScreen(page, page.locator('nav [data-tab="'+name+'"]'));}
 async function openRank(page:Page,id=8201):Promise<void>{
   await openRankInput(page,id);
   const breakdown=page.locator(`[data-progress-section="rank-details-${id}"]`);
@@ -87,11 +88,11 @@ test('catalog and collection JSON export/import round trips stay independent',as
   const revised=await fictionalCatalog();revised.revision='test-2';
   await page.locator('#catalog-import').setInputFiles(file('revision.json',revised));await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(collectionBytes);
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const [md]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-export').click()]);
   const masterText=await readFile((await md.path())!,'utf8');
-  await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('roundtrip.json',masterText));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
-  await collection(page);await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));await page.locator('#catalog-import').setInputFiles(file('roundtrip.json',masterText));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await collection(page);await page.reload();await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
 });
 test('invalid JSON, missing data, invalid values and future schemas leave existing bytes intact',async({page})=>{
   await catalog(page);await collection(page);
@@ -99,7 +100,7 @@ test('invalid JSON, missing data, invalid values and future schemas leave existi
   await tab(page,'exchange');
   const incomplete=syntheticCatalog();incomplete.memberTraining=[];
   for(const value of ['{broken',incomplete,{...syntheticCatalog(),schemaVersion:2}]){
-    await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('bad.json',value));
+    await chooseScreen(page, page.locator('nav [data-tab=exchange]'));await page.locator('#catalog-import').setInputFiles(file('bad.json',value));
     await expect(page.getByRole('alert')).toBeVisible();await expect(page.locator('#catalog-apply')).toHaveCount(0);
   }
   await tab(page,'exchange');
@@ -129,7 +130,7 @@ test('corrupt catalog and intact collection recover without overwriting either o
   await tab(page,'exchange');await page.locator('.json-exchange > details:not(#data-reset) > summary').click();
   const [original]=await Promise.all([page.waitForEvent('download'),page.locator('#catalog-original').click()]);
   expect(await readFile((await original.path())!,'utf8')).toBe('{broken-catalog');
-  await page.locator('nav [data-tab=exchange]').click();await page.locator('#catalog-import').setInputFiles(file('restore.json',syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));await page.locator('#catalog-import').setInputFiles(file('restore.json',syntheticCatalog()));await expect(page.getByText('マスタをImportしました', {exact:true})).toBeVisible();
   await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(c);
 });
@@ -141,7 +142,7 @@ test('corrupt collection remains protected until explicit replacement',async({pa
   await page.locator('.json-exchange > details:not(#data-reset) > summary').click();
   const [original]=await Promise.all([page.waitForEvent('download'),page.locator('#damaged-backup').click()]);
   expect(await readFile((await original.path())!,'utf8')).toBe('{broken-owned');
-  await collection(page);await page.reload();await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
+  await collection(page);await page.reload();await tab(page,'rating');await expect(page.locator('.band-result .rating-total strong')).toHaveText('857');
 });
 test('storage quota failure rejects imports and keeps existing memory and bytes',async({page})=>{
   await catalog(page);await collection(page);

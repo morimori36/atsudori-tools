@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import {test,expect} from '@playwright/test';
 import {fictionalCatalog} from '../helpers/rank-rules';
 import {snapOptimizationFixture} from '../helpers/snap-optimization';
@@ -5,14 +6,14 @@ const file=(value:unknown)=>({name:'fictional.json',mimeType:'application/json',
 for(const width of [1280,390])test(`optimizes shared and dedicated Snaps and preserves owned JSON at ${width}px`,async({page})=>{
   const {master,collection}=snapOptimizationFixture();
   await page.setViewportSize({width,height:844});await page.goto('./');
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master)));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
   const bytes=()=>page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)));
   const before=await bytes();
-  await page.locator('nav [data-tab=rating]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=rating]'));
   const rows=page.locator('[data-rating-slot]');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0).locator('td').nth(1)).toContainText('架空専用Snap');
@@ -38,13 +39,13 @@ test('E chooses Snap score over member rating and keeps allocation when rating i
   // Independently invented asymmetry: a stronger B tempts C to consume the shared Snap.
   master.members[1]!.maxStats={performance:303,technic:609,visual:921};
   await page.goto('./');
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(await fictionalCatalog(master)));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
   const before=await page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)));
-  await page.locator('nav [data-tab=rating]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=rating]'));
   const rows=page.locator('[data-rating-slot]');
   for(const mode of ['current','potential']) {
     await page.locator(`input[name=rating-mode][value=${mode}]`).check();
@@ -54,10 +55,10 @@ test('E chooses Snap score over member rating and keeps allocation when rating i
   }
   expect(await page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)))).toEqual(before);
   collection.bandItems={};
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
-  await page.locator('nav [data-tab=rating]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=rating]'));
   await expect(rows.nth(1).locator('td').nth(1)).toContainText('架空専用Snap');
   await expect(rows.nth(1).locator('.slot-rating')).toHaveCount(0);
   await expect(page.locator('.color-total')).toContainText('保留');

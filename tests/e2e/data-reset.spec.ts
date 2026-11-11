@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test, expect } from '@playwright/test';
 import { CATALOG_STORAGE_KEY, STORAGE_KEY } from '../../src/storage/local';
 import { emptyCatalog } from '../../src/data/catalog/validate';
@@ -15,7 +16,7 @@ for (const width of [1280, 390]) test(`initialization is confirmed, isolated and
   }, { m, c, mk: CATALOG_STORAGE_KEY, ck: STORAGE_KEY });
   await page.reload();
   await expect(page.locator('[data-tab=catalog]')).toHaveCount(0);
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await expect(page.locator('#data-reset')).not.toHaveAttribute('open');
   await page.locator('#data-reset summary').click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -47,11 +48,11 @@ for (const id of ['reset-button', 'catalog-clear']) test(`${id} save failure pre
   await page.evaluate(({ m, c, mk, ck }) => {
     localStorage.setItem(mk, JSON.stringify(m));localStorage.setItem(ck, JSON.stringify(c));
   }, { m, c, mk: CATALOG_STORAGE_KEY, ck: STORAGE_KEY });
-  await page.reload();await page.locator('nav [data-tab=exchange]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   const before = await page.evaluate(() => ({ ...localStorage }));
   await page.evaluate(() => { Storage.prototype.setItem = () => { throw new Error('quota'); }; });
   await page.locator('#data-reset summary').click();page.once('dialog', d => d.accept());await page.locator('#' + id).click();
   await expect(page.getByRole('alert').filter({ hasText: '保存できません' })).toBeVisible();
   expect(await page.evaluate(() => ({ ...localStorage }))).toEqual(before);
-  await page.locator('nav [data-tab=members]').click();await expect(page.locator('[data-member-card]')).toHaveCount(m.members.length);
+  await chooseScreen(page, page.locator('nav [data-tab=members]'));await expect(page.locator('[data-member-card]')).toHaveCount(m.members.length);
 });

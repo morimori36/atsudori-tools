@@ -1,3 +1,4 @@
+import { chooseScreen } from '../helpers/navigation';
 import { test,expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -8,7 +9,7 @@ const file=(value:unknown)=>({name:'fictional.json',mimeType:'application/json',
 async function seed(page:Page,fixture=inventoryFixture(),settings=inventoryTraining) {
   const {m,c}=fixture;await page.goto('./');
   await page.evaluate(({m,c,settings,keys})=>{[m,c,settings].forEach((value,i)=>localStorage.setItem(keys[i]!,JSON.stringify(value)));},{m,c,settings,keys:[CATALOG_STORAGE_KEY,STORAGE_KEY,TRAINING_STORAGE_KEY]});
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();return fixture;
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));return fixture;
 }
 const bytes=(page:Page)=>page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
 for(const width of [1280,390,320])test(`inventory autosave, zero, missing and reload at ${width}px`,async({page})=>{
@@ -27,12 +28,12 @@ for(const width of [1280,390,320])test(`inventory autosave, zero, missing and re
   await page.locator('[data-inventory-input="snap-exp"]').fill('100');
   await page.locator('[data-inventory-input="copy"]').fill('1');
   // Navigating away before the debounce fires flushes the existing autosave queue.
-  await page.locator('nav [data-tab=materials]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   await expect(page.locator('[data-inventory-input],[data-inventory-resource],[data-inventory-totals],[data-bond-character]')).toHaveCount(0);
   await expect(page.locator('[data-material-resource="member-exp"] [data-material-shortage]')).toHaveText('23');
   await expect(page.locator('[data-material-resource="snap-exp"] [data-material-shortage]')).toHaveText('266');
   await expect(page.locator('[data-material-total]')).toContainText('架空の折紙');
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();await expect(input).toHaveValue('60');
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(input).toHaveValue('60');
   await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('1');
   await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveValue('20');
   await expect(page.locator('[data-inventory-input="snap-exp"]')).toHaveValue('100');
@@ -49,17 +50,17 @@ test('invalid values, failed autosaves and damaged storage remain protected',asy
   }
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
   await input.fill('99');await input.press('Tab');await expect(row.getByRole('alert')).toContainText('保存できません');expect(await bytes(page)).toBe(before);
-  await page.locator('nav [data-tab=members]').click();await page.locator('nav [data-tab=inventory]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=members]'));await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   await expect(input).toHaveValue('99');await expect(row.locator('[data-inventory-status]')).toHaveText('登録済み');
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();await expect(input).toHaveValue('30');
-  await page.evaluate(k=>localStorage.setItem(k,'{broken'),STORAGE_KEY);await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(input).toHaveValue('30');
+  await page.evaluate(k=>localStorage.setItem(k,'{broken'),STORAGE_KEY);await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   await input.fill('100');await input.press('Tab');await expect(row.getByRole('alert')).toContainText('保存できません');expect(await bytes(page)).toBe('{broken');
-  await page.locator('nav [data-tab=progress]').click();await expect(page.locator('[data-exp-goal] strong').first()).toHaveText('未算出');await expect(page.locator('[data-exp-detail]').first()).toBeDisabled();
+  await chooseScreen(page, page.locator('nav [data-tab=progress]'));await expect(page.locator('[data-exp-goal] strong').first()).toHaveText('未算出');await expect(page.locator('[data-exp-detail]').first()).toBeDisabled();
 });
 
 test('inventory backup, omission preservation, explicit replace and orphaned resource updates',async({page})=>{
   const f=inventoryFixture();f.c.resourceInventory={paper:30,copy:0,retired:11,'member-exp':0,'snap-exp':100000};await seed(page,f);
-  const exchange=async()=>{await page.locator('nav [data-tab=exchange]').click();};await exchange();
+  const exchange=async()=>{await chooseScreen(page, page.locator('nav [data-tab=exchange]'));};await exchange();
   const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#export-button').click()]);const backup=JSON.parse(await readFile((await download.path())!,'utf8'));
   expect(backup.resourceInventory).toEqual(f.c.resourceInventory);
   const old=structuredClone(f.c);delete old.resourceInventory;
@@ -71,7 +72,7 @@ test('inventory backup, omission preservation, explicit replace and orphaned res
   await page.locator('#import-file').setInputFiles(file({...old,resourceInventory:{paper:-1}}));await expect(page.getByRole('alert')).toContainText('素材在庫');expect(await bytes(page)).toBe(before);
   f.m.revision='next';f.m.materialDefinition!.catalogRevision='next';f.m.materialDefinition!.resources.find(r=>r.id==='paper')!.name='架空の改名紙';f.m.materialDefinition!.resources=f.m.materialDefinition!.resources.filter(r=>r.id!=='retired');
   await page.locator('#catalog-import').setInputFiles(file(f.m));await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();expect(await bytes(page)).toBe(before);
-  await page.locator('nav [data-tab=inventory]').click();await expect(page.locator('[data-inventory-row="paper"]')).toContainText('架空の改名紙');
+  await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(page.locator('[data-inventory-row="paper"]')).toContainText('架空の改名紙');
   await page.locator('.inventory-unsupported > summary').click();
   await expect(page.locator('[data-inventory-unsupported="retired"]')).toContainText('登録値 11');await expect(page.locator('[data-inventory-input="retired"]')).toHaveCount(0);
   await page.locator('[data-inventory-input="paper"]').fill('31');await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory?.paper).toBe(31);
@@ -83,7 +84,7 @@ test('partial requirements retain uncertainty and EXP shortages use registered s
   const f=inventoryFixture();f.c.resourceInventory={paper:60,'member-exp':999};await seed(page,f,{...inventoryTraining,gekisouSkillLevel:2});
   await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveValue('999');
   await expect(page.locator('[data-inventory-unsupported="member-exp"]')).toHaveCount(0);
-  await page.locator('nav [data-tab=materials]').click();await expect(page.locator('[data-material-total]')).toContainText('計算済み');
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));await expect(page.locator('[data-material-total]')).toContainText('計算済み');
   const exp=page.locator('[data-material-resource="member-exp"]');
   await expect(exp.locator('[data-material-required]')).toHaveText('43');
   await expect(exp.locator('[data-material-stock]')).toHaveText('999');
@@ -114,7 +115,7 @@ test('all inventory rows and search matches preserve concurrent edits and invali
   await page.locator('[data-inventory-query]').fill('');
   await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('0');
   await expect(page.locator('[data-inventory-input="extra-30"]')).toHaveValue('123');
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   await expect(page.locator('[data-inventory-row]')).toHaveCount(36);
   await expect(paper).toHaveValue('7');
   await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('0');
@@ -142,7 +143,7 @@ test('partial number input never clears saved stock and wheel does not change it
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBe(123);
   await input.fill('');await input.press('Tab');
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBeUndefined();
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();await expect(input).toHaveValue('');
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(input).toHaveValue('');
 });
 
 for(const metadata of [false,true])for(const width of [1280,390,320])test(`${metadata?'ordered':'legacy'} catalog import, sections and grid at ${width}px`,async({page})=>{
@@ -158,11 +159,11 @@ for(const metadata of [false,true])for(const width of [1280,390,320])test(`${met
   await seed(page,f);
   const before=await bytes(page);
   // Exercise the actual file import route for both old and extended catalogs.
-  await page.locator('nav [data-tab=exchange]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=exchange]'));
   await page.locator('#catalog-import').setInputFiles(file(f.m));
   await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
   expect(await bytes(page)).toBe(before);
-  await page.locator('nav [data-tab=inventory]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   const items=page.locator('[data-inventory-section="item"]'),copies=page.locator('[data-inventory-section="card"]');
   const order=metadata?['alpha','retired','paper']:['paper','retired','alpha'];
   expect(await items.locator('[data-inventory-row]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-inventory-row')))).toEqual(order);
@@ -179,7 +180,7 @@ for(const metadata of [false,true])for(const width of [1280,390,320])test(`${met
   await page.locator('[data-inventory-query]').fill('複製');await expect(items).toBeHidden();await expect(copies).toBeVisible();
   await page.locator('[data-inventory-query]').fill('存在しない名前');await expect(page.locator('[data-inventory-empty]')).toBeVisible();
   await page.locator('[data-inventory-query]').fill('');await expect(input).toHaveValue('17');
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   expect(await items.locator('[data-inventory-row]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-inventory-row')))).toEqual(order);
   await expect(input).toHaveValue('17');await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('2');
 });
@@ -192,20 +193,20 @@ test('EXP stock edits distinguish unknown and zero and update independent shorta
     await expect(input.locator('..')).toContainText('現在庫（EXP）');
     for(const [value,shortage] of [['','—'],['0',String(required)],['20',String(required-20)],[String(required),'0'],[String(required+100),'0']]){
       await input.fill(value!);
-      await page.locator('nav [data-tab=materials]').click();
+      await chooseScreen(page, page.locator('nav [data-tab=materials]'));
       const row=page.locator(`[data-material-resource="${id}"]`);
       await expect(row.locator('[data-material-stock]')).toHaveText(value===''?'—':value!);
       await expect(row.locator('[data-material-shortage]')).toHaveText(shortage!);
-      await page.locator('nav [data-tab=inventory]').click();
+      await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
     }
   }
   await page.locator('[data-inventory-input="member-exp"]').fill('1000');
   await page.locator('[data-inventory-input="snap-exp"]').fill('20');
-  await page.locator('nav [data-tab=materials]').click();
+  await chooseScreen(page, page.locator('nav [data-tab=materials]'));
   await expect(page.locator('[data-material-resource="member-exp"] [data-material-shortage]')).toHaveText('0');
   await expect(page.locator('[data-material-resource="snap-exp"] [data-material-shortage]')).toHaveText('346');
   const saved=await bytes(page);
-  await page.reload();await page.locator('nav [data-tab=inventory]').click();
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   await expect(page.locator('[data-inventory-input="member-exp"]')).toHaveValue('1000');
   await expect(page.locator('[data-inventory-input="snap-exp"]')).toHaveValue('20');
   expect(await bytes(page)).toBe(saved);
