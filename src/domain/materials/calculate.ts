@@ -1,3 +1,4 @@
+import { hasTrackingScope, trackedResources } from './tracking';
 import type { Masterdata } from '../../data/catalog/model';
 import { validateCollection } from '../../storage/collection';
 import type { Collection } from '../../storage/collection';
@@ -37,6 +38,7 @@ export function calculateMaterialRequirementsToTarget(m:Masterdata,input:Collect
 function calculate(m:Masterdata,input:Collection,goal?:Collection):MaterialRequirements {
   const issues=materialIssues(m);if(issues.length)throw new Error(issues.join('\n'));
   const c=validateCollection(input,m),d=m.materialDefinition;
+  if(d&&!hasTrackingScope(d))return {cards:[],totals:[],resources:[],incomplete:true};
   const schedules=new Map(d?.schedules.map(s=>[s.id,s]));
   const bindings=new Map(d?.bindings.map(b=>[`${b.kind}:${b.cardId}:${b.axis}`,b.scheduleId]));
   const totals=new Map<string,number>();
@@ -72,5 +74,5 @@ function calculate(m:Masterdata,input:Collection,goal?:Collection):MaterialRequi
     }
     cards.push({kind,cardId,axes,amounts:amounts(cardTotals)});
   }
-  return {cards,totals:amounts(totals),resources:d?.resources??[],incomplete:cards.some(c=>c.axes.some(a=>a.status==='unavailable'))};
+  return {cards,totals:amounts(totals),resources:trackedResources(d),incomplete:cards.some(c=>c.axes.some(a=>a.status==='unavailable'))};
 }

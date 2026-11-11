@@ -1,3 +1,4 @@
+import { hasTrackingScope, trackedInventory, trackedResources, trackingUpdateMessage } from '../domain/materials/tracking';
 import type { Masterdata } from '../data/catalog/model';
 import type { Collection } from '../storage/collection';
 import { validateResourceInventory } from '../domain/materials/inventory';
@@ -7,14 +8,14 @@ import { escape } from './collection-card';
 
 export interface InventoryViewState { query:string; drafts:Map<string,string> }
 export function createResourceInventoryView(master:Masterdata,collection:Collection,state:InventoryViewState) {
-  let inventory={...collection.resourceInventory};
-  const resources=master.materialDefinition?.resources??[];
+  let inventory=trackedInventory(collection.resourceInventory??{},master.materialDefinition);
+  const resources=trackedResources(master.materialDefinition);
   const supported=resourcesForDisplay(resources);
   const sections=RESOURCE_SECTIONS;
-  const unsupported=Object.entries(inventory).filter(([id])=>!supported.some(r=>r.id===id));
+  const unsupported=Object.entries(hasTrackingScope(master.materialDefinition)?inventory:{}).filter(([id])=>!supported.some(r=>r.id===id));
   return {
     html:`<section class="inventory-management"><section class="panel catalog-tools" aria-label="一覧の絞り込み"><div class="catalog-toolbar"><label class="field catalog-search"><span>素材名・IDで検索</span><input type="search" data-inventory-query value="${escape(state.query)}" placeholder="素材名を入力"></label></div><p class="muted catalog-help">変更は自動保存 · 空欄は未登録、0は在庫0</p><p class="muted catalog-count" data-inventory-count role="status"></p></section>
-      ${!master.materialDefinition?'<p class="warning">素材マスタ未登録です。</p>':''}<div data-inventory-rows>${sections.map(s=>`<section data-inventory-section="${s.unit}" aria-label="${s.title}"><h2 class="inventory-heading">${s.title}</h2><div class="inventory-grid" data-inventory-grid="${s.unit}"></div></section>`).join('')}<p class="panel catalog-empty" data-inventory-empty hidden>条件に一致する素材がありません。</p></div>
+      ${!hasTrackingScope(master.materialDefinition)?`<p class="warning">${master.materialDefinition?trackingUpdateMessage:'素材マスタ未登録です。'}</p>`:''}<div data-inventory-rows>${sections.map(s=>`<section data-inventory-section="${s.unit}" aria-label="${s.title}"><h2 class="inventory-heading">${s.title}</h2><div class="inventory-grid" data-inventory-grid="${s.unit}"></div></section>`).join('')}<p class="panel catalog-empty" data-inventory-empty hidden>条件に一致する素材がありません。</p></div>
       ${unsupported.length?`<details class="panel inventory-unsupported"><summary>参照不能の在庫（${unsupported.length}件を保持）</summary>${unsupported.map(([id,quantity])=>`<p data-inventory-unsupported="${escape(id)}">ID ${escape(id)} · 登録値 ${quantity.toLocaleString('ja-JP')} · 現在のマスタに対応する素材なし</p>`).join('')}</details>`:''}</section>`,
     bind(host:HTMLElement,save:(inventory:ResourceInventory)=>boolean,schedule:(id:string,save:()=>void,immediate:boolean)=>void) {
       const query=host.querySelector<HTMLInputElement>('[data-inventory-query]')!;

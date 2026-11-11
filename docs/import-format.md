@@ -165,6 +165,8 @@ collection v1の`tgwRank`はプレイヤー全体のTGWランクです。1以上
 
 ## catalog.materialDefinition（任意）
 
+素材追跡に使う定義には`trackingVersion: 1`と`excludedResourceIds: string[]`を必要とします。`resources`は追跡対象のみ、除外IDとの重複は拒否します。旧素材定義の新規Importは拒否し、保存済み旧定義は更新まで素材追跡を停止します。除外在庫の検証・退避・通常Exportからの除去は[素材の追跡範囲と旧データ](materials.md#追跡範囲と旧データ)を参照してください。catalog/collectionのversionは1を維持します。
+
 素材名称・単位・育成項目別費用・カードとの対応をcatalogへ内包できます。[必要素材の定義・計算・EXPの制約](materials.md)を参照してください。catalogのrevisionと一致しない定義は拒否します。未登録の旧catalogも有効で、collectionは変更しません。Schemaは`npm run schema:write`で同期します。
 
 ## キャラクターの表示順

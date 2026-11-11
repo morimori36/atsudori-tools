@@ -10,9 +10,10 @@ const enumeration=<T extends string>(v:unknown,values:readonly T[]):T=>values.in
 function rows(v:unknown,max=20000):unknown[]{if(!Array.isArray(v)||v.length>max)fail('配列の上限を超えています');return v as unknown[];}
 function unique<T>(values:T[],key:(v:T)=>string):T[]{if(new Set(values.map(key)).size!==values.length)fail('キーが重複しています');return values;}
 export function validateMaterialDefinition(value:unknown):MaterialDefinition {
-  const r=strictObject(value,'materialDefinition',['catalogRevision','resources','schedules','bindings']);
+  const r=strictObject(value,'materialDefinition',['catalogRevision','trackingVersion','excludedResourceIds','resources','schedules','bindings'],['catalogRevision','resources','schedules','bindings']);
+  if((r.trackingVersion===undefined)!==(r.excludedResourceIds===undefined)||r.trackingVersion!==undefined&&r.trackingVersion!==1)fail('追跡範囲の版が不正です');
   let count=0;
-  return {catalogRevision:id(r.catalogRevision),
+  return {catalogRevision:id(r.catalogRevision),...(r.trackingVersion===undefined?{}:{trackingVersion:1 as const,excludedResourceIds:unique(rows(r.excludedResourceIds).map(id),v=>v)}),
     resources:unique(rows(r.resources).map(v=>{const o=strictObject(v,'resource',['id','name','unit','displayOrder'],['id','name','unit']);return {id:id(o.id),name:text(o.name),unit:enumeration(o.unit,['item','card','exp']),...(o.displayOrder===undefined?{}:{displayOrder:integer(o.displayOrder,0)})};}),v=>v.id),
     schedules:unique(rows(r.schedules).map(v=>{const o=strictObject(v,'schedule',['id','axis','mode','basis','reason','stages'],['id','axis','mode','basis','stages']);
       const stages=rows(o.stages,1000);count+=stages.length;if(count>50000)fail('段階は全体50000行以内です');
@@ -54,6 +55,7 @@ export function materialIssues(m:Masterdata):string[]{
   const issues:string[]=[];const need=(ok:boolean,message:string)=>{if(!ok&&issues.length<100)issues.push('materialDefinition: '+message);};
   need(d.catalogRevision===m.revision,'catalogの版が一致しません');
   const resources=new Map(d.resources.map(r=>[r.id,r]));const schedules=new Map(d.schedules.map(s=>[s.id,s]));
+  need(!(d.excludedResourceIds??[]).some(id=>resources.has(id)),'追跡対象と除外対象が重複しています');
   for(const s of d.schedules){
     need(s.mode!=='unsupported'||Boolean(s.reason),'未対応の理由がありません');
     need(s.mode==='unsupported'?s.stages.length===0:s.stages.length>0,'費用の段階定義が不正です');
