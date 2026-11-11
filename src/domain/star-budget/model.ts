@@ -62,6 +62,7 @@ export interface StarBudgetScenario {
   storyEventPercent: number | null;
   eventPremium: boolean;
   seasonPremium: boolean;
+  /** Legacy JSON compatibility only; ignored by the budget calculation. */
   includeArena: boolean;
   selectedProducts: ProductId[];
 }

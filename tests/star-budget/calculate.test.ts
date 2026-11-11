@@ -65,10 +65,7 @@ it('does not require disabled premium, story or arena quantities and distinguish
   expect(calculateStarBudget(input).commonSupply.value).toBeNull();
   input.definition.event.missionPremium = { value: 0, status: 'confirmed', basis: '人工ケースの定義で追加なしと明示' };
   expect(calculateStarBudget(input).commonSupply.value).not.toBeNull();
-  input.scenario.includeArena = true;
-  expect(calculateStarBudget(input).supply.find(r => r.id === 'arena')!.value).toBeNull();
-  input.definition.arena.recurringStars = m(51); input.definition.arena.intervalDays = m(17);
-  expect(calculateStarBudget(input).supply.find(r => r.id === 'arena')!.value).toBe(21);
+
 });
 
 it('requires the stamp choice and star usability, with yen separate from star income', () => {
@@ -118,4 +115,21 @@ it('starts with unknown game definitions, including all four comparisons', () =>
     Object.values(value).forEach(walk);
   };
   walk(input.definition);
+});
+
+
+it.each([false, true])('ignores legacy arena=%s for unknown, zero and positive definitions without mutating inputs', includeArena => {
+  const input = starBudgetFixture();
+  input.scenario.includeArena = includeArena;
+  const baseline = calculateStarBudget(input);
+  for (const quantity of [unknownBudgetValue(), { value: 0, status: 'confirmed' as const, basis: '人工ケースのゼロ' }, m(51)]) {
+    input.definition.arena = { recurringStars: quantity, intervalDays: unknownBudgetValue() };
+    const before = structuredClone(input);
+    expect(calculateStarBudget(input)).toEqual(baseline);
+    expect(input).toEqual(before);
+    input.definition.arena.intervalDays = m(17);
+    expect(calculateStarBudget(input)).toEqual(baseline);
+  }
+  expect(baseline.supply.some(row => row.id === 'arena')).toBe(false);
+  expect(baseline.commonSupply.value).toBeCloseTo(7897 / 6, 10);
 });

@@ -87,8 +87,6 @@ export function calculateStarBudget(input: StarBudgetInput) {
   source('season-free', 'シーズンミッション無料', periodic(d.season.free, d.season.intervalDays, 'シーズンミッション無料'), [ev('1シーズン分', d.season.free), seasonDays]);
   source('season-premium', 'シーズンミッションPremium追加', s.seasonPremium ? periodic(d.season.premium, d.season.intervalDays, 'シーズンミッションPremium') : known(),
     s.seasonPremium ? [ev('無料分を含まない追加スター', d.season.premium), seasonDays] : ['Premium購入OFF（追加分を除外）']);
-  source('arena', '撃奏アリーナ・プラチナ1反復報酬', s.includeArena ? periodic(d.arena.recurringStars, d.arena.intervalDays, 'アリーナ反復スター') : known(),
-    s.includeArena ? [ev('反復スターのみ', d.arena.recurringStars), ev('反復周期（日）', d.arena.intervalDays)] : ['反復報酬は含めない（初回到達報酬・チケットは常に対象外）']);
   const common = sum(amounts);
   const productAmounts: Amount[] = [];
   const products: BudgetProductRow[] = d.products.map(p => {
@@ -124,6 +122,7 @@ export function calculateStarBudget(input: StarBudgetInput) {
   });
   return { supply, products, comparisons, commonSupply: publicAmount(common), weeklyCost: publicAmount(cost),
     assumptions: [
+      'アリーナは継続的なスター収入の根拠を確認できないため予算対象外です。旧設定は現在の収支に適用しません。初回到達・シーズン・交換報酬やアリーナピックも週平均スターへ換算しません。',
       '数量÷周期（日）×7で週平均へ換算。日次は×7、週次はそのまま。各回の対象報酬・毎日スターを全回収する想定です。',
       '通常ログインとライブスタンプは別枠。イベント／シーズンPremiumには無料分を含まない追加スターだけを登録します。',
       'アワーノーツパスは期限ごとに継続購入。購入時スター÷更新日数×7＋毎日スター×7。無料ガチャ・チケット・素材・シールは換算しません。',

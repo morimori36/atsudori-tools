@@ -37,8 +37,8 @@ it.each([
   expect(() => importCatalog(JSON.stringify(m))).toThrow();
 });
 
-it('preserves ownership and scenarios across JSON and old/new catalog revisions', () => {
-  const m = master(), scenario = { ...defaultStarBudgetScenario(), storyEventPercent: 67, eventPremium: true, seasonPremium: true, includeArena: true };
+it.each([false, true])('preserves ownership and legacy arena=%s across JSON and old/new catalog revisions', includeArena => {
+  const m = master(), scenario = { ...defaultStarBudgetScenario(), storyEventPercent: 67, eventPremium: true, seasonPremium: true, includeArena };
   const c = { ...syntheticCollection(m), tgwRank: 7, resourceInventory: { 'fictional-resource': 0 }, starBudgetScenario: scenario };
   expect(schema('collection')(c)).toBe(true);
   expect(importCollection(exportCollection(c, m), m)).toEqual(c);

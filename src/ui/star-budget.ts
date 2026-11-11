@@ -37,10 +37,9 @@ export function createStarBudgetView(
             ${uiNumberField({id:'budget-rank', name:'scenario.rank', label:'T.G.Wランク', value:s.rank, min:1, max:Number.MAX_SAFE_INTEGER, help:'キャラランクと共有。空欄は未確認。'})}
             ${uiNumberField({id:'budget-story', name:'scenario.storyEventPercent', label:'ストーリー付きイベント割合（%）', value:s.storyEventPercent, min:0, max:100, help:'0%=なし / 100%=毎回あり（全話回収）'})}
           </div></fieldset>
-          <fieldset class="ui-group"><legend>供給に含める報酬</legend><div class="budget-checks">
+          <fieldset class="ui-group"><legend>供給に含める報酬</legend><p class="ui-help">アリーナは継続スターの根拠未確認のため予算対象外です。旧設定は現在の収支に適用しません。</p><div class="budget-checks">
             ${uiCheckbox({id:'budget-event',name:'scenario.eventPremium',label:'イベントミッションPremiumを購入',checked:s.eventPremium})}
             ${uiCheckbox({id:'budget-season',name:'scenario.seasonPremium',label:'シーズンミッションPremiumを購入',checked:s.seasonPremium})}
-            ${uiCheckbox({id:'budget-arena',name:'scenario.includeArena',label:'プラチナ1の反復スターを含む',checked:s.includeArena,help:'反復報酬の存在・周期は定義の根拠を確認してください。'})}
           </div></fieldset>
           <fieldset class="ui-group"><legend>毎週の全交換</legend><p class="ui-help" id="budget-products-help">選択した商品の解放済み価格段階を週上限まで計上。SRピースはバンドごとに選択します。</p>
             <p class="ui-scroll-hint">横にスクロールして解放状態・費用を確認できます。</p>
@@ -65,7 +64,8 @@ export function createStarBudgetView(
       return validateStarBudget({ definition: current().master.starBudgetDefinition,
         scenario: { rank: number('scenario.rank'), storyEventPercent: number('scenario.storyEventPercent'),
           eventPremium: input('scenario.eventPremium').checked, seasonPremium: input('scenario.seasonPremium').checked,
-          includeArena: input('scenario.includeArena').checked,
+          // Preserve the legacy JSON field; calculateStarBudget never applies it.
+          includeArena: current().collection.starBudgetScenario?.includeArena ?? false,
           selectedProducts: d!.products.filter(p => input('selected-' + p.id).checked).map(p => p.id) } });
     }
     function updateMessages(): void {

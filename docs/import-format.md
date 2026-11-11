@@ -211,7 +211,7 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 | --- | --- |
 | storyEventPercent | 0〜100の整数またはnull（既定null） |
 | eventPremium / seasonPremium | boolean（既定false） |
-| includeArena | boolean（既定false） |
+| includeArena | boolean（既定false）。旧JSON互換用に保持し、収支には適用しない |
 | selectedProducts | 重複しない既知商品ID配列（既定は全11種、空配列も有効） |
 
 省略された条件を保存・Export時に補完しません。通常Importで項目がなければ保存中の条件を保持し、明示された条件はfalse・null・空配列を含め丸ごと採用します。完全復元では省略分を保持しません。catalog更新・定義の有無によって既存の条件や所持を削除しません。未確認を0に置き換えません。
