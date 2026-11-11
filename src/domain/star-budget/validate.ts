@@ -29,22 +29,19 @@ function measures(value: unknown, path: string, keys: readonly string[], dayKey?
 }
 export function validateStarBudget(value: unknown): StarBudgetInput {
   const root = strictObject(value, 'スター予算', ['definition', 'scenario']);
-  validateStarBudgetDefinition(root.definition);
-  const combined = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
+  const definition = validateStarBudgetDefinition(root.definition);
+  const combined = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts'], ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'selectedProducts']);
   if (combined.rank !== null) integer(combined.rank, 'rank', 1);
   const { rank, ...scenario } = combined;
-  validateStarBudgetScenario(scenario);
-  const result = structuredClone(value) as StarBudgetInput;
-  return result;
+  return { definition, scenario: { ...validateStarBudgetScenario(scenario), rank: rank as number | null } };
 }
 export function validateStarBudgetDefinition(value: unknown): StarBudgetDefinition {
-  const d = strictObject(value, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
+  const d = strictObject(value, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products'], ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
   if (typeof d.revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(d.revision)) fail('definition.revision', '版の識別子が不正です');
   for (const key of ['loginDaily', 'missionDaily', 'liveStampWeekly']) measure(d[key], 'definition.' + key);
   text(d.liveStampSelection, 'definition.liveStampSelection');
   measures(d.event, 'event', ['intervalDays', 'points', 'missionFree', 'missionPremium', 'storyPerEpisode', 'storyEpisodes'], 'intervalDays');
   measures(d.season, 'season', ['intervalDays', 'free', 'premium'], 'intervalDays');
-  measures(d.arena, 'arena', ['intervalDays', 'recurringStars'], 'intervalDays');
   const passes = strictObject(d.passes, 'passes', PASS_GRADES);
   for (const grade of PASS_GRADES) measures(passes[grade], 'passes.' + grade, ['periodDays', 'purchaseStars', 'dailyStars', 'priceYen'], 'periodDays');
   if (typeof d.starCompatibility !== 'string' || !['unconfirmed', 'assumed-usable', 'confirmed-usable', 'restricted'].includes(d.starCompatibility)) fail('starCompatibility', '合算条件が不正です');
@@ -62,16 +59,19 @@ export function validateStarBudgetDefinition(value: unknown): StarBudgetDefiniti
   }
   const names = (d.products as { name: string }[]).map(p => p.name.trim());
   if (new Set(names).size !== names.length) fail('products', '商品・対象バンドを区別できる異なる名前を指定してください');
-  return structuredClone(value) as StarBudgetDefinition;
+  // Discard only the named legacy field; never modify the caller's JSON.
+  const { arena: _legacyArena, ...definition } = d;
+  return structuredClone(definition) as unknown as StarBudgetDefinition;
 }
 export function validateStarBudgetScenario(value: unknown): StarBudgetScenario {
-  const s = strictObject(value, 'scenario', ['storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts']);
+  const s = strictObject(value, 'scenario', ['storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts'], ['storyEventPercent', 'eventPremium', 'seasonPremium', 'selectedProducts']);
   if (s.storyEventPercent !== null) integer(s.storyEventPercent, 'storyEventPercent', 0, 100);
-  for (const key of ['eventPremium', 'seasonPremium', 'includeArena']) if (typeof s[key] !== 'boolean') fail(key, 'ON/OFFで指定してください');
+  for (const key of ['eventPremium', 'seasonPremium']) if (typeof s[key] !== 'boolean') fail(key, 'ON/OFFで指定してください');
   if (!Array.isArray(s.selectedProducts) || s.selectedProducts.length > PRODUCT_IDS.length
     || new Set(s.selectedProducts).size !== s.selectedProducts.length
     || s.selectedProducts.some(id => !PRODUCT_IDS.includes(id as never))) fail('selectedProducts', '選択商品が未対応または重複しています');
-  return structuredClone(value) as StarBudgetScenario;
+  const { includeArena: _legacyIncludeArena, ...scenario } = s;
+  return structuredClone(scenario) as unknown as StarBudgetScenario;
 }
 export const unknownBudgetValue = (): BudgetValue => ({ value: null, status: 'unconfirmed', basis: '' });
 export function emptyStarBudget(): StarBudgetInput {
@@ -79,11 +79,11 @@ export function emptyStarBudget(): StarBudgetInput {
   return {
     definition: { revision: '1', loginDaily: m(), missionDaily: m(), liveStampWeekly: m(), liveStampSelection: '',
       event: { intervalDays: m(), points: m(), missionFree: m(), missionPremium: m(), storyPerEpisode: m(), storyEpisodes: m() },
-      season: { intervalDays: m(), free: m(), premium: m() }, arena: { intervalDays: m(), recurringStars: m() },
+      season: { intervalDays: m(), free: m(), premium: m() },
       passes: Object.fromEntries(PASS_GRADES.map(grade => [grade, { periodDays: m(), purchaseStars: m(), dailyStars: m(), priceYen: m() }])) as StarBudgetInput['definition']['passes'],
       starCompatibility: 'unconfirmed', starCompatibilityBasis: '',
       products: PRODUCT_IDS.map(id => ({ id, name: PRODUCT_NAMES[id], unlockRank: m(), tiers: [{ starCost: m(), weeklyLimit: m() }] })),
     },
-    scenario: { rank: null, storyEventPercent: null, eventPremium: false, seasonPremium: false, includeArena: false, selectedProducts: [...PRODUCT_IDS] },
+    scenario: { rank: null, storyEventPercent: null, eventPremium: false, seasonPremium: false, selectedProducts: [...PRODUCT_IDS] },
   };
 }

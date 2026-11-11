@@ -43,7 +43,6 @@ export interface StarBudgetDefinition {
     storyEpisodes: BudgetValue;
   };
   season: { intervalDays: BudgetValue; free: BudgetValue; premium: BudgetValue };
-  arena: { intervalDays: BudgetValue; recurringStars: BudgetValue };
   passes: Record<PassGrade, {
     periodDays: BudgetValue;
     purchaseStars: BudgetValue;
@@ -62,11 +61,10 @@ export interface StarBudgetScenario {
   storyEventPercent: number | null;
   eventPremium: boolean;
   seasonPremium: boolean;
-  includeArena: boolean;
   selectedProducts: ProductId[];
 }
 
 /** Read defaults without materializing omitted collection fields. */
 export function defaultStarBudgetScenario(): StarBudgetScenario {
-  return { storyEventPercent: null, eventPremium: false, seasonPremium: false, includeArena: false, selectedProducts: [...PRODUCT_IDS] };
+  return { storyEventPercent: null, eventPremium: false, seasonPremium: false, selectedProducts: [...PRODUCT_IDS] };
 }

@@ -34,7 +34,8 @@ for (const width of [320,375,390,1280]) for (const theme of ['light','dark'] as 
     const rank = page.getByRole('spinbutton',{name:'T.G.Wランク',exact:true});
     await expect(rank).toHaveAccessibleDescription('キャラランクと共有。空欄は未確認。');
     await expect(page.getByRole('spinbutton',{name:'ストーリー付きイベント割合（%）'})).toHaveAccessibleDescription('0%=なし / 100%=毎回あり（全話回収）');
-    await expect(page.getByRole('checkbox',{name:'プラチナ1の反復スターを含む'})).toHaveAccessibleDescription('反復報酬の存在・周期は定義の根拠を確認してください。');
+    await expect(page.getByRole('checkbox',{name:'プラチナ1の反復スターを含む'})).toHaveCount(0);
+    await expect(page.getByText('アリーナは継続スターの根拠未確認のため予算対象外です。旧設定は現在の収支に適用しません。', { exact: true })).toBeVisible();
     const checkbox = page.getByRole('checkbox',{name:'シーズンミッションPremiumを購入',exact:true});
     if (width<700) await page.locator('label[for=budget-season]').tap();
     else {await checkbox.focus(); await page.keyboard.press('Space');}

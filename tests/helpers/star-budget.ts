@@ -11,7 +11,6 @@ export function starBudgetFixture() {
   d.liveStampSelection = '人工ケースで選択した週報酬。通常ログインには含めない';
   d.event = { intervalDays: m(10), points: m(360), missionFree: m(50), missionPremium: m(0), storyPerEpisode: m(25), storyEpisodes: m(9) };
   d.season = { intervalDays: m(30), free: m(200), premium: m(1800) };
-  d.arena = { intervalDays: m(17), recurringStars: m(0) };
   d.passes = {
     lite: { periodDays: m(30), purchaseStars: m(100), dailyStars: m(20), priceYen: m(123) },
     standard: { periodDays: m(30), purchaseStars: m(300), dailyStars: m(60), priceYen: m(456) },
@@ -24,6 +23,6 @@ export function starBudgetFixture() {
       : [{ starCost: m(prices[i]!), weeklyLimit: m(5) }];
   }
   d.starCompatibility = 'assumed-usable'; d.starCompatibilityBasis = '人工ケースでは全スターを支払に利用できると仮定';
-  input.scenario = { rank: 13, storyEventPercent: 100, eventPremium: false, seasonPremium: true, includeArena: true, selectedProducts: d.products.map(p => p.id) };
+  input.scenario = { rank: 13, storyEventPercent: 100, eventPremium: false, seasonPremium: true, selectedProducts: d.products.map(p => p.id) };
   return input;
 }

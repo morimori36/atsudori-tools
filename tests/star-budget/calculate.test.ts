@@ -56,19 +56,15 @@ it('preserves unknowns and known subtotals, and excludes unavailable prices when
 });
 
 it('does not require disabled premium, story or arena quantities and distinguishes a confirmed zero', () => {
-  const input = starBudgetFixture(); input.scenario.storyEventPercent = 0; input.scenario.seasonPremium = false; input.scenario.includeArena = false;
+  const input = starBudgetFixture(); input.scenario.storyEventPercent = 0; input.scenario.seasonPremium = false;
   input.definition.event.storyEpisodes = unknownBudgetValue(); input.definition.event.storyPerEpisode = unknownBudgetValue();
   input.definition.event.missionPremium = unknownBudgetValue(); input.definition.season.premium = unknownBudgetValue();
-  input.definition.arena.recurringStars = unknownBudgetValue();
   expect(calculateStarBudget(input).commonSupply.value).not.toBeNull();
   input.scenario.eventPremium = true;
   expect(calculateStarBudget(input).commonSupply.value).toBeNull();
   input.definition.event.missionPremium = { value: 0, status: 'confirmed', basis: '人工ケースの定義で追加なしと明示' };
   expect(calculateStarBudget(input).commonSupply.value).not.toBeNull();
-  input.scenario.includeArena = true;
-  expect(calculateStarBudget(input).supply.find(r => r.id === 'arena')!.value).toBeNull();
-  input.definition.arena.recurringStars = m(51); input.definition.arena.intervalDays = m(17);
-  expect(calculateStarBudget(input).supply.find(r => r.id === 'arena')!.value).toBe(21);
+
 });
 
 it('requires the stamp choice and star usability, with yen separate from star income', () => {
@@ -99,7 +95,7 @@ it('uses exact signs at zero and rejects unsafe aggregate costs', () => {
   const input = starBudgetFixture();
   input.definition.loginDaily = m(0); input.definition.missionDaily = m(0); input.definition.liveStampWeekly = m(7);
   input.definition.event.points = m(0); input.definition.event.missionFree = m(0); input.scenario.storyEventPercent = 0;
-  input.definition.season.free = m(0); input.scenario.seasonPremium = false; input.scenario.includeArena = false;
+  input.definition.season.free = m(0); input.scenario.seasonPremium = false;
   input.scenario.selectedProducts = ['skill-basic'];
   const p = input.definition.products.find(p => p.id === 'skill-basic')!; p.tiers = [{ starCost: m(7), weeklyLimit: m(1) }];
   expect(calculateStarBudget(input).comparisons[0]!.status).toBe('balanced');
@@ -118,4 +114,22 @@ it('starts with unknown game definitions, including all four comparisons', () =>
     Object.values(value).forEach(walk);
   };
   walk(input.definition);
+});
+
+
+it.each([false, true])('ignores legacy arena=%s for unknown, zero and positive definitions without mutating inputs', includeArena => {
+  const input = starBudgetFixture();
+  Object.assign(input.scenario, { includeArena });
+  const baseline = calculateStarBudget(input);
+  for (const quantity of [unknownBudgetValue(), { value: 0, status: 'confirmed' as const, basis: '人工ケースのゼロ' }, m(51)]) {
+    const arena = { recurringStars: quantity, intervalDays: unknownBudgetValue() };
+    Object.assign(input.definition, { arena });
+    const before = structuredClone(input);
+    expect(calculateStarBudget(input)).toEqual(baseline);
+    expect(input).toEqual(before);
+    arena.intervalDays = m(17);
+    expect(calculateStarBudget(input)).toEqual(baseline);
+  }
+  expect(baseline.supply.some(row => row.id === 'arena')).toBe(false);
+  expect(baseline.commonSupply.value).toBeCloseTo(7897 / 6, 10);
 });
