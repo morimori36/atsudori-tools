@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
     inputs:
       deploy:
@@ -35,6 +36,12 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: package-lock.json
+      - name: Check publication metadata from event data
+        id: metadata
+        run: node scripts/publication/metadata.mjs --event
+      - name: Test local publication guards without network access
+        id: publication_tests
+        run: npm run test:publication
       - run: npm ci
       - name: Verify summary behavior
         id: summary_tests
@@ -96,7 +103,7 @@ jobs:
         env:
           CI_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           CI_PHASE_OUTCOMES: >-
-            {"summary_tests":"${{ steps.summary_tests.outcome }}","check":"${{ steps.check.outcome }}","schemas":"${{ steps.schemas.outcome }}","chromium":"${{ steps.chromium.outcome }}","navigation":"${{ steps.navigation.outcome }}","navigation_artifact":"${{ steps.navigation_artifact.outcome }}","webkit":"${{ steps.webkit.outcome }}","audit":"${{ steps.audit.outcome }}"}
+            {"metadata":"${{ steps.metadata.outcome }}","publication_tests":"${{ steps.publication_tests.outcome }}","summary_tests":"${{ steps.summary_tests.outcome }}","check":"${{ steps.check.outcome }}","schemas":"${{ steps.schemas.outcome }}","chromium":"${{ steps.chromium.outcome }}","navigation":"${{ steps.navigation.outcome }}","navigation_artifact":"${{ steps.navigation_artifact.outcome }}","webkit":"${{ steps.webkit.outcome }}","audit":"${{ steps.audit.outcome }}"}
         run: node scripts/ci/summary.mjs
       - name: Upload verified static app for Pages
         if: github.event.repository.private == false && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))

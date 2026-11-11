@@ -1,17 +1,18 @@
 import { readFileSync,readdirSync,statSync,existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join,relative } from 'node:path';
+import { assertSafeText } from './publication/rules.ts';
 const git=(args:string[],input?:string):Buffer=>execFileSync('git',args,{input:input===undefined?undefined:Buffer.from(input,'utf8'),maxBuffer:32*1024*1024});
 const ignored=new Set(['.git','node_modules','.cache','dist','test-results','playwright-report','coverage']);
 function walk(dir:string):string[]{return readdirSync(dir,{withFileTypes:true}).flatMap(e=>ignored.has(e.name)?[]:e.isSymbolicLink()?(()=>{throw new Error('Symlink not allowed in public source');})():e.isDirectory()?walk(join(dir,e.name)):[relative('.',join(dir,e.name)).replaceAll('\\','/')]);}
 const forbiddenPath=/(?:^|\/)(?:generated|sources|imports|backups)(?:\/|$)|(?:^|\/)masterdata\.lock\.json$|\.(?:zip|har|png|jpe?g|webp|mp4|wasm|exe|dll)$/i;
-const token=/\bgh[pousr]_[A-Za-z0-9]{20,}\b/;
 const legacy='/atsudori-'+'band-rating/';
 function inspect(path:string,bytes:Buffer):void{
+  assertSafeText(path);
+  assertSafeText(bytes.toString('utf8'));
   if(forbiddenPath.test(path))throw new Error('Excluded path in public files: '+path);
   if(bytes.includes(0))throw new Error('Unexpected binary file: '+path);
   const text=bytes.toString('utf8');
-  if(token.test(text))throw new Error('Credential pattern in '+path);
   if(text.includes(legacy))throw new Error('Old site path in '+path);
   if(path.startsWith('src/')&&/\b(?:fetch|WebSocket|XMLHttpRequest|atob)\s*\(/.test(text))throw new Error('Unexpected network/encoded-data API in '+path);
 }
