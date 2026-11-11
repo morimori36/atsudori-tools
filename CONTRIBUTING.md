@@ -6,6 +6,8 @@ mainから機能単位のブランチを作り、feat: / fix: / docs: / test: / 
 
 PRには具体的な問題、変更後の挙動、テスト結果、未検証範囲を書いてください。UI変更ではモバイル幅と/atsudori-tools/での静的配信を確認します。CIは型・架空回帰・JSON Schema同期・ブラウザ・公開ファイル/履歴検査を実施します。
 
+ActionsのSummaryで対象SHA・実行した検証・skipと未実行を確認できます。[CIの検証範囲の読み方](docs/ci-verification.md)に従い、テスト成功件数だけで検証範囲を判断しないでください。
+
 実マスタ、個人情報、原本ZIP、実測fixture、ImportしたJSON、HARや全ログを添付しないでください。再現は架空の最小データで示します。自作コードは当面、ライセンスなし（All rights reserved）です。MIT等のLICENSEファイルを追加しないでください。外部コードを取り込む前に適用条件を確認し、必要な権利表示を残してください。
 
 初回のPublic化・本番公開、公開範囲や権利・ライセンス方針の変更、履歴書換え・force-pushには所有者の明示的な承認が必要です。検証済みmainへのpush後のPages自動デプロイは承認済みです。PR作成はマージの承認を兼ねません。既存の承認条件と配信条件は[公開手順](docs/deployment.md)と[AGENTS.md](AGENTS.md)を参照してください。
