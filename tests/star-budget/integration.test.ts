@@ -3,6 +3,8 @@ import Ajv from 'ajv/dist/2020.js';
 import { readFileSync } from 'node:fs';
 import { syntheticCatalog, syntheticCollection } from '../helpers/synthetic';
 import { emptyStarBudget } from '../../src/domain/star-budget/validate';
+import { STAR_PAID_SOURCE_IDS } from '../../src/domain/star-budget/model';
+import { assumedBudgetValue, starBudgetFixture } from '../helpers/star-budget';
 import { defaultStarBudgetScenario, PRODUCT_IDS } from '../../src/domain/star-budget/model';
 import { catalogBase, exportCatalog, importCatalog } from '../../src/data/catalog/validate';
 import { exportCollection, importCollection, validateCollection } from '../../src/storage/collection';
@@ -69,4 +71,16 @@ it('returns fresh reading defaults, accepting explicit zero and preserving omitt
   expect(defaultStarBudgetScenario().selectedProducts).toHaveLength(11);
   const m = master(), c = { ...syntheticCollection(m), starBudgetScenario: { ...defaultStarBudgetScenario(), storyEventPercent: 0 } };
   expect(importCollection(exportCollection(c, m), m)).toEqual(c);
+});
+
+it('round trips an optional fictional paid-source catalog through schema and Import/Export', () => {
+  const m = { ...syntheticCatalog(), starBudgetDefinition: starBudgetFixture().definition };
+  m.starBudgetDefinition.revision = m.revision;
+  expect(schema('catalog')(m)).toBe(true);
+  const restored = importCatalog(exportCatalog(m));
+  expect(restored.starBudgetDefinition?.paidBySource).toEqual(m.starBudgetDefinition.paidBySource);
+  const malformed = structuredClone(m);
+  malformed.starBudgetDefinition.paidBySource!['login'] = assumedBudgetValue(9999);
+  expect(() => importCatalog(JSON.stringify(malformed))).toThrow('有償数量が総数量を超えています');
+  expect(Object.keys(m.starBudgetDefinition.paidBySource!)).toHaveLength(STAR_PAID_SOURCE_IDS.length);
 });
