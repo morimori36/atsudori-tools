@@ -39,6 +39,7 @@ npm run audit:public
 プロファイル出力のSafariエンジン向け追加検証は、`npx playwright install webkit`後に`npm run test:e2e:webkit`を実行できます。iPhone相当のWebKitエミュレーションで、実機Safariの検証とは区別します。
 
 - [JSONインポート仕様](docs/import-format.md) / [catalog Schema](public/schemas/catalog-v1.schema.json) / [collection Schema](public/schemas/collection-v1.schema.json)
+- [UI設計ルール・13画面の棚卸し](docs/ui-guidelines.md)
 - [共通育成シミュレーションAPI](docs/training-simulation.md)
 - [計算・選出と検証の限界](docs/calculation.md) / [架空データの期待値とテスト](docs/testing.md)
 - [catalog内のランク定義・推定と未算出時の扱い](docs/character-rank.md)
