@@ -9,6 +9,8 @@ export interface BudgetComparison {
   grade: 'none' | PassGrade;
   commonSupply: BudgetAmount;
   passSupply: BudgetAmount;
+  passFreeSupply: BudgetAmount;
+  passPaidSupply: BudgetAmount;
   totalSupply: BudgetAmount;
   freeSupply: BudgetAmount;
   paidSupply: BudgetAmount;
@@ -152,7 +154,7 @@ export function calculateStarBudget(input: StarBudgetInput) {
     const paidBalance = !compatibility ? unknown('カタログ支払条件が未確認') : totalFree.value === null || totalPaid.value === null || cost.value === null
       ? pending('有償差引に未確認の供給・費用があります', totalFree, totalPaid, cost)
       : known(subtract(totalPaid.value, nonNegative(subtract(cost.value, totalFree.value))));
-    return { grade, commonSupply: publicAmount(common), passSupply: publicAmount(extra), totalSupply: publicAmount(total),
+    return { grade, commonSupply: publicAmount(common), passSupply: publicAmount(extra), passFreeSupply: publicAmount(passSplit.free), passPaidSupply: publicAmount(passSplit.paid), totalSupply: publicAmount(total),
       freeSupply: publicAmount(totalFree), paidSupply: publicAmount(totalPaid),
       freeBalance: publicAmount(freeBalance), paidBalance: publicAmount(paidBalance),
       weeklyCost: publicAmount(cost), balance: publicAmount(balance),
