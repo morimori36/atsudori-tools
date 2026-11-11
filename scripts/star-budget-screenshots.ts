@@ -11,6 +11,15 @@ if (!base || !/^[a-f0-9]{40}$/.test(base)) throw new Error('Pass a full base com
 const loader = await createServer({configFile:false, server:{middlewareMode:true, hmr:false}});
 let fixture: ReviewFixture;
 try { fixture = (await loader.ssrLoadModule('/tests/helpers/star-budget-review.ts')).starBudgetReviewFixture(); } finally { await loader.close(); }
+// Only the old app requires these removed fields. Restore the historical
+// synthetic review values without changing the current fixture or app contract.
+const assumed = (value: number) => ({value, status:'assumed', basis:'独立した人工算術ケース。ゲームの値ではない'});
+const beforeFixture = {
+  master: {...fixture.master, starBudgetDefinition: {...fixture.master.starBudgetDefinition,
+    arena: {intervalDays:assumed(17), recurringStars:assumed(0)},
+  }},
+  collection: {...fixture.collection, starBudgetScenario: {...fixture.collection.starBudgetScenario, includeArena:true}},
+};
 const beforeOnly = process.argv[3] === 'before';
 const root = process.cwd(), output = resolve('.cache/star-budget-review');
 mkdirSync(output, {recursive:true});
@@ -39,7 +48,7 @@ try {
       await page.evaluate(({master,collection}) => {
         localStorage.setItem('atsudori-tools.catalog.v1', JSON.stringify(master));
         localStorage.setItem('atsudori-tools.collection.v1', JSON.stringify(collection));
-      },fixture);
+      },version === 'before' ? beforeFixture : fixture);
       await page.goto(`${url}#star-budget`); await page.reload();
       await page.getByLabel('表示テーマ').selectOption(theme);
       await page.locator('[data-budget-balance=premium]').waitFor();
