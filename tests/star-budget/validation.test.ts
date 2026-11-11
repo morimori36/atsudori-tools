@@ -45,7 +45,7 @@ it('validates paid components and preserves optional legacy definition contracts
   expect(check(input.definition)).toBe(true); // Semantic inequality is checked separately.
   expect(() => validateStarBudget(input)).toThrow('有償数量が総数量を超えています');
   input.definition.paidBySource!['season-premium'].value = 500;
-  delete input.definition.paidBySource!['login'];
+  Reflect.deleteProperty(input.definition.paidBySource!, 'login');
   expect(check(input.definition)).toBe(false);
   expect(() => validateStarBudget(input)).toThrow('必須項目がありません');
   delete input.definition.paidBySource;
