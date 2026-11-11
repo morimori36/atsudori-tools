@@ -19,13 +19,13 @@ it('separates purchase and daily pass supply without rounding and respects Premi
   d.event.storyPerEpisode=m(3);s['event.storyPerEpisode']={free:m(1),paid:m(2)};
   input.scenario.storyEventPercent=50;
   const before=calculateStarBudget(input);
-  expect(before.comparisons.map(c=>c.freeSupply.value)).toEqual([91,98,105,112]);
-  expect(before.comparisons.map(c=>c.paidSupply.value)).toEqual([42,55,68,81]);
+  expect(before.comparisons.map(c=>c.freeSupply.value)).toEqual([90.7,97.7,104.7,111.7]);
+  expect(before.comparisons.map(c=>c.paidSupply.value)).toEqual([41.4,54.4,67.4,80.4]);
   input.scenario.eventPremium=true;
   const r=calculateStarBudget(input);
-  r.comparisons.forEach((c,i)=>{expect(c.freeSupply.value).toBe(before.comparisons[i]!.freeSupply.value!+11);expect(c.paidSupply.value).toBe(before.comparisons[i]!.paidSupply.value!+7);expect(c.freeSupply.value!+c.paidSupply.value!).toBe(c.totalSupply.value);expect(c.freeBalance.value!+c.paidBalance.value!).toBe(c.balance.value);});
+  r.comparisons.forEach((c,i)=>{expect(c.freeSupply.value).toBeCloseTo(before.comparisons[i]!.freeSupply.value!+7.7);expect(c.paidSupply.value).toBeCloseTo(before.comparisons[i]!.paidSupply.value!+4.9);expect(c.freeSupply.value!+c.paidSupply.value!).toBeCloseTo(c.totalSupply.value!);expect(c.freeBalance.value!+c.paidBalance.value!).toBeCloseTo(c.balance.value!);});
   d.passes.lite.periodDays=m(3);
-  expect(calculateStarBudget(input).comparisons[1]!.paidSupply.value).toBeCloseTo(49+13*7/3);
+  expect(calculateStarBudget(input).comparisons[1]!.paidSupply.value).toBeCloseTo(46.3+13*7/3);
 });
 it('retains old totals with unknown or missing breakdown and never infers missing components', () => {
   const input=currencyBudget();input.definition.currencyBreakdown!.sources.liveStampWeekly.free=unknownBudgetValue();

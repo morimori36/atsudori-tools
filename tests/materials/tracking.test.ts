@@ -6,7 +6,6 @@ import { importCollection,exportCollection,validateCollection } from '../../src/
 import { loadCollection,saveCollection,STORAGE_KEY,MATERIAL_INVENTORY_BACKUP_KEY } from '../../src/storage/local';
 import { createResourceInventoryView } from '../../src/ui/resource-inventory';
 import { calculateEconomy } from '../../src/domain/economy/calculate';
-import { emptyEconomyScenario } from '../../src/domain/economy/validate';
 
 function fixture(){
  const {m,c}=materialFixture();
@@ -44,7 +43,7 @@ it('keeps the original when backup creation or final save fails',()=>{
 it('does not expose retired inventory in ordinary views or economy result export',()=>{
  const {m,c}=fixture(),html=createResourceInventoryView(m,c,{query:'',drafts:new Map()}).html;
  expect(html).not.toContain('retired-token');expect(html).not.toContain('retired-copy');expect(html).toContain('unknown-backup');
- const result=calculateEconomy(m,c.resourceInventory!,calculateMaterialRequirements(m,c),emptyEconomyScenario(m.catalogId));
+ const result=calculateEconomy(m,c,calculateMaterialRequirements(m,c));
  expect(JSON.stringify(result)).not.toContain('retired-token');expect(JSON.stringify(result)).not.toContain('retired-copy');
  expect(result.unsupportedInventory.map(x=>x.id)).toEqual(['unknown-backup']);
 });
@@ -68,7 +67,7 @@ it('blocks legacy catalog import and tracking while preserving saved catalog and
  expect(()=>importCatalog(exportCatalog(m))).toThrow(/追跡範囲/);
  expect(validateCatalog(m).materialDefinition!.resources.length).toBe(4);
  expect(calculateMaterialRequirements(m,c)).toMatchObject({cards:[],totals:[],resources:[],incomplete:true});
- const result=calculateEconomy(m,c.resourceInventory!,calculateMaterialRequirements(m,c),emptyEconomyScenario(m.catalogId));
+ const result=calculateEconomy(m,c,calculateMaterialRequirements(m,c));
  expect(result.rows).toEqual([]);expect(result.breakdown).toEqual([]);expect(result.unsupportedInventory).toEqual([]);
  expect(createResourceInventoryView(m,c,{query:'',drafts:new Map()}).html).not.toContain('retired-token');
  expect(()=>exportCollection(c,m)).toThrow(/追跡範囲/);

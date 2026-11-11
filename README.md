@@ -46,7 +46,7 @@ npm run audit:public
 - [変換プロファイルによるJSON出力](docs/profile-export.md)
 - [イベント周回プランナー](docs/event-planner.md) / [周回プランJSON Schema](public/schemas/event-planner-v1.schema.json)
 - [スター予算](docs/star-budget.md)
-- [素材別充足日数シミュレーター](docs/economy.md) / [試算条件Schema](public/schemas/economy-scenario-v5.schema.json)（供給定義は外部catalogへ内包）
+- [素材別充足日数シミュレーター](docs/economy.md)（供給定義は外部catalogへ内包）
 - [公開手順](docs/deployment.md) / [公開データの範囲](docs/separation.md) / [非公開回帰の実行](docs/private-regression.md)
 - [開発参加](CONTRIBUTING.md) / [権利表示](THIRD_PARTY_NOTICES.md)
 
@@ -56,4 +56,4 @@ npm run audit:public
 
 静的なカード・育成・ランク・ボーナス表はcatalog、動的な所持・進捗・手入力上書きはcollectionで管理します。ランク定義を含むマスタJSONを「JSON Import / Export」で取り込み、マスタと所持の2ファイルで移行できます。実際の定義・表は初期状態や配信物に含めません。
 
-初期化は「JSON Import / Export」最下部の「データの初期化」を開いて実行します。所持・育成情報（素材在庫、スター予算の試算条件、T.G.Wランクを含む）とマスタ（ランク定義、スター予算定義を含む）は別々に初期化します。確認ダイアログが表示され、所持参照が残るマスタ初期化は拒否されます。必要なJSONをExportし、先に所持・育成データを初期化してください。変換プロファイル・共通育成条件・イベントプランナーの保存内容は初期化対象外です。スター予算の旧専用保存キーは読み取らず、移行・復元・削除もしません。[保存・JSON契約](docs/star-budget.md#保存json契約)を参照してください。
+初期化は「JSON Import / Export」最下部の「データの初期化」を開いて実行します。所持・育成情報（素材在庫、素材供給・スター予算の試算条件、T.G.Wランクを含む）とマスタ（ランク定義、スター予算定義を含む）は別々に初期化します。確認ダイアログが表示され、所持参照が残るマスタ初期化は拒否されます。必要なJSONをExportし、先に所持・育成データを初期化してください。変換プロファイル・共通育成条件・イベントプランナーの保存内容は初期化対象外です。スター予算の旧専用保存キーは読み取らず、移行・復元・削除もしません。[保存・JSON契約](docs/star-budget.md#保存json契約)を参照してください。

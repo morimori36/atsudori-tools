@@ -22,17 +22,6 @@ export const supplyDefinitionSchema = object({schemaVersion:{const:4},catalogRev
   fixedSources:array(object({...named,intervalDays:nullable(object({numerator:positive,denominator:positive})),rewards})),
   unavailable:array(unavailable)
 });
-export const economyScenarioSchema = {
-  $schema:'https://json-schema.org/draft/2020-12/schema',
-  title:'Material clearance scenario v5',
-  ...object({format:{const:'atsudori-tools/economy-scenario'},schemaVersion:{const:5},catalogId:id,
-    rank:nullable(positive),
-    live:object({enabled:{type:'boolean'},lbPerDay:int,skipPercent:{...int,maximum:100},playId:nullable(id),skipId:nullable(id),playsPerDay:nullable(int),skipsPerDay:nullable(int)}),
-    studio:object({enabled:{type:'boolean'},levels:array(object({bandId:positive,level:positive})),
-      claimEveryMinutes:{...positive,maximum:5270400},minutesPerDay:{...int,maximum:1440}}),
-    includeRankDaily:{type:'boolean'},
-    includeEvents:{type:'boolean'},
-    fixedSources:array(object({sourceId:id,claimPercent:{...int,maximum:100}}))
-
-  })
-};
+export const supplyConditionsSchema = object({
+  lbPerDay:int, scoreRank:nullable(text), studioLevels:array(object({bandId:positive,level:positive}))
+});

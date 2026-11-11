@@ -1,3 +1,5 @@
+import { validateSupplyConditions } from '../domain/economy/validate';
+import type { SupplyConditions } from '../domain/economy/model';
 import { trackedInventory, hasTrackingScope, trackingUpdateMessage } from '../domain/materials/tracking';
 import { validateStarBudgetScenario } from '../domain/star-budget/validate';
 import type { StarBudgetScenario } from '../domain/star-budget/model';
@@ -34,6 +36,7 @@ export interface Collection {
   /** Player-wide TGW rank. Missing means unknown; no rank is inferred. */
   tgwRank?: number;
   starBudgetScenario?: StarBudgetScenario;
+  supplyConditions?: SupplyConditions;
   /** Missing = unknown; null = explicitly unowned; positive integer = owned level. */
   bandItems: Record<string, number | null>;
 }
@@ -77,7 +80,7 @@ function unique(rows: readonly number[], path: string): void {
 
 /** Validates both the versioned shape and legal progression against the registered catalog. */
 export function validateCollection(value: unknown, master: Masterdata): Collection {
-  const root = object(value, '$', ['format', 'schemaVersion', 'catalogId', 'members', 'snaps', 'characterRanks', 'characterProgress', 'bandItems', 'totalRankBonus', 'tgwRank', 'starBudgetScenario', 'ownedStampIds', 'resourceInventory']);
+  const root = object(value, '$', ['format', 'schemaVersion', 'catalogId', 'members', 'snaps', 'characterRanks', 'characterProgress', 'bandItems', 'totalRankBonus', 'tgwRank', 'starBudgetScenario', 'supplyConditions', 'ownedStampIds', 'resourceInventory']);
   if (root.format !== 'atsudori-tools/collection') fail('$.format', 'このツールの所持データではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の保存形式です。変換が必要です');
   const characterProgress = root.characterProgress === undefined ? undefined : record(root.characterProgress, '$.characterProgress', (id, value, path) => {
@@ -93,7 +96,7 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
   });
   if (ownedStampIds) unique(ownedStampIds, '$.ownedStampIds');
   const resourceInventory=root.resourceInventory===undefined?undefined:validateResourceInventory(root.resourceInventory);
-  if (root.catalogId !== master.catalogId && (Object.keys(resourceInventory??{}).length || ownedStampIds?.length || root.tgwRank !== undefined || root.totalRankBonus !== undefined || array(root.members, '$.members').length || array(root.snaps, '$.snaps').length || Object.keys(object(root.characterRanks, '$.characterRanks')).length || Object.keys(object(root.bandItems, '$.bandItems')).length || Object.keys(characterProgress ?? {}).length)) fail('$.catalogId', 'catalogIdが異なります。対応するcatalogを登録してください');
+  if (root.catalogId !== master.catalogId && (Object.keys(resourceInventory??{}).length || ownedStampIds?.length || root.supplyConditions !== undefined || root.tgwRank !== undefined || root.totalRankBonus !== undefined || array(root.members, '$.members').length || array(root.snaps, '$.snaps').length || Object.keys(object(root.characterRanks, '$.characterRanks')).length || Object.keys(object(root.bandItems, '$.bandItems')).length || Object.keys(characterProgress ?? {}).length)) fail('$.catalogId', 'catalogIdが異なります。対応するcatalogを登録してください');
   if (typeof root.catalogId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(root.catalogId)) fail('$.catalogId', '識別子が必要です');
   const members = array(root.members, '$.members').map((value, i): OwnedMember => {
     const path = `$.members[${i}]`;
@@ -137,6 +140,7 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     return level;
   });
   return { ...emptyCollection(master),
+    ...(root.supplyConditions === undefined ? {} : {supplyConditions:validateSupplyConditions(root.supplyConditions)}),
     ...(root.starBudgetScenario === undefined ? {} : {starBudgetScenario:validateStarBudgetScenario(root.starBudgetScenario)}), ...(resourceInventory===undefined?{}:{resourceInventory:trackedInventory(resourceInventory,master.materialDefinition)}), ...(ownedStampIds === undefined ? {} : {ownedStampIds}), members, snaps, characterRanks, ...(characterProgress === undefined ? {} : {characterProgress}), bandItems,
     ...(root.tgwRank === undefined ? {} : {tgwRank:integer(root.tgwRank,'$.tgwRank')}),
     ...(root.totalRankBonus === undefined ? {} : {totalRankBonus:integer(root.totalRankBonus,'$.totalRankBonus',0)}) };
