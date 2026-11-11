@@ -16,6 +16,10 @@
     "test:e2e": "npm run build && playwright test",
     "test:e2e:webkit": "npm run build && playwright test --config playwright.webkit.config.ts",
     "audit:public": "node scripts/audit-public.ts",
+    "audit:push": "node scripts/publication/pre-push.mjs --head",
+    "audit:metadata": "node scripts/publication/metadata.mjs",
+    "test:publication": "node --test scripts/publication/*.test.mjs",
+    "hooks:install": "node scripts/publication/install-hooks.mjs",
     "schema:write": "node scripts/export-schema.ts",
     "test:private": "vitest run --config private-regression.config.ts"
   },

@@ -15,6 +15,7 @@
 - DOM・計算・選出・育成・validation・保存を分離する。Vite/TypeScriptの単一アプリを保ち、不要な機能・ライブラリ・画像・サーバーを加えない。
 - テストは完全な架空データ。期待値は式を独立に検算してdocs/testing.mdへ根拠を書く。実装の出力で期待値を作らない。非公開回帰は外部のPrivate資料をローカルで読む。
 - npm run check、npm run test:e2e、npm run audit:publicを実行する。schema変更はnpm run schema:writeと文書も同期。npmキャッシュは.cache/npm。
+- cloneごとにnpm run hooks:installでpush前検査を有効にする。既存の独自hookは上書きせず、設定を確認する。push前にはnpm run audit:push、PR作成・編集前には予定するメタデータをローカルJSONへ保存してnpm run audit:metadata -- --file PATHで検査する。[公開前検査の範囲と限界](docs/publication-checks.md)に従い、機械検査と内容レビューを両方行う。
 - GitHub Flow / Conventional Commits / PR / Squash Merge。コミットの作者・committerには確認済みGitHub noreplyだけを使う。
 - 自作コードは当面ライセンスなし（All rights reserved）。MIT等のLICENSEファイルを追加しない。第三者ライブラリ・素材のライセンスと権利表示は遵守する。この方針の変更、Public化、初回の本番公開、履歴書換え、force-pushは所有者の明示的承認が必要。所有者の指示により、検証済みmainへのpush後のPages自動デプロイは承認済み。現在ファイル・全Git履歴・配信artifactの監査と指定テスト・E2Eがすべて成功するまではPublic化・Pagesデプロイを行わない。
 

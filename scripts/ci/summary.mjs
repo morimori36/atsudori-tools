@@ -5,6 +5,8 @@ try {
     metadata: [['checkout SHA', commitAt()], ['PR head SHA', safeSha(process.env.CI_PR_HEAD_SHA)]],
     outcomes: JSON.parse(process.env.CI_PHASE_OUTCOMES ?? '{}'),
     stages: [
+      { id: 'metadata', label: '公開予定メタデータの機械検査' },
+      { id: 'publication_tests', label: 'push前・メタデータ検査の回帰' },
       { id: 'summary_tests', label: '集計処理の回帰テスト' },
       { id: 'check', label: '型検査・単体回帰', report: '.cache/ci/unit.json' },
       { id: 'schemas', label: 'Schema同期' },
