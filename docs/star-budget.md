@@ -6,7 +6,7 @@
 
 ## 画面の構成
 
-最初に4種類の比較表を表示し、週平均総供給・全交換費用・差引・判定をまとめます。「試算条件へ」でランク・イベント、供給に含める報酬、商品別の全交換条件へ移動できます。変更は従来どおり所持データへ自動保存し、失敗時は直前の確定条件による結果であることを表示します。
+最初に4種類の比較表を表示し、週平均総供給・全交換費用・合計差引・判定に加え、無償／有償供給と無償／有償差引をまとめます。「試算条件へ」でランク・イベント、供給に含める報酬、商品別の全交換条件へ移動できます。変更は従来どおり所持データへ自動保存し、失敗時は直前の確定条件による結果であることを表示します。
 
 スマホは比較表を横スクロールして確認できます。行名を左固定し、表内の縦スクロールではパス名を上固定します。短い操作補足は入力のそばへ、計算の前提・価格・報酬の根拠は結果の詳細へ置きます。未確認による保留と保存失敗は別の状態です。[共通UIルール・判断と検証方法](ui-guidelines.md)を参照してください。
 
@@ -44,6 +44,8 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 
 周期は実日程ではなく想定値です。継続購入し、各回の対象報酬と毎日スターを全回収する前提です。Premium追加スター0なら購入切替で収支は変わりません。無料ガチャ・チケット・素材・シールはスターへ換算しません。
 
+**有償限定ガチャ以外は無償スター優先消費**として、無償差引 = max(0, 無償供給 − 全交換費用)、有償差引 = 有償供給 − max(0, 全交換費用 − 無償供給) を計算します。有償限定ガチャの支出は一切差し引きません。この仕様は利用者のゲーム内仕様確認に基づき、原表からの独立した実機確認と区別します。週平均の増減であり実所持残高や日次資金繰りではありません。
+
 有償／無償スター等をカタログ支払で合算できるかを「利用条件」で登録します。合算できると仮定／確認し、根拠を設定した場合に差引を出します。未確認や利用制約ありなら供給・費用を残して差引を保留します。制約別の資金繰りは扱いません。
 
 円価格は別の行です。パスの1契約の円価格÷更新日数×30を参考の30日負担とします。暦月額ではなく、イベント／シーズンPremium料金も含みません。円が未確認でもスター収支は計算できます。
@@ -60,7 +62,7 @@ collection v1の任意項目 `starBudgetScenario` は次の5項目だけを必�
 
 静的定義はcatalog v1の `starBudgetDefinition`、個人条件はcollection v1の `starBudgetScenario`、ランクはcollectionの `tgwRank` が正本です。[catalog Schema](../public/schemas/catalog-v1.schema.json)・[collection Schema](../public/schemas/collection-v1.schema.json)と意味検証を併用します。
 
-definitionはrevision、loginDaily、missionDaily、liveStampWeekly、liveStampSelection、event、season、arena、passes、starCompatibility、starCompatibilityBasis、productsを持ちます。productsは全11商品（crystal-luck、crystal-miracle、skill-live、skill-gekisou、skill-basic、skill-sp、sr-1〜sr-5）を各1回持ち、name、unlockRank、1〜20段階のtiers[{starCost, weeklyLimit}]を定義します。数値と根拠は `{value, status, basis}` で、nullはunconfirmed、数値ありはassumedまたはconfirmedと空白以外のbasisが必要です。日数は正の小数2桁以内、数量・価格は非負安全整数、解放ランクは正整数です。
+definitionはrevision、loginDaily、missionDaily、liveStampWeekly、liveStampSelection、event、season、arena、passes、starCompatibility、starCompatibilityBasis、products、および任意の `paidBySource` を持ちます。`paidBySource` はログイン・日課・週次スタンプ・イベント・シーズン・アリーナ・3種のパス購入／日次の計16供給源について、元の供給単位での有償スター数量を持ち、無償は既存総数量から差し引いて算出します。総量より大きな有償数量、内訳の欠けた定義を拒否します。旧catalogで内訳全体がない場合は合計計算だけを維持し、有償／無償の内訳を未算出として表示します。productsは全11商品（crystal-luck、crystal-miracle、skill-live、skill-gekisou、skill-basic、skill-sp、sr-1〜sr-5）を各1回持ち、name、unlockRank、1〜20段階のtiers[{starCost, weeklyLimit}]を定義します。数値と根拠は `{value, status, basis}` で、nullはunconfirmed、数値ありはassumedまたはconfirmedと空白以外のbasisが必要です。日数は正の小数2桁以内、数量・価格は非負安全整数、解放ランクは正整数です。
 
 起動・表示では保存しません。有効な条件変更は保存成功後に確定します。保存失敗や不正入力では共通の未保存警告を表示し、確定済みcollectionと計算結果を保持します。画面を切り替えると未確定の条件は破棄し、共通collectionから読み直します。破損した所持・マスタは保護し、スター予算の変更・計算を止めます。復旧は共通のImport／初期化を使います。マスタ更新では所持の条件を上書きしません。
 
