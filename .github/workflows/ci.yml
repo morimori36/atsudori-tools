@@ -90,6 +90,17 @@ jobs:
           path: .cache/star-budget-review/*.png
           retention-days: 30
           if-no-files-found: error
+      - name: Capture populated economy UI before and after
+        if: github.event_name == 'pull_request'
+        run: node scripts/economy-screenshots.ts "${{ github.event.pull_request.base.sha }}"
+      - name: Attach populated economy UI comparisons
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: economy-ui-review
+          path: .cache/economy-review/*.png
+          retention-days: 30
+          if-no-files-found: error
       - run: npx playwright install --with-deps webkit
       - id: webkit
         env:

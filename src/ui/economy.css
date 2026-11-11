@@ -27,3 +27,15 @@
 .economy-warnings { border-inline-start:3px solid var(--accent); padding-inline-start:.75rem; font-size:13px; }
 [data-economy-message]:empty { display:none; }
 @media(max-width:600px) { .economy-options { grid-column:1 / -1; } }
+/* Keep overflow and sticky cells inside the economy screen. */
+#economy-simulator .panel,#economy-simulator [data-economy-results] { min-width:0; max-width:100%; }
+#economy-simulator .economy-table-wrap { max-height:32rem; }
+#economy-simulator .economy-table caption { text-align:left; white-space:normal; color:var(--muted); font-size:12px; padding:.5rem; }
+#economy-simulator .economy-table thead th { position:sticky; top:0; background:light-dark(#fff, #252431); z-index:1; }
+#economy-simulator .economy-table th[scope=row] { position:sticky; left:0; background:light-dark(#fff, #252431); max-width:10rem; white-space:normal; min-width:7rem; }
+#economy-simulator .economy-fields > div { min-width:0; overflow-wrap:anywhere; }
+#economy-simulator .economy-table td:last-child { white-space:normal; min-width:9rem; }
+#economy-simulator [aria-invalid=true] { border-color:var(--accent); }
+#economy-simulator .economy-options { display:grid; gap:.5rem; }
+#economy-simulator [data-economy-jump] { min-height:44px; margin-bottom:.75rem; }
+#economy-simulator #economy-conditions-heading,#economy-simulator #economy-results-heading { scroll-margin-top:calc(var(--shell-height) + 1rem); }
