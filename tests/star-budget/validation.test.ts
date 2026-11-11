@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import Ajv from 'ajv/dist/2020.js';
 import { starBudgetDefinitionSchema, starBudgetScenarioSchema } from '../../src/domain/star-budget/schema';
 import { emptyStarBudget, validateStarBudget } from '../../src/domain/star-budget/validate';
+import { STAR_PAID_SOURCE_IDS } from '../../src/domain/star-budget/model';
 import { starBudgetFixture } from '../helpers/star-budget';
 
 it.each([
@@ -32,4 +33,23 @@ it('validates the reusable schema parts and rejects extra calculation channels',
   const { rank, ...scenario } = input.scenario;
   expect(ajv.compile(starBudgetScenarioSchema)(scenario)).toBe(true);
   expect(() => validateStarBudget({ ...input, firstTimeArenaStars: 100 })).toThrow('未対応');
+});
+
+it('validates paid components and preserves optional legacy definition contracts', () => {
+  const input = starBudgetFixture();
+  const ajv = new Ajv({ strict: true, multipleOfPrecision: 10 });
+  const check = ajv.compile(starBudgetDefinitionSchema);
+  expect(check(input.definition)).toBe(true);
+  expect(validateStarBudget(input)).toEqual(input);
+  input.definition.paidBySource!['season-premium'].value = 1801;
+  expect(check(input.definition)).toBe(true); // Semantic inequality is checked separately.
+  expect(() => validateStarBudget(input)).toThrow('有償数量が総数量を超えています');
+  input.definition.paidBySource!['season-premium'].value = 500;
+  delete input.definition.paidBySource!['login'];
+  expect(check(input.definition)).toBe(false);
+  expect(() => validateStarBudget(input)).toThrow('必須項目がありません');
+  delete input.definition.paidBySource;
+  expect(check(input.definition)).toBe(true);
+  expect(validateStarBudget(input)).toEqual(input);
+  expect(STAR_PAID_SOURCE_IDS).toHaveLength(16);
 });
