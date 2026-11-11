@@ -1,5 +1,5 @@
 import { strictObject } from '../../data/json';
-import { PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES } from './model';
+import { PASS_GRADES, PRODUCT_IDS, PRODUCT_NAMES, STAR_PAID_SOURCE_IDS } from './model';
 import type { BudgetValue, StarBudgetInput, StarBudgetDefinition, StarBudgetScenario } from './model';
 
 const fail = (path: string, message: string): never => { throw new Error(path + ': ' + message); };
@@ -38,7 +38,7 @@ export function validateStarBudget(value: unknown): StarBudgetInput {
   return result;
 }
 export function validateStarBudgetDefinition(value: unknown): StarBudgetDefinition {
-  const d = strictObject(value, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
+  const d = strictObject(value, 'definition', ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products', 'paidBySource'], ['revision', 'loginDaily', 'missionDaily', 'liveStampWeekly', 'liveStampSelection', 'event', 'season', 'arena', 'passes', 'starCompatibility', 'starCompatibilityBasis', 'products']);
   if (typeof d.revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(d.revision)) fail('definition.revision', '版の識別子が不正です');
   for (const key of ['loginDaily', 'missionDaily', 'liveStampWeekly']) measure(d[key], 'definition.' + key);
   text(d.liveStampSelection, 'definition.liveStampSelection');
@@ -47,6 +47,30 @@ export function validateStarBudgetDefinition(value: unknown): StarBudgetDefiniti
   measures(d.arena, 'arena', ['intervalDays', 'recurringStars'], 'intervalDays');
   const passes = strictObject(d.passes, 'passes', PASS_GRADES);
   for (const grade of PASS_GRADES) measures(passes[grade], 'passes.' + grade, ['periodDays', 'purchaseStars', 'dailyStars', 'priceYen'], 'periodDays');
+  if (d.paidBySource !== undefined) {
+    const paid = strictObject(d.paidBySource, 'paidBySource', STAR_PAID_SOURCE_IDS);
+    const totals: Record<string, unknown> = {
+      login: d.loginDaily, missions: d.missionDaily, 'live-stamp': d.liveStampWeekly,
+      'event-points': (d.event as Record<string, unknown>).points,
+      'event-free': (d.event as Record<string, unknown>).missionFree,
+      'event-premium': (d.event as Record<string, unknown>).missionPremium,
+      story: (d.event as Record<string, unknown>).storyPerEpisode,
+      'season-free': (d.season as Record<string, unknown>).free,
+      'season-premium': (d.season as Record<string, unknown>).premium,
+      arena: (d.arena as Record<string, unknown>).recurringStars,
+    };
+    for (const grade of PASS_GRADES) {
+      const pass = passes[grade] as Record<string, unknown>;
+      totals['pass-' + grade + '-purchase'] = pass.purchaseStars;
+      totals['pass-' + grade + '-daily'] = pass.dailyStars;
+    }
+    for (const key of STAR_PAID_SOURCE_IDS) {
+      measure(paid[key], 'paidBySource.' + key);
+      const paidValue = (paid[key] as BudgetValue).value;
+      const totalValue = (totals[key] as BudgetValue).value;
+      if (paidValue !== null && totalValue !== null && paidValue > totalValue) fail('paidBySource.' + key, '有償数量が総数量を超えています');
+    }
+  }
   if (typeof d.starCompatibility !== 'string' || !['unconfirmed', 'assumed-usable', 'confirmed-usable', 'restricted'].includes(d.starCompatibility)) fail('starCompatibility', '合算条件が不正です');
   text(d.starCompatibilityBasis, 'starCompatibilityBasis', 300, d.starCompatibility !== 'unconfirmed');
   if (!Array.isArray(d.products) || d.products.length !== PRODUCT_IDS.length) fail('products', '全11商品の定義が必要です');
