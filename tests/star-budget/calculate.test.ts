@@ -119,3 +119,42 @@ it('starts with unknown game definitions, including all four comparisons', () =>
   };
   walk(input.definition);
 });
+
+it('splits all sources and compares weekly free-first deficits without touching the original total', () => {
+  const input = starBudgetFixture(), r = calculateStarBudget(input);
+  for (const c of r.comparisons) {
+    expect(c.freeSupply.value! + c.paidSupply.value!).toBeCloseTo(c.totalSupply.value!, 10);
+    expect(c.freeBalance.value! + c.paidBalance.value!).toBeCloseTo(c.balance.value!, 10);
+    expect(c.freeBalance.value).toBeGreaterThanOrEqual(0);
+  }
+  const premium = r.comparisons[3]!;
+  expect(premium.paidSupply.value).toBeCloseTo((500 + 600) * 7 / 30, 10);
+  expect(premium.freeSupply.value).toBeCloseTo(premium.totalSupply.value! - premium.paidSupply.value!, 10);
+  expect(premium.freeBalance.value).toBe(0);
+  expect(premium.paidBalance.value).toBeCloseTo(premium.balance.value!, 10);
+  expect(premium.passPaidSupply.value).toBe(140);
+  expect(premium.passFreeSupply.value).toBe(840);
+  const none = r.comparisons[0]!;
+  expect(none.paidBalance.value).toBeLessThan(0);
+  expect(none.freeBalance.value).toBe(0);
+});
+
+it('keeps legacy total balances when the optional paid-source data is absent', () => {
+  const input = starBudgetFixture(), baseline = calculateStarBudget(input);
+  delete input.definition.paidBySource;
+  const old = calculateStarBudget(input);
+  expect(old.comparisons.map(c => c.balance.value)).toEqual(baseline.comparisons.map(c => c.balance.value));
+  expect(old.comparisons.every(c => c.paidSupply.value === null && c.freeSupply.value === null)).toBe(true);
+  input.scenario.selectedProducts = []; input.definition.loginDaily = m(0);
+  expect(calculateStarBudget(input).comparisons[0]!.balance.value).not.toBeNull();
+});
+
+it('excludes disabled premium income from both paid and free supplies', () => {
+  const input = starBudgetFixture();
+  input.scenario.seasonPremium = false;
+  const off = calculateStarBudget(input).comparisons[0]!;
+  input.scenario.seasonPremium = true;
+  const on = calculateStarBudget(input).comparisons[0]!;
+  expect(on.paidSupply.value! - off.paidSupply.value!).toBeCloseTo(500 * 7 / 30, 10);
+  expect(on.freeSupply.value! - off.freeSupply.value!).toBeCloseTo(1300 * 7 / 30, 10);
+});
