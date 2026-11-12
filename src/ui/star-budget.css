@@ -36,3 +36,12 @@
   .budget-products th { min-width: 150px; }
   .budget-products { min-width: 440px; }
 }
+#seal-budget-form fieldset { display: grid; gap: 12px; min-width: 0; margin-block: 16px; }
+#seal-budget-form label { display: flex; align-items: center; gap: 12px; min-height: 44px; overflow-wrap: anywhere; }
+#seal-budget-form input[type="checkbox"] { flex: 0 0 auto; }
+#seal-budget-form select { width: auto; min-height: 44px; }
+[data-seal-results] dl { display: grid; grid-template-columns: 1fr auto; gap: 12px; font-variant-numeric: tabular-nums; }
+[data-seal-results] dd { font-size: 1.4rem; font-weight: 700; margin: 0; }
+[data-seal-message]:empty { display: none; }
+#seal-budget-form input[type="checkbox"] { width: 22px; height: 22px; margin: 0; }
+#seal-budget-form label { min-width: 0; }

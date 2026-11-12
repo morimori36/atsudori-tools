@@ -217,6 +217,40 @@
         }
       }
     },
+    "sealBudgetScenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cm",
+        "pass",
+        "paid",
+        "selectedProducts"
+      ],
+      "properties": {
+        "cm": {
+          "type": "boolean"
+        },
+        "pass": {
+          "type": "boolean"
+        },
+        "paid": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "selectedProducts": {
+          "type": "array",
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+          }
+        }
+      }
+    },
     "supplyConditions": {
       "type": "object",
       "additionalProperties": false,

@@ -1,3 +1,4 @@
+import { validateSealBudgetScenario } from '../domain/seal-budget/validate';
 import { validateSupplyConditions } from '../domain/economy/validate';
 import type { SupplyConditions } from '../domain/economy/model';
 import { trackedInventory, hasTrackingScope, trackingUpdateMessage } from '../domain/materials/tracking';
@@ -35,6 +36,7 @@ export interface Collection {
   totalRankBonus?: number;
   /** Player-wide TGW rank. Missing means unknown; no rank is inferred. */
   tgwRank?: number;
+  sealBudgetScenario?: import('../domain/seal-budget/model').SealBudgetScenario;
   starBudgetScenario?: StarBudgetScenario;
   supplyConditions?: SupplyConditions;
   /** Missing = unknown; null = explicitly unowned; positive integer = owned level. */
@@ -80,7 +82,7 @@ function unique(rows: readonly number[], path: string): void {
 
 /** Validates both the versioned shape and legal progression against the registered catalog. */
 export function validateCollection(value: unknown, master: Masterdata): Collection {
-  const root = object(value, '$', ['format', 'schemaVersion', 'catalogId', 'members', 'snaps', 'characterRanks', 'characterProgress', 'bandItems', 'totalRankBonus', 'tgwRank', 'starBudgetScenario', 'supplyConditions', 'ownedStampIds', 'resourceInventory']);
+  const root = object(value, '$', ['format', 'schemaVersion', 'catalogId', 'members', 'snaps', 'characterRanks', 'characterProgress', 'bandItems', 'totalRankBonus', 'tgwRank', 'starBudgetScenario', 'sealBudgetScenario', 'supplyConditions', 'ownedStampIds', 'resourceInventory']);
   if (root.format !== 'atsudori-tools/collection') fail('$.format', 'このツールの所持データではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の保存形式です。変換が必要です');
   const characterProgress = root.characterProgress === undefined ? undefined : record(root.characterProgress, '$.characterProgress', (id, value, path) => {
@@ -95,8 +97,9 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     return id;
   });
   if (ownedStampIds) unique(ownedStampIds, '$.ownedStampIds');
+  if(root.sealBudgetScenario!==undefined && !master.sealBudgetDefinition && validateSealBudgetScenario(root.sealBudgetScenario).selectedProducts.length)fail('$.sealBudgetScenario','交換商品を参照するシール予算定義が必要です');
   const resourceInventory=root.resourceInventory===undefined?undefined:validateResourceInventory(root.resourceInventory);
-  if (root.catalogId !== master.catalogId && (Object.keys(resourceInventory??{}).length || ownedStampIds?.length || root.supplyConditions !== undefined || root.tgwRank !== undefined || root.totalRankBonus !== undefined || array(root.members, '$.members').length || array(root.snaps, '$.snaps').length || Object.keys(object(root.characterRanks, '$.characterRanks')).length || Object.keys(object(root.bandItems, '$.bandItems')).length || Object.keys(characterProgress ?? {}).length)) fail('$.catalogId', 'catalogIdが異なります。対応するcatalogを登録してください');
+  if (root.catalogId !== master.catalogId && (Object.keys(resourceInventory??{}).length || ownedStampIds?.length || root.supplyConditions !== undefined || root.sealBudgetScenario !== undefined || root.tgwRank !== undefined || root.totalRankBonus !== undefined || array(root.members, '$.members').length || array(root.snaps, '$.snaps').length || Object.keys(object(root.characterRanks, '$.characterRanks')).length || Object.keys(object(root.bandItems, '$.bandItems')).length || Object.keys(characterProgress ?? {}).length)) fail('$.catalogId', 'catalogIdが異なります。対応するcatalogを登録してください');
   if (typeof root.catalogId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(root.catalogId)) fail('$.catalogId', '識別子が必要です');
   const members = array(root.members, '$.members').map((value, i): OwnedMember => {
     const path = `$.members[${i}]`;
@@ -140,6 +143,7 @@ export function validateCollection(value: unknown, master: Masterdata): Collecti
     return level;
   });
   return { ...emptyCollection(master),
+    ...(root.sealBudgetScenario === undefined ? {} : {sealBudgetScenario:validateSealBudgetScenario(root.sealBudgetScenario,master.sealBudgetDefinition)}),
     ...(root.supplyConditions === undefined ? {} : {supplyConditions:validateSupplyConditions(root.supplyConditions)}),
     ...(root.starBudgetScenario === undefined ? {} : {starBudgetScenario:validateStarBudgetScenario(root.starBudgetScenario)}), ...(resourceInventory===undefined?{}:{resourceInventory:trackedInventory(resourceInventory,master.materialDefinition)}), ...(ownedStampIds === undefined ? {} : {ownedStampIds}), members, snaps, characterRanks, ...(characterProgress === undefined ? {} : {characterProgress}), bandItems,
     ...(root.tgwRank === undefined ? {} : {tgwRank:integer(root.tgwRank,'$.tgwRank')}),

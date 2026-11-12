@@ -74,7 +74,9 @@ test('mobile keyboard modal traps focus, closes explicitly and focuses the selec
   await expect(page.locator('nav [data-tab="exchange"]')).toBeFocused();
   await page.keyboard.press('Tab'); await expect(close).toBeFocused();
   await close.press('Enter'); await expect(trigger).toBeFocused();
-  await trigger.press('Enter'); await page.locator('nav [data-tab="members"]').focus(); await page.keyboard.press('Enter');
+  await trigger.press('Enter'); await expect(close).toBeFocused();
+  const members = page.locator('nav [data-tab="members"]');
+  await members.focus(); await expect(members).toBeFocused(); await page.keyboard.press('Enter');
   await expect(page.locator('h1')).toBeFocused(); await expect(page.locator('[data-navigation-dialog]')).not.toBeVisible();
   await trigger.tap(); await close.tap(); await expect(trigger).toBeFocused();
   await trigger.tap(); await page.locator('nav [data-tab=snaps]').tap(); await expect(page.locator('h1')).toHaveText('所持スナップ');
@@ -134,4 +136,24 @@ test('long protected-tool status fits the compact header', async ({page}) => {
   expect(state.x).toBeGreaterThanOrEqual(theme.x+theme.width);
   expect(state.y+state.height).toBeLessThanOrEqual(header.y+header.height);
   expect(state.x+state.width).toBeLessThanOrEqual(320);
+});
+
+// Closing and reopening in one task leaves the native close event queued.
+test('a delayed close event preserves a reopened mobile menu', async ({page}) => {
+  await page.setViewportSize({width:320,height:640}); await page.goto('./');
+  const dialog = page.locator('[data-navigation-dialog]');
+  await page.locator('[data-menu-open]').click();
+  await page.evaluate(() => {
+    document.querySelector<HTMLButtonElement>('[data-menu-close]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-menu-open]')!.click();
+  });
+  // Flush queued native dialog events before checking the new open state.
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('nav')).toBeVisible();
+  await expect(page.locator('[data-menu-open]')).toHaveAttribute('aria-expanded','true');
+  const members=dialog.locator('[data-tab=members]');
+  await members.focus(); await members.press('Enter');
+  await expect(page.locator('h1')).toHaveText('所持メンバー');
+  await expect(page.locator('h1')).toBeFocused();
 });
