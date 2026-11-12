@@ -1,7 +1,7 @@
 import type {Masterdata} from '../data/catalog/model';
 import type {Collection} from '../storage/collection';
 import {defaultSealBudgetScenario} from '../domain/seal-budget/model';
-import {calculateSealBudget} from '../domain/seal-budget/calculate';
+import {calculateCollectionSealBudget} from '../app/seal-budget';
 
 const esc = (value: unknown) => String(value).replace(/[&<>"']/g, c =>
   ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[c]!);
@@ -60,14 +60,14 @@ export function createSealBudgetView(
         </fieldset>
       </form>
       <section class="seal-support" aria-label="収入の内訳と試算の前提">
-        <details class="ui-details"><summary>ガチャ別収入の内訳<span>Rメンバー・Rスナップ・Pt交換</span></summary>
+        <details class="ui-details"><summary>ガチャ別収入の内訳<span>メンバー・スナップ・Pt交換</span></summary>
           <div class="budget-scroll" tabindex="0" role="region" aria-label="ガチャ別シール収入"><table class="seal-income-table">
             <caption>30日換算のシール収入期待値</caption>
-            <thead><tr><th scope="col">ガチャ</th><th scope="col">Rメンバー</th><th scope="col">Rスナップ</th><th scope="col">Pt交換</th><th scope="col">合計/月</th></tr></thead>
+            <thead><tr><th scope="col">ガチャ</th><th scope="col">メンバー</th><th scope="col">スナップ</th><th scope="col">Pt交換</th><th scope="col">合計/月</th></tr></thead>
             <tbody data-seal-breakdown></tbody>
           </table></div>
         </details>
-        <details class="ui-details"><summary>試算の前提</summary><p>Rメンバー・Rスナップは全て完凸、SR・SSRは未完凸と仮定します。イベントの余剰Ptは期限内にシール交換し、アワーノーツのPtは保有します。イベント開催が継続する想定の30日換算で、実際の開催日数を予測しません。実所持・スター予算には連動しません。</p></details>
+        <details class="ui-details"><summary>試算の前提</summary><p>${definition.version === 2 ? '固定方式：Rメンバー・Rスナップは全て完凸、SR・SSRは未完凸と仮定します。' : '実所持方式：登録済みのメンバー・スナップと育成段階を、カード別の提供割合・重複変換条件に照合します。未所持は初回獲得、未完凸のピース等はシールに含めません。未知の寄与は除外します。試算中の所持状態は固定です。'}イベントの余剰Ptは期限内にシール交換し、アワーノーツのPtは保有します。イベント開催が継続する想定の30日換算で、実際の開催日数を予測しません。スター予算には連動しません。</p></details>
       </section>
       <div class="seal-mobile-balance" data-seal-mobile-balance aria-hidden="true" hidden></div>
     </div>`;
@@ -95,7 +95,7 @@ export function createSealBudgetView(
       try {
         // Results always use persisted conditions, including after a failed save.
         const savedScenario = st.collection.sealBudgetScenario ?? defaultSealBudgetScenario();
-        const r = calculateSealBudget(definition!, savedScenario);
+        const r = calculateCollectionSealBudget(st.master, st.collection, savedScenario);
         const stale = !!invalid || st.unsaved;
         const balanceClass = r.balance < 0 ? 'seal-shortfall' : r.balance > 0 ? 'seal-surplus' : '';
         target.innerHTML = `${stale ? '<p class="seal-stale">変更前の条件による結果です。各ガチャの収入・交換費用も変更前の条件です。</p>' : ''}
@@ -134,7 +134,7 @@ export function createSealBudgetView(
           event: Number((form.elements.namedItem('event') as RadioNodeList).value) as 0 | 1 | 2,
           selectedProducts: [...form.querySelectorAll<HTMLInputElement>('[data-seal-product]:checked')].map(el => el.dataset.sealProduct!),
         };
-        calculateSealBudget(definition, next);
+        calculateCollectionSealBudget(current().master, current().collection, next);
         if (!persist({...current().collection, sealBudgetScenario: next})) throw new Error('ブラウザ保存に失敗しました。条件は未保存です。');
         invalid = '';
       } catch (error) {

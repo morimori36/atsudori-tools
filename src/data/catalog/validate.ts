@@ -1,4 +1,4 @@
-import { validateSealBudgetDefinition } from '../../domain/seal-budget/validate';
+import { validateSealBudgetDefinition, sealBudgetIssues } from '../../domain/seal-budget/validate';
 import { validateStarBudgetDefinition } from '../../domain/star-budget/validate';
 import { validateMaterialDefinition, materialIssues } from '../../domain/materials/validate';
 import { validateSupplyDefinition, supplyIssues } from '../../domain/economy/validate';
@@ -115,7 +115,7 @@ export function emptyCatalog(): Masterdata {
 }
 /** Completeness/semantics gate for imports and calculation. Draft editing is a separate path. */
 export function catalogIssues(m: Masterdata): string[] {
-  const issues: string[] = [...materialIssues(m),...supplyIssues(m)];
+  const issues: string[] = [...materialIssues(m),...supplyIssues(m),...sealBudgetIssues(m)];
   const need = (ok: boolean, p: string, text: string): void => { if (!ok && issues.length < 100) issues.push(p + ': ' + text); };
   const exists = (rows: readonly {id:number}[], id: number) => rows.some(r => r.id === id);
   for (const [rows, fields] of [

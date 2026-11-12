@@ -4447,232 +4447,615 @@
       }
     },
     "sealBudgetDefinition": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "revision",
-        "gachas",
-        "products"
-      ],
-      "properties": {
-        "version": {
-          "const": 2
-        },
-        "revision": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
-        },
-        "gachas": {
-          "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "id",
-              "name",
-              "draws",
-              "periodDays",
-              "memberProbabilityBp",
-              "snapProbabilityBp",
-              "otherProbabilityBp",
-              "memberSeals",
-              "snapSeals",
-              "pointsPerDraw",
-              "sealsPerPoint",
-              "paidStarsPerDraw"
-            ],
-            "properties": {
-              "id": {
-                "enum": [
-                  "cm",
-                  "pass",
-                  "paid",
-                  "event"
-                ]
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200,
-                "pattern": "\\S"
-              },
-              "draws": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 1000000000
-              },
-              "periodDays": {
-                "type": "number",
-                "minimum": 0.01,
-                "maximum": 1000000
-              },
-              "memberProbabilityBp": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 10000
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "revision",
+            "products",
+            "gachas"
+          ],
+          "properties": {
+            "version": {
+              "const": 2
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+            },
+            "products": {
+              "type": "array",
+              "maxItems": 200,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name",
+                  "tiers"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "snapProbabilityBp": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 10000
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
                   },
-                  {
-                    "type": "null"
+                  "tiers": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "sealCost",
+                        "monthlyLimit"
+                      ],
+                      "properties": {
+                        "sealCost": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "monthlyLimit": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
                   }
-                ]
-              },
-              "otherProbabilityBp": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 10000
+                }
+              }
+            },
+            "gachas": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name",
+                  "draws",
+                  "periodDays",
+                  "pointsPerDraw",
+                  "sealsPerPoint",
+                  "paidStarsPerDraw",
+                  "memberProbabilityBp",
+                  "snapProbabilityBp",
+                  "otherProbabilityBp",
+                  "memberSeals",
+                  "snapSeals"
+                ],
+                "properties": {
+                  "id": {
+                    "enum": [
+                      "cm",
+                      "pass",
+                      "paid",
+                      "event"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "memberSeals": {
-                "anyOf": [
-                  {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
+                  },
+                  "draws": {
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "maximum": 1000000000
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "snapSeals": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000
+                  "periodDays": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 1000000
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "pointsPerDraw": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000
+                  "pointsPerDraw": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "sealsPerPoint": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000
+                  "sealsPerPoint": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "paidStarsPerDraw": {
-                "anyOf": [
-                  {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000
+                  "paidStarsPerDraw": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
-                  {
-                    "type": "null"
+                  "memberProbabilityBp": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "snapProbabilityBp": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "otherProbabilityBp": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "memberSeals": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "snapSeals": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
-                ]
+                }
               }
             }
           }
         },
-        "products": {
-          "type": "array",
-          "maxItems": 200,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "id",
-              "name",
-              "tiers"
-            ],
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200,
-                "pattern": "\\S"
-              },
-              "tiers": {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": 20,
-                "items": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "sealCost",
-                    "monthlyLimit"
-                  ],
-                  "properties": {
-                    "sealCost": {
-                      "anyOf": [
-                        {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 1000000000
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "revision",
+            "products",
+            "gachas",
+            "cards",
+            "pools"
+          ],
+          "properties": {
+            "version": {
+              "const": 3
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+            },
+            "products": {
+              "type": "array",
+              "maxItems": 200,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name",
+                  "tiers"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
+                  },
+                  "tiers": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "sealCost",
+                        "monthlyLimit"
+                      ],
+                      "properties": {
+                        "sealCost": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
-                        {
-                          "type": "null"
+                        "monthlyLimit": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
-                      ]
-                    },
-                    "monthlyLimit": {
-                      "anyOf": [
-                        {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 1000000000
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      }
                     }
+                  }
+                }
+              }
+            },
+            "gachas": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name",
+                  "draws",
+                  "periodDays",
+                  "pointsPerDraw",
+                  "sealsPerPoint",
+                  "paidStarsPerDraw",
+                  "poolId"
+                ],
+                "properties": {
+                  "id": {
+                    "enum": [
+                      "cm",
+                      "pass",
+                      "paid",
+                      "event"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
+                  },
+                  "draws": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000
+                  },
+                  "periodDays": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 1000000
+                  },
+                  "pointsPerDraw": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sealsPerPoint": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "paidStarsPerDraw": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "poolId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                  }
+                }
+              }
+            },
+            "cards": {
+              "type": "array",
+              "maxItems": 20000,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "cardId",
+                  "completedAt",
+                  "beforeCompletion",
+                  "afterCompletion"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "member",
+                      "snap"
+                    ]
+                  },
+                  "cardId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "completedAt": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "beforeCompletion": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "pieces",
+                              "none"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "amount"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "seals"
+                          },
+                          "amount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "afterCompletion": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "pieces",
+                              "none"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "amount"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "seals"
+                          },
+                          "amount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "pools": {
+              "type": "array",
+              "maxItems": 200,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "probabilityScale",
+                  "cards",
+                  "otherProbability"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                  },
+                  "probabilityScale": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000
+                  },
+                  "cards": {
+                    "type": "array",
+                    "maxItems": 20000,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "cardId",
+                        "probability"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "member",
+                            "snap"
+                          ]
+                        },
+                        "cardId": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "probability": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "otherProbability": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 }
               }
             }
           }
         }
-      }
+      ]
     },
     "skillCategories": {
       "type": "array",
