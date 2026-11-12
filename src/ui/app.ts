@@ -119,7 +119,12 @@ export function mountApp(root: HTMLElement): void {
   const rankRules = createRankRules(()=>master);
   const manualProgressFields = () => {const labels=rankRules.labels();return Object.fromEntries(editableProgressKeys.map(key=>[key,labels[key]??`進捗 ${key}`]));};
   const trainingSettings = createTrainingSettings(storage);
-  const economy = createEconomyView(storage,()=>({master,collection,protected:!allowWrites||!allowCatalogWrites}),trainingSettings,download,syncSaveState);
+  const economy = createEconomyView(()=>({master,collection,protected:!allowWrites||!allowCatalogWrites,message:storageMessage||catalogStorageMessage}),next=>{
+    const previous=collection;
+    try { persist(next); } catch(error) { saved=false;storageMessage=errorMessage(error); }
+    if(!saved)collection=previous;
+    return saved;
+  },trainingSettings,syncSaveState);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
   const expView={targetRank:30};
@@ -790,7 +795,7 @@ export function mountApp(root: HTMLElement): void {
         const next = prepareCollectionImport(importCollection(text, master), collection, master, true);
         const result = saveCollection(storage, next, master);
         if (result.status === 'failed') throw new Error('所持データを保存できません。' + result.error);
-        cancelAutosaves(); collection = next; allowWrites = true; saved = true; storageMessage = '';
+        cancelAutosaves(); economy.clearDraft(); collection = next; allowWrites = true; saved = true; storageMessage = '';
         drafts.clear(); inventoryState.drafts.clear(); progressDraft.clear();
         notice = { error: false, text: '所持データをImportしました' };
       } catch (error) { if (readId !== importReadId) return; notice = { error: true, text: errorMessage(error) }; }
@@ -801,7 +806,7 @@ export function mountApp(root: HTMLElement): void {
       run(() => {
         const next = emptyCollection(master), result = saveCollection(storage, next, master);
         if (result.status === 'failed') throw new Error('所持データを保存できません。' + result.error);
-        importReadId++; catalogReadId++; cancelAutosaves();
+        importReadId++; catalogReadId++; cancelAutosaves(); economy.clearDraft();
         allowWrites = true; collection = next; saved = true; storageMessage = '';
         drafts.clear(); inventoryState.drafts.clear(); progressDraft.clear();
       }, '登録内容を初期化しました');

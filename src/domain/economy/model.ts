@@ -31,17 +31,13 @@ export interface SupplyDefinition {
   standardEvent: StandardEvent | null; fixedSources: FixedSupply[];
   unavailable: Unavailable[];
 }
-export interface EconomyScenario {
-  format: 'atsudori-tools/economy-scenario'; schemaVersion: 5; catalogId: string;
-  rank: number | null;
-  live: { enabled: boolean; lbPerDay: number; skipPercent: number; playId: string | null; skipId: string | null;
-    playsPerDay: number | null; skipsPerDay: number | null };
-  studio: { enabled: boolean; levels: { bandId: number; level: number }[]; claimEveryMinutes: number; minutesPerDay: number };
-  includeRankDaily: boolean;
-  includeEvents: boolean;
-  fixedSources: { sourceId: string; claimPercent: number }[];
-
+/** User conditions only; rank and Premium purchases belong to the shared collection. */
+export interface SupplyConditions {
+  lbPerDay: number;
+  scoreRank: string | null;
+  studioLevels: { bandId: number; level: number }[];
 }
+export const defaultSupplyConditions = (): SupplyConditions => ({ lbPerDay: 0, scoreRank: null, studioLevels: [] });
 export type Certainty = 'confirmed' | 'expected' | 'estimated';
 export interface DailySupplyEntry {
   sourceId: string; sourceName: string; basis: string; resourceId: string;

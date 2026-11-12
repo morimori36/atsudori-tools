@@ -127,9 +127,9 @@ test('empty-state shortcuts use the same navigation and same-screen choices do n
 
 test('long protected-tool status fits the compact header', async ({page}) => {
   await page.setViewportSize({width:320,height:640}); await page.goto('./');
-  await page.evaluate(() => localStorage.setItem('atsudori-tools.economy-scenario.v4','fictional old scenario'));
+  await page.evaluate(() => localStorage.setItem('atsudori-tools.collection.v1','{broken'));
   await page.goto('./#economy'); await page.reload();
-  await expect(page.locator('.save-state')).toContainText('元JSONを保護');
+  await expect(page.locator('.save-state')).toContainText('保存データを保護中');
   const state=(await page.locator('.save-state').boundingBox())!, theme=(await page.locator('.theme-setting').boundingBox())!, header=(await page.locator('.site-header').boundingBox())!;
   expect(state.x).toBeGreaterThanOrEqual(theme.x+theme.width);
   expect(state.y+state.height).toBeLessThanOrEqual(header.y+header.height);

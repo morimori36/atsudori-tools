@@ -13,8 +13,6 @@ async function reviewFixture(directory:string):Promise<ReviewFixture> {
   const loader = await createServer({root:directory, configFile:false, server:{middlewareMode:true, hmr:false}});
   let fixture: ReviewFixture;
   try { fixture = (await loader.ssrLoadModule('/tests/helpers/economy.ts')).economyFixture(); } finally { await loader.close(); }
-  fixture.supply.fixedSources=[{id:'fictional-cycle',name:'架空の継続供給',basis:'独立した人工算術ケース',intervalDays:{numerator:2,denominator:1},rewards:{fixed:[{resourceId:'paper',quantity:8,destination:'inventory'}],lotteries:[],unavailable:[]}}];
-  fixture.scenario.fixedSources=[{sourceId:'fictional-cycle',claimPercent:50}];
   return fixture;
 }
 const beforeOnly = process.argv[3] === 'before';
@@ -46,7 +44,6 @@ try {
       await page.evaluate(f => {
         localStorage.setItem('atsudori-tools.catalog.v1', JSON.stringify(f.m));
         localStorage.setItem('atsudori-tools.collection.v1', JSON.stringify(f.c));
-        localStorage.setItem('atsudori-tools.economy-scenario.v5',JSON.stringify(f.scenario));
         localStorage.setItem('atsudori-tools.hypothetical-training.v1',JSON.stringify({trainingStage:2,awakeningStage:2,liveSkillLevel:2,gekisouSkillLevel:null,snapRank:2}));
       },fixture);
       await page.goto(`${url}#economy`); await page.reload();
@@ -57,8 +54,6 @@ try {
       await page.screenshot({path:join(output,`${name}-overview.png`)});
       await page.locator('.economy-results').screenshot({path:join(output,`${name}-results.png`),style:'.site-header {visibility:hidden!important}'});
       await page.locator('.economy-conditions').screenshot({path:join(output,`${name}-conditions.png`),style:'.site-header {visibility:hidden!important}'});
-      await page.getByText('日平均供給の内訳・根拠',{exact:true}).click();
-      await page.locator('.economy-results details').last().screenshot({path:join(output,`${name}-breakdown.png`),style:'.site-header {visibility:hidden!important}'});
       await page.close();
     }
   }

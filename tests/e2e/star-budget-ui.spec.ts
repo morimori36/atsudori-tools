@@ -32,7 +32,7 @@ for (const width of [320,375,390,1280]) for (const theme of ['light','dark'] as 
       expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     const rank = page.getByRole('spinbutton',{name:'T.G.Wランク',exact:true});
-    await expect(rank).toHaveAccessibleDescription('キャラランクと共有。空欄は未確認。');
+    await expect(rank).toHaveAccessibleDescription('');
     await expect(page.getByRole('spinbutton',{name:'ストーリー付きイベント割合（%）'})).toHaveAccessibleDescription('0%=なし / 100%=毎回あり（全話回収）');
     await expect(page.getByRole('checkbox',{name:'プラチナ1の反復スターを含む'})).toHaveCount(0);
     await expect(page.getByText('アリーナは継続スターの根拠未確認のため予算対象外です。旧設定は現在の収支に適用しません。', { exact: true })).toBeVisible();

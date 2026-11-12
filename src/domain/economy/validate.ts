@@ -1,7 +1,6 @@
-import { jsonValue } from '../../data/json';
 import type { Masterdata } from '../../data/catalog/model';
-import type { EconomyScenario, Rewards, SupplyDefinition } from './model';
-import { economyScenarioSchema, supplyDefinitionSchema } from './schema';
+import type { SupplyConditions, Rewards, SupplyDefinition } from './model';
+import { supplyConditionsSchema, supplyDefinitionSchema } from './schema';
 
 type Shape = {type?:string;enum?:readonly unknown[];const?:unknown;anyOf?:Shape[];not?:Shape;
   minimum?:number;maximum?:number;minLength?:number;maxLength?:number;pattern?:string;
@@ -83,16 +82,8 @@ export function supplyIssues(master:Masterdata):string[] {
   walk(d);
   return issues;
 }
-export function validateEconomyScenario(value:unknown):EconomyScenario {
-  const s=structural<EconomyScenario>(value,economyScenarioSchema);
-  unique(s.studio.levels.map(r=>r.bandId),'練習バンド');unique(s.fixedSources.map(r=>r.sourceId),'固定報酬');
+export function validateSupplyConditions(value:unknown):SupplyConditions {
+  const s=structural<SupplyConditions>(value,supplyConditionsSchema);
+  unique(s.studioLevels.map(r=>r.bandId),'練習バンド');
   return s;
-}
-export function importEconomyScenario(text:string):EconomyScenario {return validateEconomyScenario(jsonValue(text,5*1024*1024));}
-export function exportEconomyScenario(value:EconomyScenario):string {return JSON.stringify(validateEconomyScenario(value),null,2)+'\n';}
-export function emptyEconomyScenario(catalogId:string):EconomyScenario {
-  return validateEconomyScenario({format:'atsudori-tools/economy-scenario',schemaVersion:5,catalogId,rank:null,
-    live:{enabled:false,lbPerDay:0,skipPercent:0,playId:null,skipId:null,playsPerDay:null,skipsPerDay:null},
-    studio:{enabled:false,levels:[],claimEveryMinutes:1440,minutesPerDay:1440},includeRankDaily:false,includeEvents:true,
-    fixedSources:[]});
 }

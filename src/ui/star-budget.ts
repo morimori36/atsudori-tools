@@ -34,7 +34,7 @@ export function createStarBudgetView(
         <p class="ui-help">変更は所持データへ自動保存</p><p id="budget-message" class="ui-feedback" data-budget-message role="status"></p>
         <fieldset class="budget-form-body" ${state.protected ? 'disabled' : ''}><legend class="sr-only">スター予算の入力</legend>
           <fieldset class="ui-group"><legend>ランク・イベント</legend><div class="ui-fields">
-            ${uiNumberField({id:'budget-rank', name:'scenario.rank', label:'T.G.Wランク', value:s.rank, min:1, max:Number.MAX_SAFE_INTEGER, help:'キャラランクと共有。空欄は未確認。'})}
+            ${uiNumberField({id:'budget-rank', name:'scenario.rank', label:'T.G.Wランク', value:s.rank, min:1, max:Number.MAX_SAFE_INTEGER})}
             ${uiNumberField({id:'budget-story', name:'scenario.storyEventPercent', label:'ストーリー付きイベント割合（%）', value:s.storyEventPercent, min:0, max:100, help:'0%=なし / 100%=毎回あり（全話回収）'})}
           </div></fieldset>
           <fieldset class="ui-group"><legend>供給に含める報酬</legend><p class="ui-help">アリーナは継続スターの根拠未確認のため予算対象外です。旧設定は現在の収支に適用しません。</p><div class="budget-checks">

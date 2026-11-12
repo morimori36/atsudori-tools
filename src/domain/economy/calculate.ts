@@ -1,10 +1,12 @@
+import { EVENT_INTERVAL_DAYS } from '../supply-assumptions';
+import type { Collection } from '../../storage/collection';
+import { defaultSupplyConditions } from './model';
 import { hasTrackingScope, trackedInventory, trackedResources } from '../materials/tracking';
 import type { Masterdata } from '../../data/catalog/model';
 import type { MaterialRequirements } from '../materials/calculate';
 import { materialInventoryBalances, validateResourceInventory } from '../materials/inventory';
-import type { ResourceInventory } from '../materials/inventory';
-import type { Certainty, DailySupplyEntry, EconomyIssue, EconomyScenario, Named, Ratio, Rewards } from './model';
-import { validateEconomyScenario, validateSupplyDefinition, supplyIssues } from './validate';
+import type { Certainty, DailySupplyEntry, EconomyIssue, Named, Ratio, Rewards } from './model';
+import { validateSupplyConditions, validateSupplyDefinition, supplyIssues } from './validate';
 
 type Fraction = { n:bigint; d:bigint };
 const one:Fraction={n:1n,d:1n},zero:Fraction={n:0n,d:1n};
@@ -24,10 +26,10 @@ const inventoryIds=(r:Rewards):string[]=>[...new Set([...r.fixed,...r.lotteries.
 const hasRewards=(r:Rewards)=>r.fixed.length+r.lotteries.length+r.unavailable.length>0;
 
 /** Steady daily rates only. No calendar, horizon, future stock or end-of-period collections. */
-export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,requirements:MaterialRequirements,input:EconomyScenario) {
-  validateResourceInventory(inventory);
-  const scenario=validateEconomyScenario(input);
-  if(scenario.catalogId!==master.catalogId)throw new Error('試算条件のcatalogIdが一致しません');
+export function calculateEconomy(master:Masterdata,collection:Collection,requirements:MaterialRequirements) {
+  let inventory=validateResourceInventory(collection.resourceInventory??{});
+  const conditions=validateSupplyConditions(collection.supplyConditions??defaultSupplyConditions());
+  if(collection.catalogId!==master.catalogId)throw new Error('試算条件のcatalogIdが一致しません');
   const definition=hasTrackingScope(master.materialDefinition)&&master.supplyDefinition?validateSupplyDefinition(master.supplyDefinition):undefined;
   const referenceIssues=supplyIssues(master);if(referenceIssues.length)throw new Error(referenceIssues.join('\n'));
   const resources=trackedResources(master.materialDefinition);
@@ -77,67 +79,73 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
   if(!definition)issue('supply','供給定義が未登録です。日平均供給を計算できません');
   if(definition){
     for(const u of definition.unavailable)issue('supply',u.reason,u.resourceIds,!u.destination||u.destination==='inventory');
-    const rank=definition.ranks.find(r=>r.rank===scenario.rank);
-    if(scenario.live.enabled){
-      const total=scenario.live.lbPerDay;
-      const skip=floor(times(units(total),ratio(BigInt(scenario.live.skipPercent),100n)));
-      for(const [mode,id,lb,count] of [['play',scenario.live.playId,total-skip,scenario.live.playsPerDay],['skip',scenario.live.skipId,skip,scenario.live.skipsPerDay]] as const){
-        if(!lb&&count===0)continue;
-        const r=definition.lives.find(r=>r.id===id&&r.mode===mode);
-        if(!r){issue('live:'+mode,'対象のライブ報酬定義がありません');continue;}
-        if(lb)rewards(r,r.perLb,units(lb),units(r.lbMultiplier));
-        if(count!==null)rewards(r,r.perPlay,units(count));
-        else if(hasRewards(r.perPlay))missingRewards(r,r.perPlay,'ライブ回数/日が未設定のため、回数ごとの報酬は未確認です');
+    const rank=definition.ranks.find(r=>r.rank===collection.tgwRank);
+    if(conditions.lbPerDay>0){
+      const candidates=definition.lives.filter(r=>r.mode==='play'&&r.scoreRank===conditions.scoreRank);
+      if(candidates.length!==1)issue('live','ライブのスコアランクに対応する通常ライブ報酬が未登録・重複しています');
+      else {
+        const r=candidates[0]!;
+        rewards(r,r.perLb,units(conditions.lbPerDay),units(r.lbMultiplier));
+        if(inventoryIds(r.perPlay).length||r.perPlay.unavailable.some(u=>!u.destination||u.destination==='inventory'))
+          missingRewards(r,r.perPlay,'ライブ回数に依存する素材報酬はLB消費量だけでは計算できません');
       }
     }
-    if(scenario.studio.enabled&&scenario.studio.minutesPerDay>0&&!scenario.studio.levels.length)issue('studio','試算するバンドの練習Lvが未設定です');
-    if(scenario.studio.enabled&&scenario.studio.minutesPerDay>0)for(const selected of scenario.studio.levels){
+    for(const selected of conditions.studioLevels){
       const row=definition.studios.find(s=>s.bandId===selected.bandId&&s.level===selected.level);
       const source={id:'studio:'+selected.bandId,name:master.bands.find(b=>b.id===selected.bandId)?.name??'練習',basis:row?.basis??definition.basis};
       if(!row){issue(source.id,'指定した練習Lvの報酬定義がありません');continue;}
       if(!rank?.studioMultiplier){missingRewards(source,row.rewards,'ランクによる練習報酬倍率が未確認です');continue;}
       if(row.rounding===null||row.lotteryRounding===null){missingRewards(source,row.rewards,'練習報酬の端数処理が未確認です');continue;}
       const multiplier=times(fraction(rank.studioMultiplier),fraction(row.rewardScale));
-      const interval=scenario.studio.claimEveryMinutes;
-      const rate=ratio(BigInt(scenario.studio.minutesPerDay),BigInt(interval));
-      const kept=Math.min(interval,row.capMinutes??interval),ticks=Math.floor(kept/row.tickMinutes);
-      const normalTicks=Math.min(ticks,row.normalMinutes/row.tickMinutes),overflowTicks=ticks-normalTicks;
-      if(overflowTicks&&!row.overflowRate)missingRewards(source,row.rewards,'通常効率を超える蓄積時間の計算が未確認です');
-      const overflow=fraction(row.overflowRate??{numerator:0,denominator:1});
-      if(row.rounding==='claim'){
-        const factor=times(multiplier,plus(units(normalTicks),times(units(overflowTicks),overflow)));
-        rewards(source,row.rewards,rate,factor,row.lotteryRounding);
-      }else{
-        if(normalTicks)rewards(source,row.rewards,times(rate,units(normalTicks)),multiplier,row.lotteryRounding);
-        if(overflowTicks&&row.overflowRate)rewards(source,row.rewards,times(rate,units(overflowTicks)),times(multiplier,overflow),row.lotteryRounding);
+      // A daily rate has no receipt cycle, waiting period, overflow or cap state.
+      // Claim rounding is usable only if each tick is already integral; otherwise
+      // receipts would change the result and no supported daily conversion is known.
+      const integral=(value:Fraction)=>value.n%value.d===0n;
+      const calculable:Rewards={fixed:[],lotteries:[],unavailable:row.rewards.unavailable};
+      const reason='練習報酬の受取単位の丸めを日平均へ換算する方法が未確認です';
+      for(const grant of row.rewards.fixed){
+        if(row.rounding==='claim'&&!integral(times(units(grant.quantity),multiplier)))
+          missingRewards(source,{fixed:[grant],lotteries:[],unavailable:[]},reason);
+        else calculable.fixed.push(grant);
       }
+      for(const lottery of row.rewards.lotteries){
+        if(row.rounding==='claim'&&row.lotteryRounding==='floor'&&!integral(times(fraction(lottery.draws),multiplier)))
+          missingRewards(source,{fixed:[],lotteries:[lottery],unavailable:[]},reason);
+        else calculable.lotteries.push(lottery);
+      }
+      rewards(source,calculable,ratio(1440n,BigInt(row.tickMinutes)),multiplier,row.lotteryRounding);
     }
-    if(scenario.includeRankDaily){
+    {
       const source={id:'daily',name:'ランクのデイリー報酬',basis:definition.basis};
       if(!rank?.daily)issue(source.id,'指定ランクのデイリー報酬が未確認です');
       else rewards(source,rank.daily);
     }
-    if(scenario.includeEvents){
+    {
       const e=definition.standardEvent;
       if(!e)issue('standard-event','標準イベント報酬・開催間隔が未登録です');
       else for(const [id,name,r] of [['cumulative','累計',e.cumulative],['limited','制限商品分',e.limited]] as const){
         const source={id:'standard-event:'+id,name:'標準イベント'+name,basis:e.basis};
-        const rate=ratio(1n,BigInt(e.intervalDays));
+        const rate=ratio(1n,BigInt(EVENT_INTERVAL_DAYS));
         for(const u of r.unavailable)issue(source.id,u.reason,u.resourceIds,!u.destination||u.destination==='inventory');
         for(const g of r.fixed)entry(source,g.resourceId,times(units(g.quantity),rate),g.destination,'estimated');
         for(const l of r.lotteries)for(const o of l.outcomes)for(const g of o.rewards)
           entry(source,g.resourceId,times(times(times(fraction(l.draws),ratio(BigInt(o.weight),BigInt(l.totalWeight))),units(g.quantity)),rate),g.destination,'estimated');
       }
     }
-    for(const selected of scenario.fixedSources){
-      if(!selected.claimPercent)continue;
-      const source=definition.fixedSources.find(f=>f.id===selected.sourceId);
-      if(!source){issue(selected.sourceId,'継続報酬の定義がありません');continue;}
-      if(!source.intervalDays){missingRewards(source,source.rewards,'継続報酬の受取間隔が未確認です');continue;}
-      const rate=ratio(BigInt(selected.claimPercent)*BigInt(source.intervalDays.denominator),100n*BigInt(source.intervalDays.numerator));
+    const purchases=collection.starBudgetScenario;
+    for(const [id,included] of [
+      ['event-pass-free',true],['event-pass-premium',purchases?.eventPremium??false],
+      ['season-pass-free',true],['season-pass-premium',purchases?.seasonPremium??false]
+    ] as const){
+      if(!included)continue;
+      const source=definition.fixedSources.find(f=>f.id===id);
+      if(!source){issue(id,'継続報酬の定義がありません');continue;}
+      if(id.startsWith('season-pass-')&&!source.intervalDays){missingRewards(source,source.rewards,'継続報酬の換算日数が未確認です');continue;}
+      const rate=id.startsWith('event-pass-')?ratio(1n,BigInt(EVENT_INTERVAL_DAYS)):ratio(BigInt(source.intervalDays!.denominator),BigInt(source.intervalDays!.numerator));
       rewards(source,source.rewards,rate);
     }
   }
+
   const balances=materialInventoryBalances({...requirements,resources},inventory);
   const original=new Map(balances.balances.map(r=>[r.resource.id,r]));
   const rows=resources.map(resource=>{
@@ -156,9 +164,7 @@ export function calculateEconomy(master:Masterdata,inventory:ResourceInventory,r
       confirmedDaily:sum('confirmed'),expectedDaily:sum('expected'),eventDaily:sum('estimated'),
       supplyIncomplete,sources:[...new Set(entries.map(e=>e.sourceName))]};
   });
-  return {format:'atsudori-tools/economy-result' as const,schemaVersion:4 as const,
-    catalog:{catalogId:master.catalogId,revision:master.revision,supplyRevision:definition?.revision??null},scenario,
-    assumptions:['日平均供給を維持する場合の概算で、正確な達成日を保証しません。','不足量=max(0,必要量−現在庫)、充足日数=ceil(不足量÷日平均供給)。既に充足済みなら供給の有無によらず0日です。','抽選は期待値、標準イベントは全回収報酬÷開催間隔による推計です。','一度きり・課金・期間限定報酬は継続供給に含みません。直接付与・権利は素材在庫の供給に換算しません。','練習は完全な受取サイクルの報酬を日平均化します。日末の端数受取は仮定しません。'],
+  return {
     rows,breakdown,issues,requirementsIncomplete:requirements.incomplete,unsupportedInventory:balances.unsupported};
 }
 export type EconomyResult=ReturnType<typeof calculateEconomy>;

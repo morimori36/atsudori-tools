@@ -220,3 +220,7 @@ collection v1の任意項目 `starBudgetScenario` は次の項目だけを必須
 画面も共通catalog／collectionから読み取り、共通保存・Import/Export・初期化を使います。旧独立JSON・専用保存キーは読み取り・移行・削除しません。
 
 スター予算の旧 `includeArena`／`definition.arena` は入力時に読み捨て、新規保存・Exportには含めません。読込だけで元の保存内容は上書きしません。[互換性方針](star-budget.md#catalogcollection統合)を参照してください。
+
+## 素材供給の共通保存
+
+collection v1の任意 `supplyConditions` は `lbPerDay`（非負の安全な整数）、`scoreRank`（非空文字列またはnull）、`studioLevels`（正整数のbandId・level、バンド重複なし）だけを持ちます。ランクは既存のtgwRank、Premium購入状態は既存のstarBudgetScenarioを参照します。通常Importで省略された条件は保持、明示された条件は全体置換、完全復元時の省略は保持しません。読込・Exportだけで既定値を補完しません。旧専用条件JSON・保存キーの読み取りや移行は行いません。[日平均の計算と不確実性](economy.md)を参照してください。

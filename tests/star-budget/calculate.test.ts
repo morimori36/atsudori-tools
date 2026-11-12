@@ -82,11 +82,11 @@ it('requires the stamp choice and star usability, with yen separate from star in
   expect(calculateStarBudget(input).comparisons[3]!.status).toBe('unknown');
 });
 
-it('converts fractional days and arbitrary renewal periods independently of daily rewards', () => {
+it('uses ten-day events while retaining independently configured pass renewal periods', () => {
   const input = starBudgetFixture(); input.definition.event.intervalDays = m(12.5);
   input.definition.passes.premium.periodDays = m(28);
   const r = calculateStarBudget(input);
-  expect(r.supply.find(s => s.id === 'event-points')!.value).toBe(201.6);
+  expect(r.supply.find(s => s.id === 'event-points')!.value).toBe(252);
   expect(r.comparisons[3]!.passSupply.value).toBe(990); // 600*7/28 + 120*7
   expect(r.comparisons[3]!.yenPer30Days.value).toBeCloseTo(789 * 30 / 28, 10);
 });

@@ -1,3 +1,4 @@
+import { EVENT_INTERVAL_DAYS } from '../supply-assumptions';
 import { CURRENCY_SOURCES, PASS_GRADES } from './model';
 import type { BudgetValue, PassGrade, ProductId, StarBudgetInput } from './model';
 import { validateStarBudget } from './validate';
@@ -71,10 +72,10 @@ function calculateTotals(input: StarBudgetInput) {
   const stamp = d.liveStampWeekly.value !== null && d.liveStampWeekly.value > 0 && !d.liveStampSelection.trim()
     ? unknown('ライブスタンプの報酬選択が未確認') : periodic(d.liveStampWeekly, 7, 'ライブスタンプ');
   source('live-stamp', 'ライブスタンプ', stamp, [ev('1週分', d.liveStampWeekly), '報酬選択: ' + (d.liveStampSelection || '未登録')]);
-  const eventDays = ev('想定イベント間隔（日）', d.event.intervalDays);
-  source('event-points', 'イベント累計pt', periodic(d.event.points, d.event.intervalDays, 'イベント累計pt'), [ev('1イベント分', d.event.points), eventDays]);
-  source('event-free', 'イベントミッション無料', periodic(d.event.missionFree, d.event.intervalDays, 'イベントミッション無料'), [ev('1イベント分', d.event.missionFree), eventDays]);
-  source('event-premium', 'イベントミッションPremium追加', s.eventPremium ? periodic(d.event.missionPremium, d.event.intervalDays, 'イベントミッションPremium') : known(),
+  const eventDays = `イベントは${EVENT_INTERVAL_DAYS}日ごとに切り替わり、継続開催されるものとして計算します。`;
+  source('event-points', 'イベント累計pt', periodic(d.event.points, EVENT_INTERVAL_DAYS, 'イベント累計pt'), [ev('1イベント分', d.event.points), eventDays]);
+  source('event-free', 'イベントミッション無料', periodic(d.event.missionFree, EVENT_INTERVAL_DAYS, 'イベントミッション無料'), [ev('1イベント分', d.event.missionFree), eventDays]);
+  source('event-premium', 'イベントミッションPremium追加', s.eventPremium ? periodic(d.event.missionPremium, EVENT_INTERVAL_DAYS, 'イベントミッションPremium') : known(),
     s.eventPremium ? [ev('無料分を含まない追加スター', d.event.missionPremium), eventDays] : ['Premium購入OFF（追加分を除外）']);
   let story: Amount;
   if (s.storyEventPercent === 0) story = known();
@@ -82,7 +83,7 @@ function calculateTotals(input: StarBudgetInput) {
   else if (d.event.storyEpisodes.value === 0 || d.event.storyPerEpisode.value === 0) story = known();
   else if (d.event.storyEpisodes.value === null) story = unknown('イベントストーリー話数が未確認');
   else {
-    story = periodic(d.event.storyPerEpisode, d.event.intervalDays, 'イベントストーリー');
+    story = periodic(d.event.storyPerEpisode, EVENT_INTERVAL_DAYS, 'イベントストーリー');
     const scale = fraction(BigInt(d.event.storyEpisodes.value) * BigInt(s.storyEventPercent), 100n);
     story = { ...story, value: story.value === null ? null : multiply(story.value, scale), subtotal: multiply(story.subtotal, scale) };
   }
