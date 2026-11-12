@@ -18,6 +18,9 @@ export function bindNavigation(root: HTMLElement, navigate: (tab: Tab) => void, 
   const slot = nav.parentNode!;
   const close = (): void => { if (dialog.open) dialog.close(); };
   dialog.addEventListener('close', () => {
+    // Native close events are queued: an earlier close must not dismantle a
+    // reopened menu or restore focus into a view that has already been replaced.
+    if (dialog.open || !dialog.isConnected) return;
     slot.insertBefore(nav, slot.firstChild);
     trigger.setAttribute('aria-expanded', 'false');
     const target = matchMedia('(max-width: 700px)').matches ? trigger : nav.querySelector<HTMLElement>('[aria-current]');
