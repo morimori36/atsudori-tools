@@ -3,6 +3,7 @@ import './ui/styles.css';
 import './ui/event-planner.css';
 import './ui/form-patterns.css';
 import './ui/star-budget.css';
+import './ui/seal-budget.css';
 import './ui/economy.css';
 
 const root = document.querySelector<HTMLElement>('#app');
