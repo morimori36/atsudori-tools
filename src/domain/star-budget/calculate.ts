@@ -59,7 +59,8 @@ export function budgetEvidence(label: string, metric: BudgetValue): string {
   const status = { unconfirmed: '未確認', assumed: '仮定', confirmed: '確認済み（登録者の申告）' }[metric.status];
   return `${label}: ${metric.value ?? '未登録'} / ${status}${metric.basis ? ' / ' + metric.basis : ''}`;
 }
-function calculateTotals(input: StarBudgetInput) {
+function calculateTotals(input: StarBudgetInput, windowDays: 7 | 30 = 7) {
+  const periodicInWindow = (q: BudgetValue, days: BudgetValue | number, label: string, window = windowDays) => periodic(q, days, label, window);
   const totals: Amount[] = [];
   const { definition: d, scenario: s } = validateStarBudget(input);
   const supply: BudgetSupplyRow[] = [], amounts: Amount[] = [];
@@ -67,15 +68,15 @@ function calculateTotals(input: StarBudgetInput) {
     amounts.push(amount); supply.push({ id, name, ...publicAmount(amount), evidence });
   }
   const ev = budgetEvidence;
-  source('login', '通常ログインボーナス', periodic(d.loginDaily, 1, '通常ログイン'), [ev('1日分（ライブスタンプを除く）', d.loginDaily)]);
-  source('missions', 'デイリーミッション', periodic(d.missionDaily, 1, 'デイリーミッション'), [ev('1日分', d.missionDaily)]);
+  source('login', '通常ログインボーナス', periodicInWindow(d.loginDaily, 1, '通常ログイン'), [ev('1日分（ライブスタンプを除く）', d.loginDaily)]);
+  source('missions', 'デイリーミッション', periodicInWindow(d.missionDaily, 1, 'デイリーミッション'), [ev('1日分', d.missionDaily)]);
   const stamp = d.liveStampWeekly.value !== null && d.liveStampWeekly.value > 0 && !d.liveStampSelection.trim()
-    ? unknown('ライブスタンプの報酬選択が未確認') : periodic(d.liveStampWeekly, 7, 'ライブスタンプ');
+    ? unknown('ライブスタンプの報酬選択が未確認') : periodicInWindow(d.liveStampWeekly, 7, 'ライブスタンプ');
   source('live-stamp', 'ライブスタンプ', stamp, [ev('1週分', d.liveStampWeekly), '報酬選択: ' + (d.liveStampSelection || '未登録')]);
   const eventDays = `イベントは${EVENT_INTERVAL_DAYS}日ごとに切り替わり、継続開催されるものとして計算します。`;
-  source('event-points', 'イベント累計pt', periodic(d.event.points, EVENT_INTERVAL_DAYS, 'イベント累計pt'), [ev('1イベント分', d.event.points), eventDays]);
-  source('event-free', 'イベントミッション無料', periodic(d.event.missionFree, EVENT_INTERVAL_DAYS, 'イベントミッション無料'), [ev('1イベント分', d.event.missionFree), eventDays]);
-  source('event-premium', 'イベントミッションPremium追加', s.eventPremium ? periodic(d.event.missionPremium, EVENT_INTERVAL_DAYS, 'イベントミッションPremium') : known(),
+  source('event-points', 'イベント累計pt', periodicInWindow(d.event.points, EVENT_INTERVAL_DAYS, 'イベント累計pt'), [ev('1イベント分', d.event.points), eventDays]);
+  source('event-free', 'イベントミッション無料', periodicInWindow(d.event.missionFree, EVENT_INTERVAL_DAYS, 'イベントミッション無料'), [ev('1イベント分', d.event.missionFree), eventDays]);
+  source('event-premium', 'イベントミッションPremium追加', s.eventPremium ? periodicInWindow(d.event.missionPremium, EVENT_INTERVAL_DAYS, 'イベントミッションPremium') : known(),
     s.eventPremium ? [ev('無料分を含まない追加スター', d.event.missionPremium), eventDays] : ['Premium購入OFF（追加分を除外）']);
   let story: Amount;
   if (s.storyEventPercent === 0) story = known();
@@ -83,15 +84,15 @@ function calculateTotals(input: StarBudgetInput) {
   else if (d.event.storyEpisodes.value === 0 || d.event.storyPerEpisode.value === 0) story = known();
   else if (d.event.storyEpisodes.value === null) story = unknown('イベントストーリー話数が未確認');
   else {
-    story = periodic(d.event.storyPerEpisode, EVENT_INTERVAL_DAYS, 'イベントストーリー');
+    story = periodicInWindow(d.event.storyPerEpisode, EVENT_INTERVAL_DAYS, 'イベントストーリー');
     const scale = fraction(BigInt(d.event.storyEpisodes.value) * BigInt(s.storyEventPercent), 100n);
     story = { ...story, value: story.value === null ? null : multiply(story.value, scale), subtotal: multiply(story.subtotal, scale) };
   }
   source('story', 'イベントストーリー', story, [ev('1話のスター', d.event.storyPerEpisode), ev('全回収話数', d.event.storyEpisodes),
     'ストーリー付き割合: ' + (s.storyEventPercent === null ? '未確認' : s.storyEventPercent + '%'), eventDays]);
   const seasonDays = ev('シーズン換算日数', d.season.intervalDays);
-  source('season-free', 'シーズンミッション無料', periodic(d.season.free, d.season.intervalDays, 'シーズンミッション無料'), [ev('1シーズン分', d.season.free), seasonDays]);
-  source('season-premium', 'シーズンミッションPremium追加', s.seasonPremium ? periodic(d.season.premium, d.season.intervalDays, 'シーズンミッションPremium') : known(),
+  source('season-free', 'シーズンミッション無料', periodicInWindow(d.season.free, d.season.intervalDays, 'シーズンミッション無料'), [ev('1シーズン分', d.season.free), seasonDays]);
+  source('season-premium', 'シーズンミッションPremium追加', s.seasonPremium ? periodicInWindow(d.season.premium, d.season.intervalDays, 'シーズンミッションPremium') : known(),
     s.seasonPremium ? [ev('無料分を含まない追加スター', d.season.premium), seasonDays] : ['Premium購入OFF（追加分を除外）']);
   const common = sum(amounts);
   const productAmounts: Amount[] = [];
@@ -111,11 +112,13 @@ function calculateTotals(input: StarBudgetInput) {
     productAmounts.push(cost);
     return { id: p.id, name: p.name, selected, availability, ...publicAmount(cost), evidence };
   });
-  const cost = sum(productAmounts);
+  const weeklyCost = sum(productAmounts);
+  const scale = fraction(BigInt(windowDays), 7n);
+  const cost = {...weeklyCost, value: weeklyCost.value === null ? null : multiply(weeklyCost.value, scale), subtotal: multiply(weeklyCost.subtotal, scale)};
   const compatibility = d.starCompatibility === 'assumed-usable' || d.starCompatibility === 'confirmed-usable';
   const comparisons = (['none', ...PASS_GRADES] as const).map(grade => {
     const p = grade === 'none' ? null : d.passes[grade];
-    const extra = p ? sum([periodic(p.purchaseStars, p.periodDays, grade + '購入時スター'), periodic(p.dailyStars, 1, grade + '毎日スター')]) : known();
+    const extra = p ? sum([periodicInWindow(p.purchaseStars, p.periodDays, grade + '購入時スター'), periodicInWindow(p.dailyStars, 1, grade + '毎日スター')]) : known();
     const total = sum([common, extra]);
     totals.push(total);
     const balance = !compatibility ? unknown('カタログ支払時のスター合算可否が未確認、または利用制約があります')
@@ -123,7 +126,7 @@ function calculateTotals(input: StarBudgetInput) {
         : known(add(total.value, fraction(-cost.value.n, cost.value.d)));
     return { grade, commonSupply: publicAmount(common), passSupply: publicAmount(extra), totalSupply: publicAmount(total), weeklyCost: publicAmount(cost), balance: publicAmount(balance),
       status: balance.value === null ? 'unknown' as const : balance.value.n < 0n ? 'shortfall' as const : balance.value.n > 0n ? 'surplus' as const : 'balanced' as const,
-      yenPer30Days: publicAmount(p ? periodic(p.priceYen, p.periodDays, grade + '参考料金', 30) : known()),
+      yenPer30Days: publicAmount(p ? periodicInWindow(p.priceYen, p.periodDays, grade + '参考料金', 30) : known()),
       evidence: p ? [ev('継続更新日数', p.periodDays), ev('購入時スター', p.purchaseStars), ev('毎日スター', p.dailyStars), ev('1契約の円価格', p.priceYen)] : ['アワーノーツパス未購入'],
     };
   });
@@ -140,22 +143,24 @@ function calculateTotals(input: StarBudgetInput) {
   };
 }
 
+function currencyTotals(input: StarBudgetInput, currency: 'free' | 'paid', windowDays: 7 | 30) {
+  const split = input.definition.currencyBreakdown;
+  if (!split) return null;
+  const copy = structuredClone(input);
+  delete copy.definition.currencyBreakdown;
+  for (const key of CURRENCY_SOURCES) {
+    const parts = key.split('.'), last = parts.pop()!;
+    const target = parts.reduce<unknown>((row, k) => (row as Record<string, unknown>)[k], copy.definition) as Record<string, unknown>;
+    target[last] = split.sources[key][currency];
+  }
+  return calculateTotals(copy, windowDays).totals;
+}
+
 /** Run the same applicability and periodic arithmetic for each currency. */
 export function calculateStarBudget(input: StarBudgetInput) {
-  const { totals, cost, ...result } = calculateTotals(input);
+  const { totals: _totals, cost, ...result } = calculateTotals(input);
   const split = input.definition.currencyBreakdown;
-  const separated = (currency: 'free' | 'paid') => {
-    if (!split) return null;
-    const copy = structuredClone(input);
-    delete copy.definition.currencyBreakdown;
-    for (const key of CURRENCY_SOURCES) {
-      const parts = key.split('.'), last = parts.pop()!;
-      const target = parts.reduce<unknown>((row, k) => (row as Record<string, unknown>)[k], copy.definition) as Record<string, unknown>;
-      target[last] = split.sources[key][currency];
-    }
-    return calculateTotals(copy).totals;
-  };
-  const free = separated('free'), paid = separated('paid');
+  const free = currencyTotals(input, 'free', 7), paid = currencyTotals(input, 'paid', 7);
   const comparisons: BudgetComparison[] = result.comparisons.map((row, i) => {
     const f = free?.[i] ?? unknown('通貨内訳が未登録'), p = paid?.[i] ?? unknown('通貨内訳が未登録');
     let fb: Amount, pb: Amount;
@@ -173,4 +178,35 @@ export function calculateStarBudget(input: StarBudgetInput) {
     '初期残高0の週平均の増減傾向です。ガチャ支出は差し引いていません。',
     ...(split ? ['支払順序の根拠: ' + split.basis] : ['通貨内訳が未登録のため通貨別の供給・差引は保留します。']),
   ] };
+}
+
+/** Known contributions only for the integrated plan; weekly comparisons keep their existing unknown policy. */
+export function calculateKnownMonthlyPlan(input: StarBudgetInput,
+  expenses: {quantity: number; periodDays: number; cost: number}[]) {
+  const {totals, cost} = calculateTotals(input, 30);
+  const index = ['none', ...PASS_GRADES].indexOf(input.scenario.passPlan ?? 'none');
+  const total = totals[index]!;
+  const free = currencyTotals(input, 'free', 30)?.[index] ?? unknown('通貨内訳が未登録');
+  const paid = currencyTotals(input, 'paid', 30)?.[index] ?? unknown('通貨内訳が未登録');
+  const negate = (f: Fraction) => fraction(-f.n, f.d);
+  let gacha = zero;
+  for (const expense of expenses) {
+    // Gacha periods allow arbitrary finite decimals; preserve the declared decimal including exponent notation.
+    const [mantissa, exponent = '0'] = String(expense.periodDays).toLowerCase().split('e');
+    const [whole, decimals = ''] = mantissa!.split('.');
+    const power = decimals.length - Number(exponent);
+    const digits = BigInt(whole! + decimals);
+    const days = power >= 0 ? fraction(digits, 10n ** BigInt(power)) : fraction(digits * 10n ** BigInt(-power));
+    gacha = add(gacha, fraction(BigInt(expense.quantity) * BigInt(expense.cost) * 30n * days.d, days.n));
+  }
+  const freeAfterExchange = add(free.subtotal, negate(cost.subtotal));
+  const paidExchange = freeAfterExchange.n < 0n ? negate(freeAfterExchange) : zero;
+  return {
+    income: numeric(total.subtotal), exchange: numeric(cost.subtotal), gachaExpense: numeric(gacha),
+    balance: numeric(add(add(total.subtotal, negate(cost.subtotal)), negate(gacha))),
+    freeIncome: numeric(free.subtotal), paidIncome: numeric(paid.subtotal),
+    freeBalance: numeric(freeAfterExchange.n > 0n ? freeAfterExchange : zero), paidExchange: numeric(paidExchange),
+    paidBalance: numeric(add(add(paid.subtotal, negate(paidExchange)), negate(gacha))),
+    reasons: [...new Set([...total.reasons, ...cost.reasons, ...free.reasons, ...paid.reasons])],
+  };
 }

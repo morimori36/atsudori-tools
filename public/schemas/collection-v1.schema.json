@@ -212,6 +212,14 @@
             ]
           }
         },
+        "passPlan": {
+          "enum": [
+            "none",
+            "lite",
+            "standard",
+            "premium"
+          ]
+        },
         "includeArena": {
           "deprecated": true
         }

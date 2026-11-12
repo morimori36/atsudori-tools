@@ -213,6 +213,7 @@ collection v1の任意項目 `starBudgetScenario` は次の項目だけを必須
 | --- | --- |
 | storyEventPercent | 0〜100の整数またはnull（既定null） |
 | eventPremium / seasonPremium | boolean（既定false） |
+| passPlan（任意） | none/lite/standard/premium（省略を保存時に補完しない） |
 | selectedProducts | 重複しない既知商品ID配列（既定は全11種、空配列も有効） |
 
 省略された条件を保存・Export時に補完しません。通常Importで項目がなければ保存中の条件を保持し、明示された条件はfalse・null・空配列を含め丸ごと採用します。完全復元では省略分を保持しません。catalog更新・定義の有無によって既存の条件や所持を削除しません。未確認を0に置き換えません。
@@ -226,3 +227,6 @@ collection v1の任意項目 `starBudgetScenario` は次の項目だけを必須
 collection v1の任意 `supplyConditions` は `lbPerDay`（非負の安全な整数）、`scoreRank`（非空文字列またはnull）、`studioLevels`（正整数のbandId・level、バンド重複なし）だけを持ちます。ランクは既存のtgwRank、Premium購入状態は既存のstarBudgetScenarioを参照します。通常Importで省略された条件は保持、明示された条件は全体置換、完全復元時の省略は保持しません。読込・Exportだけで既定値を補完しません。旧専用条件JSON・保存キーの読み取りや移行は行いません。[日平均の計算と不確実性](economy.md)を参照してください。
 
 シール予算はcatalogの `sealBudgetDefinition` とcollectionの `sealBudgetScenario` を使い、30日換算の抽選収入期待値と月上限交換の支出を試算します。定義v2の固定方式を維持し、v3ではカード別の提供割合・重複変換条件と既存のメンバー／スナップ所持・育成段階から算出します。未知の寄与のみ計算上0とし、所持の二重入力・別保存は行いません。実定義は同梱しません。[使い方・JSON契約](seal-budget.md)を参照してください。
+
+
+ガチャ計画のパス選択は`collection.starBudgetScenario.passPlan`だけを共有します。外部`sealBudgetDefinition.planBenefits`はプラン別の無料特典（既存ガチャ／任意pool参照）、有償回数上限と根拠を任意追加します。旧catalog・collectionはそのまま受理し、未確認の特典を推測せず、読込・Exportで既定値を追加しません。新項目を知らない旧アプリへの逆Importは非対応です。[統合計算と特典の契約](seal-budget.md#共通ガチャ計画とスター収支)を参照してください。

@@ -1,13 +1,34 @@
 import type {Masterdata} from '../data/catalog/model';
 import type {Collection} from '../storage/collection';
 import {defaultSealBudgetScenario} from '../domain/seal-budget/model';
-import {calculateCollectionSealBudget} from '../app/seal-budget';
+import {calculateCollectionBudgetPlan} from '../app/seal-budget';
+import {defaultStarBudgetScenario} from '../domain/star-budget/model';
+import type {PassPlan} from '../domain/star-budget/model';
 
 const esc = (value: unknown) => String(value).replace(/[&<>"']/g, c =>
   ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[c]!);
 const num = (value: number) => value.toLocaleString('ja-JP', {maximumFractionDigits: 2});
+const grades = {none: '未購入', lite: 'Lite', standard: 'Standard', premium: 'Premium'};
 const signed = (value: number) => value > 0 ? `+${num(value)}` : num(value);
 const sealMark = '<svg class="seal-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M7 4h26a3 3 0 0 1 3 3v19L26 36H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z" fill="currentColor"/><path d="M26 36v-7a3 3 0 0 1 3-3h7M12 17l5 5 11-11" fill="none" stroke="currentColor" class="seal-mark-fold" stroke-width="2.5"/></svg>';
+
+function renderStars(plan: ReturnType<typeof calculateCollectionBudgetPlan>): string {
+  const s = plan.stars;
+  if (!s) return '<p class="ui-help">スター予算定義を含むマスタを登録すると、スター収支も表示します。</p>';
+  const rows = [
+    ['income', '月間スター収入', s.income], ['exchange', '既存の交換支出', s.exchange],
+    ['gacha-expense', '追加ガチャ消費（有償限定）', s.gachaExpense], ['balance', '最終スター収支', s.balance],
+    ['paid-income', '月間有償収入', s.paidIncome], ['paid-exchange', '交換への有償充当', s.paidExchange],
+    ['paid-balance', '有償スター収支', s.paidBalance],
+  ] as const;
+  const statuses = {unavailable: '選択パスでは利用回数を満たせません', shortfall: '継続予算不足',
+    'paid-shortfall': '有償スター不足', unconfirmed: '既知分による試算・未確認あり',
+    'seal-shortfall': 'シール交換予算不足', sustainable: '平均収支の範囲で継続可能な目安'};
+  return `<h3>スター / 30日</h3><dl class="seal-receipt-math plan-receipt-math">${rows.map(([key, label, value]) =>
+    `<div><dt>${label}</dt><dd><span data-plan-${key} class="${value < 0 ? 'seal-shortfall' : ''}">${key.endsWith('balance') ? signed(value) : num(value)}</span></dd></div>`).join('')}</dl>
+    <p data-plan-status>${esc(statuses[plan.status])}</p>
+    <p class="ui-help">30日平均の増減です。所持残高・月中の支払タイミングは保証しません。</p>`;
+}
 
 export function createSealBudgetView(
   current: () => {master: Masterdata; collection: Collection; protected: boolean; unsaved: boolean; message: string},
@@ -37,17 +58,18 @@ export function createSealBudgetView(
         <p class="ui-feedback" data-seal-message role="status"></p>
         <fieldset class="seal-form-body" ${state.protected ? 'disabled' : ''}>
           <legend class="sr-only">シール予算の試算条件</legend>
+          <fieldset class="seal-plan"><legend>アワーノーツパス</legend><div class="seal-counts seal-plan-controls">${Object.entries(grades).map(([value, label]) => `<label><input type="radio" name="passPlan" value="${value}" ${(state.collection.starBudgetScenario?.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">スター予算と共通の購入プランです。</p></fieldset>
           <div class="seal-section-heading"><h2>ガチャを選ぶ</h2><p>変更は所持データへ自動保存</p></div>
           <div class="seal-gachas">${definition.gachas.map(g => `<fieldset class="seal-gacha" data-seal-gacha="${g.id}">
             <legend class="sr-only">${esc(g.name)}</legend>
-            <div class="seal-gacha-info"><h3>${esc(g.name)}</h3><p id="seal-${g.id}-help">${g.id === 'cm' || g.id === 'pass' ? `${num(g.periodDays)}日ごとに${num(g.draws)}回` : help[g.id]}</p></div>
+            <div class="seal-gacha-info"><h3>${esc(g.name)}</h3><p id="seal-${g.id}-help">${g.id === 'pass' ? '選択パスに含まれる無料ガチャを利用' : g.id === 'cm' ? `${num(g.periodDays)}日ごとに${num(g.draws)}回` : help[g.id]}</p></div>
             <div class="seal-gacha-control">${g.id === 'cm' || g.id === 'pass'
               ? `<label class="seal-toggle"><input type="checkbox" name="${g.id}" aria-describedby="seal-${g.id}-help" ${scenario[g.id] ? 'checked' : ''}><span>利用する</span></label>`
               : `<div class="seal-counts">${[0, 1, 2].map(n => `<label><input type="radio" name="${g.id}" value="${n}" aria-describedby="seal-${g.id}-help seal-count-help" ${(scenario[g.id] ?? 0) === n ? 'checked' : ''}><span>${n}回</span></label>`).join('')}</div><small>1日あたり</small>`}
             </div>
             <div class="seal-contribution" data-seal-contribution="${g.id}"></div>
           </fieldset>`).join('')}</div>
-          <p class="ui-help seal-count-help" id="seal-count-help">有償ガチャは1日あたりの回数を選び、30日間続ける想定です。2回はパス特典の利用が前提です。パス購入状態とは自動連動しません。</p>
+          <p class="ui-help seal-count-help" id="seal-count-help">有償ガチャは1日あたりの回数を選び、30日間続ける想定です。選択パスの利用上限と無料特典を反映します。</p>
           <section class="seal-products" aria-labelledby="seal-products-heading">
             <div class="seal-section-heading"><h2 id="seal-products-heading">毎月の全交換</h2><p data-seal-selected></p></div>
             <p class="ui-help" id="seal-products-help">選んだ商品の全価格段階を月上限まで計上します。</p>
@@ -67,7 +89,7 @@ export function createSealBudgetView(
             <tbody data-seal-breakdown></tbody>
           </table></div>
         </details>
-        <details class="ui-details"><summary>試算の前提</summary><p>${definition.version === 2 ? '固定方式：Rメンバー・Rスナップは全て完凸、SR・SSRは未完凸と仮定します。' : '実所持方式：登録済みのメンバー・スナップと育成段階を、カード別の提供割合・重複変換条件に照合します。未所持は初回獲得、未完凸のピース等はシールに含めません。未知の寄与は除外します。試算中の所持状態は固定です。'}イベントの余剰Ptは期限内にシール交換し、アワーノーツのPtは保有します。イベント開催が継続する想定の30日換算で、実際の開催日数を予測しません。スター予算には連動しません。</p></details>
+        <details class="ui-details"><summary>試算の前提</summary><p>${definition.version === 2 ? '固定方式：Rメンバー・Rスナップは全て完凸、SR・SSRは未完凸と仮定します。' : '実所持方式：登録済みのメンバー・スナップと育成段階を、カード別の提供割合・重複変換条件に照合します。未所持は初回獲得、未完凸のピース等はシールに含めません。未知の寄与は除外します。試算中の所持状態は固定です。'}イベントの余剰Ptは期限内にシール交換し、アワーノーツのPtは保有します。イベント開催が継続する想定の30日換算で、実際の開催日数を予測しません。スター収支は共通のPremium購入・ランク・交換商品の設定を使います。</p></details>
       </section>
       <div class="seal-mobile-balance" data-seal-mobile-balance aria-hidden="true" hidden></div>
     </div>`;
@@ -95,7 +117,8 @@ export function createSealBudgetView(
       try {
         // Results always use persisted conditions, including after a failed save.
         const savedScenario = st.collection.sealBudgetScenario ?? defaultSealBudgetScenario();
-        const r = calculateCollectionSealBudget(st.master, st.collection, savedScenario);
+        const plan = calculateCollectionBudgetPlan(st.master, st.collection, savedScenario);
+        const r = plan.seals;
         const stale = !!invalid || st.unsaved;
         const balanceClass = r.balance < 0 ? 'seal-shortfall' : r.balance > 0 ? 'seal-surplus' : '';
         target.innerHTML = `${stale ? '<p class="seal-stale">変更前の条件による結果です。各ガチャの収入・交換費用も変更前の条件です。</p>' : ''}
@@ -104,9 +127,10 @@ export function createSealBudgetView(
             <div class="seal-expense"><dt>月間支出<span>${savedScenario.selectedProducts.length}商品</span></dt><dd><span class="seal-minus" aria-hidden="true">−</span><span data-seal-expense>${num(r.totalExpense)}</span><small>シール</small></dd></div>
             <div class="seal-balance ${balanceClass}"><dt>交換後の差引${r.balance < 0 ? '<span>不足</span>' : ''}</dt><dd><span data-seal-balance>${signed(r.balance)}</span><small>シール</small></dd></div>
           </dl>
-          ${r.notes.length ? `<p class="seal-notes">${r.notes.map(esc).join('。')}</p>` : ''}`;
+          ${renderStars(plan)}
+          ${plan.notes.length ? `<p class="seal-notes">${plan.notes.map(esc).join('。')}</p>` : ''}`;
         for (const g of r.income) {
-          host.querySelector<HTMLElement>(`[data-seal-contribution="${g.id}"]`)!.innerHTML = `<strong>${num(g.total)}</strong><small>シール / 30日${savedScenario[g.id] ? '' : '・未選択'}</small>`;
+          host.querySelector<HTMLElement>(`[data-seal-contribution="${g.id}"]`)!.innerHTML = `<strong>${num(g.total)}</strong><small>シール / 30日${savedScenario[g.id] || g.draws > 0 ? '' : '・未選択'}</small>`;
         }
         // Compare IDs as data, rather than interpolating external IDs into selectors.
         const costs = new Map(r.expenses.map(p => [p.id, p]));
@@ -120,7 +144,7 @@ export function createSealBudgetView(
         mobile.hidden = false;
       } catch {
         clearResults();
-        target.innerHTML = '<p role="alert">シール予算の定義・条件を確認してください。</p>';
+        target.innerHTML = '<p role="alert">ガチャ計画の定義・条件を確認してください。</p>';
       }
       changed();
     }
@@ -134,8 +158,14 @@ export function createSealBudgetView(
           event: Number((form.elements.namedItem('event') as RadioNodeList).value) as 0 | 1 | 2,
           selectedProducts: [...form.querySelectorAll<HTMLInputElement>('[data-seal-product]:checked')].map(el => el.dataset.sealProduct!),
         };
-        calculateCollectionSealBudget(current().master, current().collection, next);
-        if (!persist({...current().collection, sealBudgetScenario: next})) throw new Error('ブラウザ保存に失敗しました。条件は未保存です。');
+        const collection = current().collection;
+        const passPlan = (form.elements.namedItem('passPlan') as RadioNodeList).value as PassPlan;
+        const candidate = {...collection, sealBudgetScenario: next};
+        if (passPlan !== (collection.starBudgetScenario?.passPlan ?? 'none')) {
+          candidate.starBudgetScenario = {...(collection.starBudgetScenario ?? defaultStarBudgetScenario()), passPlan};
+        }
+        calculateCollectionBudgetPlan(current().master, candidate);
+        if (!persist(candidate)) throw new Error('ブラウザ保存に失敗しました。条件は未保存です。');
         invalid = '';
       } catch (error) {
         invalid = error instanceof Error ? error.message : '条件は未保存です。';

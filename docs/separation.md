@@ -22,3 +22,6 @@ catalog（ランク定義を含む）・collection・周回プラン・変換プ
 自作コードは当面ライセンスなし（All rights reserved）です。Vite等の第三者ライブラリに必要な権利表示は維持します。公開範囲・本番配信・ライセンス方針の変更は所有者の承認を必要とします。
 
 シール予算はcatalogの `sealBudgetDefinition` とcollectionの `sealBudgetScenario` を使い、30日換算の抽選収入期待値と月上限交換の支出を試算します。定義v2の固定方式を維持し、v3ではカード別の提供割合・重複変換条件と既存のメンバー／スナップ所持・育成段階から算出します。未知の寄与のみ計算上0とし、所持の二重入力・別保存は行いません。実定義は同梱しません。[使い方・JSON契約](seal-budget.md)を参照してください。
+
+
+統合ガチャ計画では購入プランをcollection.starBudgetScenario.passPlan、ガチャ条件を既存sealBudgetScenarioへ保持します。外部catalogのsealBudgetDefinition.planBenefitsにプラン別の無料抽選・有償利用上限・根拠を任意追加し、スター供給は既存starBudgetDefinitionだけを使います。実特典・実マスタ・実所持を公開側へ同梱せず、専用の設定コピー・保存キー・取得経路は追加しません。[計算と互換性](seal-budget.md#共通ガチャ計画とスター収支)を参照してください。

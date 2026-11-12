@@ -30,7 +30,7 @@ function measures(value: unknown, path: string, keys: readonly string[], dayKey?
 export function validateStarBudget(value: unknown): StarBudgetInput {
   const root = strictObject(value, 'スター予算', ['definition', 'scenario']);
   const definition = validateStarBudgetDefinition(root.definition);
-  const combined = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts'], ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'selectedProducts']);
+  const combined = strictObject(root.scenario, 'scenario', ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts', 'passPlan'], ['rank', 'storyEventPercent', 'eventPremium', 'seasonPremium', 'selectedProducts']);
   if (combined.rank !== null) integer(combined.rank, 'rank', 1);
   const { rank, ...scenario } = combined;
   return { definition, scenario: { ...validateStarBudgetScenario(scenario), rank: rank as number | null } };
@@ -80,7 +80,8 @@ export function validateStarBudgetDefinition(value: unknown): StarBudgetDefiniti
   return structuredClone(definition) as unknown as StarBudgetDefinition;
 }
 export function validateStarBudgetScenario(value: unknown): StarBudgetScenario {
-  const s = strictObject(value, 'scenario', ['storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts'], ['storyEventPercent', 'eventPremium', 'seasonPremium', 'selectedProducts']);
+  const s = strictObject(value, 'scenario', ['storyEventPercent', 'eventPremium', 'seasonPremium', 'includeArena', 'selectedProducts', 'passPlan'], ['storyEventPercent', 'eventPremium', 'seasonPremium', 'selectedProducts']);
+  if (Object.hasOwn(s, 'passPlan') && !['none', ...PASS_GRADES].includes(s.passPlan as never)) fail('passPlan', 'パスの選択が不正です');
   if (s.storyEventPercent !== null) integer(s.storyEventPercent, 'storyEventPercent', 0, 100);
   for (const key of ['eventPremium', 'seasonPremium']) if (typeof s[key] !== 'boolean') fail(key, 'ON/OFFで指定してください');
   if (!Array.isArray(s.selectedProducts) || s.selectedProducts.length > PRODUCT_IDS.length

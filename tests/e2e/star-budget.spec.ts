@@ -43,7 +43,7 @@ test('catalog import alone enables calculation using unsaved reading defaults', 
   await page.locator('#catalog-import').setInputFiles(file(catalog()));
   await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
   await chooseScreen(page, page.locator(menu));
-  await expect(page.locator('.budget-comparison thead th')).toHaveText(['項目', 'なし', 'Lite', 'Standard', 'Premium']);
+  await expect(page.locator('.budget-comparison thead th')).toHaveText(['項目', 'なし（計画で選択中）', 'Lite', 'Standard', 'Premium']);
   await expect(balance(page)).toHaveText('算出不可');
   await expect(field(page, 'scenario.rank')).toHaveValue('');
   await expect(field(page, 'selected-sr-1')).toBeChecked();

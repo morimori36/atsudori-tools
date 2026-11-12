@@ -21,6 +21,18 @@ const collection = object({version: {const: 3}, revision: id, products,
   pools: {type: 'array', maxItems: 200, items: object({id, probabilityScale: {...integer, minimum: 1},
     cards: {type: 'array', maxItems: 20000, items: object({...ref, probability: nullable(integer)})}, otherProbability: nullable(integer)})},
 });
-export const sealBudgetDefinitionSchema = {oneOf: [fixed, collection]};
+const planBenefits = object(Object.fromEntries(['none', 'lite', 'standard', 'premium'].map(plan => [plan, object({
+  passGachas: nullable({type: 'array', maxItems: 20, items: {
+    ...object({gachaId: {enum: ['pass', 'paid', 'event']}, draws: nullable({...integer, minimum: 1}),
+      periodDays: nullable(baseGacha.periodDays)}),
+    properties: {gachaId: {enum: ['pass', 'paid', 'event']}, draws: nullable({...integer, minimum: 1}),
+      periodDays: nullable(baseGacha.periodDays), poolId: id},
+  }}),
+  paidDailyLimit: nullable({enum: [0, 1, 2]}), eventDailyLimit: nullable({enum: [0, 1, 2]}),
+  basis: {type: 'string', minLength: 1, maxLength: 300, pattern: '\\S'},
+})])));
+export const sealBudgetDefinitionSchema = {oneOf: [fixed, collection].map(schema => ({
+  ...schema, properties: {...schema.properties, planBenefits},
+}))};
 const scenario = object({cm: {type: 'boolean'}, pass: {type: 'boolean'}, paid: {enum: [0, 1, 2]}, selectedProducts: {type: 'array', maxItems: 200, uniqueItems: true, items: id}});
 export const sealBudgetScenarioSchema = {...scenario, required: ['cm', 'pass', 'paid', 'selectedProducts'], properties: {...scenario.properties, event: {enum: [0, 1, 2]}}};

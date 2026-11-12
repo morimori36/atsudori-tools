@@ -134,3 +134,12 @@
   .seal-mobile-balance > span { font-size: 10px; }
   .seal-mobile-balance strong { font-size: 20px; }
 }
+
+.seal-plan { min-width: 0; margin: 0 0 24px; padding: 16px 0; border: 0; }
+.seal-plan legend { font-size: 15px; font-weight: 600; }
+.seal-plan .seal-plan-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; max-width: 420px; }
+.seal-plan-controls label { border: 0; }
+.plan-receipt-math > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 14px; }
+.plan-receipt-math dd { font-size: 21px; margin: 0; }
+.plan-receipt-math dt { font-size: 12px; }
+.plan-receipt-math > div:has([data-plan-balance]), .plan-receipt-math > div:has([data-plan-paid-balance]) { border-top: 1px solid var(--line); margin-top: 14px; }
