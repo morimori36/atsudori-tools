@@ -2,7 +2,7 @@
 
 スター予算はcatalog v1の任意項目 `starBudgetDefinition` とcollection v1の任意項目 `starBudgetScenario`／既存 `tgwRank` を使います。[スター予算のJSON契約・保存と復旧](star-budget.md#保存json契約)を参照してください。
 
-素材別充足日数シミュレーターはcatalog v1の任意項目 `supplyDefinition` を使用します。供給資源は `materialDefinition.resources` のIDを参照します。供給定義のない旧catalogは変更不要です。供給定義はv4、試算条件はv5を使用し、旧ドラフトの交換・契約・期間項目を含む形式は非対応です。ユーザーの試算条件は独立したformat・保存キーで管理します。[供給定義・シナリオの仕様](economy.md)を参照してください。
+素材別充足日数シミュレーターはcatalog v1の任意項目 `supplyDefinition` を使用します。供給資源は `materialDefinition.resources` のIDを参照します。供給定義のない旧catalogは変更不要です。供給定義はv5です。旧v4と旧丸め・超過・上限フィールドは受理せず、再生成・再Importを案内します。自動変換は行わず所持・在庫は保持します。試算条件はcollection v1の任意supplyConditionsに保存し、T.G.WランクとPremiumは共通所持状態を使います。[供給定義・試算条件の仕様](economy.md)を参照してください。
 
 catalogは共通のカード・育成定義、collectionは利用者の所持・進行状態です。どちらもサービス非依存で、出典URLやGitコミットを要求しません。自動取得・変換・送信はしません。
 

@@ -28,7 +28,7 @@ it('uses exact rational lottery expectations when computing ceil',()=>{
  s.rewards={...reward(),lotteries:[{draws:{numerator:1,denominator:1},totalWeight:100,outcomes:[{weight:7,rewards:[grant('paper',1)]},{weight:93,rewards:[]}]}]};
  expect(paper(f)).toMatchObject({expectedDaily:.07,clearanceDays:100});
 });
-it('keeps the existing supply contract and rejects unsupported extensions',async()=>{
+it('accepts the current supply contract and rejects unsupported extensions',async()=>{
  const f=economyFixture();const {importCatalog,exportCatalog}=await import('../../src/data/catalog/validate');
  expect(importCatalog(exportCatalog(f.m))).toEqual(f.m);
  expect(()=>validateSupplyDefinition({...f.supply,offers:[]})).toThrow();
@@ -46,4 +46,14 @@ it('shows numerical zeros for wholly unknown inputs and rejects corrupted refere
  expect(paper(f)).toMatchObject({required:0,stock:null,shortage:0,dailySupply:0,clearanceDays:0,status:'fulfilled'});
  f.m.supplyDefinition=f.supply;f.supply.unavailable.push({resourceIds:['missing-resource'],reason:'不正参照'});
  expect(()=>run(f)).toThrow('参照素材');
+});
+
+it('rejects v4 and retired studio fields rather than changing their meanings',()=>{
+ const f=economyFixture();const before=JSON.stringify(f);
+ expect(()=>validateSupplyDefinition({...f.supply,schemaVersion:4})).toThrow('再生成・再Import');
+ for(const field of [{rounding:'tick'},{rounding:'claim'},{lotteryRounding:'fractional'},{lotteryRounding:'floor'},{overflowRate:null},{capMinutes:null}]){
+  const d=structuredClone(f.supply);Object.assign(d.studios[0]!,field);expect(()=>validateSupplyDefinition(d)).toThrow();
+ }
+ for(const minutes of [0,13]){const d=structuredClone(f.supply);d.studios[0]!.normalMinutes=minutes;expect(()=>validateSupplyDefinition(d)).toThrow();}
+ expect(JSON.stringify(f)).toBe(before);
 });

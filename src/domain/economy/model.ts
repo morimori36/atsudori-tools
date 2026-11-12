@@ -12,10 +12,9 @@ export interface LiveSupply extends Named {
   mode: 'play' | 'skip'; scoreRank: string; lbMultiplier: number; perLb: Rewards; perPlay: Rewards;
 }
 export interface StudioSupply {
-  bandId: number; level: number; tickMinutes: number; normalMinutes: number; capMinutes: number | null;
+  bandId: number; level: number; tickMinutes: number; normalMinutes: number;
   rewardScale: Ratio;
-  overflowRate: Ratio | null; rounding: 'claim' | 'tick' | null;
-  lotteryRounding: 'floor' | 'fractional' | null; rewards: Rewards; basis: string;
+  rewards: Rewards; basis: string;
 }
 export interface RankSupply { rank: number; studioMultiplier: Ratio | null; daily: Rewards | null }
 export interface StandardEvent { intervalDays: number; basis: string; cumulative: Rewards; limited: Rewards }
@@ -25,7 +24,7 @@ export interface FixedSupply extends Named {
 }
 /** All resource IDs refer to materialDefinition; types never imply conversion between IDs. */
 export interface SupplyDefinition {
-  schemaVersion: 4;
+  schemaVersion: 5;
   catalogRevision: string; revision: string; basis: string;
   currencies: string[]; lives: LiveSupply[]; studios: StudioSupply[]; ranks: RankSupply[];
   standardEvent: StandardEvent | null; fixedSources: FixedSupply[];
