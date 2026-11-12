@@ -36,11 +36,3 @@
   .budget-products th { min-width: 150px; }
   .budget-products { min-width: 440px; }
 }
-#seal-budget-form .seal-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 24rem; }
-#seal-budget-form .seal-counts .ui-choice { justify-content: center; }
-#seal-budget-form [data-seal-cost] { text-align: right; font-variant-numeric: tabular-nums; }
-[data-seal-results] dl { display: grid; grid-template-columns: 1fr auto; gap: 12px; font-variant-numeric: tabular-nums; }
-[data-seal-results] dd { font-size: 20px; font-weight: 700; margin: 0; }
-[data-seal-message]:empty { display: none; }
-#seal-budget-form .budget-products { min-width: 0; width: 100%; }
-#seal-budget-form .budget-products th { min-width: 0; }
