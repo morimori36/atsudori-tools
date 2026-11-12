@@ -15,9 +15,9 @@ for(const width of [1280,375])test(`seal budget import, change and reload at ${w
   await page.locator(`[name=event][value="${event}"]`).check();await page.locator(`[name=paid][value="${paid}"]`).check();
   await expect(page.locator('[data-seal-income]')).toHaveText((2640+660*event+240*paid).toLocaleString('ja-JP'));
  }
- await page.locator('[name=pass]').check();await page.locator('[name=paid][value=2]').check();await page.locator('[name=event][value=1]').check();await page.locator('[data-seal-product]').check();
+ await page.locator('[name=pass]').check();await page.locator('[name=paid][value="2"]').check();await page.locator('[name=event][value="1"]').check();await page.locator('[data-seal-product]').check();
  await expect(page.locator('[data-seal-balance]')).toHaveText('3,713');
- await page.reload();await expect(page.locator('[name=paid][value=2]')).toBeChecked();await expect(page.locator('[name=event][value=1]')).toBeChecked();await expect(page.locator('[name=cm]')).toBeChecked();await expect(page.locator('[data-seal-balance]')).toHaveText('3,713');
+ await page.reload();await expect(page.locator('[name=paid][value="2"]')).toBeChecked();await expect(page.locator('[name=event][value="1"]')).toBeChecked();await expect(page.locator('[name=cm]')).toBeChecked();await expect(page.locator('[data-seal-balance]')).toHaveText('3,713');
  await page.screenshot({path:`.cache/seal-budget-${width}.png`,fullPage:true});
  expect(await page.locator('#seal-budget-form select').count()).toBe(0);
  expect(await page.locator('[data-seal-results] li').count()).toBe(0);

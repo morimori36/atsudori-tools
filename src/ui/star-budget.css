@@ -42,3 +42,5 @@
 [data-seal-results] dl { display: grid; grid-template-columns: 1fr auto; gap: 12px; font-variant-numeric: tabular-nums; }
 [data-seal-results] dd { font-size: 20px; font-weight: 700; margin: 0; }
 [data-seal-message]:empty { display: none; }
+#seal-budget-form .budget-products { min-width: 0; width: 100%; }
+#seal-budget-form .budget-products th { min-width: 0; }
