@@ -14,19 +14,19 @@ describe('normal live and shared supply conditions',()=>{
   const r=run(f);expect(r.rows.find(r=>r.resource.id==='member-exp')!.dailySupply).toBe(66);
   expect(r.breakdown.some(e=>e.destination==='direct'||e.sourceId==='skip')).toBe(false);
  });
- it('does not turn per-play inventory rewards into an assumed zero',()=>{
+ it('excludes unknown per-play contributions while retaining known rewards',()=>{
   const f=fixture();f.c.supplyConditions={lbPerDay:2,scoreRank:'Alto',studioLevels:[]};f.supply.lives[0]!.perPlay=reward(grant('paper',4));
-  expect(paper(f)).toMatchObject({knownDailySupply:42,dailySupply:null});
+  expect(paper(f)).toMatchObject({knownDailySupply:42,dailySupply:42});
  });
  it('requires a unique normal score rank only when LB is consumed',()=>{
   const f=fixture();expect(run(f).issues).toHaveLength(0);f.c.supplyConditions!.lbPerDay=2;
-  expect(paper(f).dailySupply).toBeNull();f.c.supplyConditions!.scoreRank='Alto';
-  f.supply.lives.push({...f.supply.lives[0]!,id:'duplicate'});expect(paper(f).dailySupply).toBeNull();
+  expect(paper(f).dailySupply).toBe(0);f.c.supplyConditions!.scoreRank='Alto';
+  f.supply.lives.push({...f.supply.lives[0]!,id:'duplicate'});expect(()=>paper(f)).toThrow('重複');
  });
- it('keeps missing inventory and uncertain lottery supply unknown',()=>{
+ it('retains missing inventory state while computing known supply',()=>{
   const f=fixture();delete f.c.resourceInventory!['member-exp'];f.c.supplyConditions={lbPerDay:1,scoreRank:'Alto',studioLevels:[]};
   f.supply.lives[0]!.perLb.unavailable.push({reason:'架空の抽選条件不明',resourceIds:['paper']});
-  expect(paper(f)).toMatchObject({knownDailySupply:21,dailySupply:null,clearanceDays:null});
+  expect(paper(f)).toMatchObject({knownDailySupply:21,dailySupply:21,clearanceDays:96});
   expect(run(f).rows.find(r=>r.resource.id==='member-exp')!.stock).toBeNull();
  });
  it.each([[false,false,10],[true,false,30],[false,true,50],[true,true,70]])('fully collects free tracks and only purchased additions: %s %s',(eventPremium,seasonPremium,expected)=>{
@@ -37,65 +37,39 @@ describe('normal live and shared supply conditions',()=>{
  });
  it('marks missing free definitions and purchased Premium definitions unknown',()=>{
   const f=fixture();f.supply.fixedSources=f.supply.fixedSources.filter(s=>s.id!=='event-pass-premium');
-  expect(paper(f).dailySupply).toBe(0);f.c.starBudgetScenario={...defaultStarBudgetScenario(),eventPremium:true};expect(paper(f).dailySupply).toBeNull();
+  expect(paper(f).dailySupply).toBe(0);f.c.starBudgetScenario={...defaultStarBudgetScenario(),eventPremium:true};expect(paper(f).dailySupply).toBe(0);
  });
  it('retains unscoped uncertainty and does not let direct-only uncertainty block inventory',()=>{
   const f=fixture(),s=f.supply.fixedSources.find(s=>s.id==='season-pass-free')!;
   s.intervalDays=null;s.rewards={...reward(grant('paper',70)),unavailable:[{reason:'対象不明',resourceIds:[]}]};
-  expect(run(f).rows.every(r=>r.dailySupply===null)).toBe(true);
+  expect(run(f).rows.every(r=>r.dailySupply===0)).toBe(true);
   s.rewards.unavailable=[{reason:'直接付与のみ不明',resourceIds:[],destination:'direct'}];
   expect(run(f).rows.find(r=>r.resource.id==='member-exp')!.dailySupply).toBe(0);
  });
 });
-describe('24-hour studio supply without receipt conditions',()=>{
- it('excludes unset levels and includes only selected bands',()=>{
-  const f=fixture();expect(paper(f).dailySupply).toBe(0);
-  f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];f.supply.studios[0]!.rounding='tick';
-  // 120 ticks/day: floor(3 * 7/4)=5 fixed and (2*7/4)*(1/4)*2=1.75 expected per tick.
-  expect(paper(f)).toMatchObject({confirmedDaily:600,expectedDaily:210,dailySupply:810,clearanceDays:3});
- });
- it('uses each band table independently',()=>{
-  const f=fixture();f.m.bands.push({id:8102,name:'独立した架空バンドB'});
-  f.supply.studios[0]!.rounding='tick';f.supply.studios.push({...f.supply.studios[0]!,bandId:8102,rewards:reward(grant('member-exp',4))});
-  f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8},{bandId:8102,level:8}];
-  expect(paper(f).dailySupply).toBe(810);expect(run(f).rows.find(r=>r.resource.id==='member-exp')!.dailySupply).toBe(840);
- });
- it.each([null,'claim'] as const)('does not invent a receipt interval for %s rounding',(rounding)=>{
-  const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];f.supply.studios[0]!.rounding=rounding;
-  expect(paper(f).dailySupply).toBeNull();expect(run(f).issues[0]!.reason).toContain(rounding===null?'端数処理':'受取単位');
- });
- it('supports claim rounding when exact ticks eliminate receipt dependence',()=>{
-  const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];f.supply.ranks[0]!.studioMultiplier={numerator:2,denominator:1};
-  expect(paper(f)).toMatchObject({confirmedDaily:720,expectedDaily:240,dailySupply:960});
- });
- it.each(['direct','inventory'] as const)('keeps exact paper supply when fractional %s EXP is unresolved',(destination)=>{
+describe('normal-efficiency studio collection cycles',()=>{
+ it('floors fixed rewards and draws once per full normal cycle',()=>{
   const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];
-  f.supply.studios[0]!.rewards=reward(grant('paper',4),grant('member-exp',1,destination));
-  // 4 * 7/4 = 7 per tick, 120 ticks/day = 840; EXP's 7/4 is independently unresolved.
-  expect(paper(f)).toMatchObject({dailySupply:840,knownDailySupply:840,clearanceDays:3});
-  const r=run(f);expect(r.issues.every(i=>!i.blocksProjection||!i.resourceIds.includes('paper'))).toBe(true);
-  expect(r.rows.find(r=>r.resource.id==='member-exp')!.dailySupply).toBe(destination==='direct'?0:null);
+  // 10 ticks/cycle: floor(3*7/4*10)=52; floor(2*7/4*10)=35 draws.
+  // 12 cycles/day: fixed 624, expected 35*(1/4)*2*12=210.
+  expect(paper(f)).toMatchObject({confirmedDaily:624,expectedDaily:210,dailySupply:834,clearanceDays:3});
  });
- it('keeps an exact subtotal when another reward for the same inventory resource is unresolved',()=>{
+ it.each([1,2,4])('handles cycle and multiplier boundaries %s',(numerator)=>{
   const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];
-  const r=f.supply.studios[0]!;r.lotteryRounding='floor';
-  r.rewards={...reward(grant('paper',4)),lotteries:[{draws:{numerator:2,denominator:1},totalWeight:1,outcomes:[{weight:1,rewards:[grant('paper',1)]}]}]};
-  expect(paper(f)).toMatchObject({dailySupply:null,knownDailySupply:840,confirmedDaily:840,clearanceDays:null});
+  f.supply.ranks[0]!.studioMultiplier={numerator,denominator:4};
+  f.supply.studios[0]!.normalMinutes=36;
+  // Three ticks/claim, 40 claims/day. Both fixed quantity and draw count floor per claim.
+  expect(paper(f).confirmedDaily).toBe(Math.floor(9*numerator/4)*40);
+  expect(paper(f).expectedDaily).toBe(Math.floor(6*numerator/4)*20);
  });
- it('isolates uncertain lottery draws while retaining exact fixed and lottery rewards',()=>{
-  const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];
-  const r=f.supply.studios[0]!;r.lotteryRounding='floor';
-  r.rewards={...reward(grant('paper',4)),lotteries:[
-   {draws:{numerator:2,denominator:1},totalWeight:1,outcomes:[{weight:1,rewards:[grant('snap-exp',1)]}]},
-   {draws:{numerator:4,denominator:1},totalWeight:1,outcomes:[{weight:1,rewards:[grant('paper',2)]}]}
-  ]};
-  // Exact lottery: floor(4 * 7/4) * 2 * 120 = 1680; fixed paper adds 840.
-  expect(paper(f)).toMatchObject({dailySupply:2520,confirmedDaily:840,expectedDaily:1680,clearanceDays:1});
-  expect(run(f).rows.find(r=>r.resource.id==='snap-exp')!).toMatchObject({dailySupply:null,knownDailySupply:0});
- });
- it('uses the shared rank and keeps missing multipliers or invalid levels unknown',()=>{
+ it('keeps known supply with missing rank and does not mutate unknown state',()=>{
   const f=fixture();f.c.supplyConditions!.studioLevels=[{bandId:8101,level:8}];delete f.c.tgwRank;
-  expect(paper(f).dailySupply).toBeNull();f.c.tgwRank=6;f.c.supplyConditions!.studioLevels[0]!.level=999;
-  expect(run(f).issues[0]!.reason).toContain('練習Lv');expect(paper(f).dailySupply).toBeNull();
+  const before=JSON.stringify(f);expect(paper(f).dailySupply).toBe(0);expect(run(f).issues.length).toBeGreaterThan(0);expect(JSON.stringify(f)).toBe(before);
  });
+});
+it.each([1,2,10])('adds exclusive and single-outcome lottery expectations for daily LB %s',lb=>{
+ const f=fixture();f.c.supplyConditions={lbPerDay:lb,scoreRank:'Alto',studioLevels:[]};
+ f.supply.lives[0]!.perLb.lotteries=[{draws:{numerator:1,denominator:1},totalWeight:8,outcomes:[{weight:3,rewards:[grant('paper',4)]},{weight:5,rewards:[]}]},{draws:{numerator:1,denominator:1},totalWeight:20,outcomes:[{weight:1,rewards:[grant('paper',10)]},{weight:19,rewards:[]}]}];
+ // Base 7 plus 4*3/8 + 10/20 = 9, then fixture multiplier 3 times daily LB.
+ expect(paper(f)).toMatchObject({confirmedDaily:21*lb,expectedDaily:6*lb,dailySupply:27*lb});
 });

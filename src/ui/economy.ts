@@ -31,9 +31,11 @@ export function createEconomyView(
    if(!result)return '';
    const rows=new Map(result.rows.map(row=>[row.resource.id,row]));
    const reasons=[...new Set([...result.issues.map(i=>i.reason),...result.pendingRequirements.map(i=>`${i.kind} #${i.cardId} / ${i.axis}: ${i.reason}`)])];
+   const omitted=[result.requirementsIncomplete?'未確認の需要':null,result.rows.some(r=>r.stock===null)?'未登録在庫':null,result.issues.length?'未確認の供給':null].filter(Boolean);
    return `<section class="panel economy-results" aria-labelledby="economy-results-heading"><h2 id="economy-results-heading">素材別の充足日数</h2>
     <p class="ui-help">日平均の概算です。抽選は期待値です。</p><p data-result-state class="ui-feedback" role="status">${dirty?'入力は未反映です。変更前の条件による結果です。':''}</p>
-    <div class="economy-table-wrap" role="region" aria-label="素材別の充足日数" tabindex="0"><table class="economy-table"><thead><tr>${['素材','必要量','現在庫','不足量','日平均供給','充足日数'].map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${resourcesForDisplay(result.rows.map(x=>x.resource)).map(resource=>rows.get(resource.id)!).map(x=>`<tr data-economy-resource="${esc(x.resource.id)}"><th scope="row">${esc(x.resource.name)}</th><td>${x.required===null?'未確認（小計 '+num(x.requiredSubtotal)+'）':num(x.required)}</td><td>${x.stock===null?'未登録':num(x.stock)}</td><td>${num(x.shortage)}</td><td>${x.dailySupply===null?'未確認（小計 '+num(x.knownDailySupply)+'）':num(x.dailySupply)}</td><td>${x.status==='unreachable'?'現在の条件では充足不可':x.status==='unknown'?'算出不可':num(x.clearanceDays)+'日'}</td></tr>`).join('')}</tbody></table></div>
+    <div class="economy-table-wrap" role="region" aria-label="素材別の充足日数" tabindex="0"><table class="economy-table"><thead><tr>${['素材','必要量','現在庫','不足量','日平均供給','充足日数'].map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${resourcesForDisplay(result.rows.map(x=>x.resource)).map(resource=>rows.get(resource.id)!).map(x=>`<tr data-economy-resource="${esc(x.resource.id)}"><th scope="row">${esc(x.resource.name)}</th><td>${num(x.required)}</td><td>${num(x.stock??0)}</td><td>${num(x.shortage)}</td><td>${num(x.dailySupply)}</td><td>${x.status==='unreachable'?'現在の条件では充足不可':num(x.clearanceDays)+'日'}</td></tr>`).join('')}</tbody></table></div>
+    ${omitted.length?`<p class="ui-help">${omitted.join('・')}は計算上0としています。充足日数は長めにも短めにもなりえます。</p>`:''}
     ${reasons.length?`<ul class="economy-warnings">${reasons.map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul>`:''}</section>`;
   };
   host.innerHTML=trainingSettingsMarkup(training)+`

@@ -38,16 +38,14 @@ function structural<T>(value:unknown,schema:unknown):T {
 }
 const unique=(values:readonly (string|number)[],label:string):void=>{if(new Set(values).size!==values.length)throw new Error(label+'が重複しています');};
 export function validateSupplyDefinition(value:unknown):SupplyDefinition {
+  if(value&&typeof value==='object'&&'schemaVersion' in value&&value.schemaVersion===4)throw new Error('供給定義v4は未対応です。供給定義v5を含むマスタを再生成・再Importしてください。所持・在庫は変更しません');
   const d=structural<SupplyDefinition>(value,supplyDefinitionSchema);
   for(const rows of [d.lives,d.fixedSources])unique(rows.map(r=>r.id),'供給ID');
   unique(d.currencies,'通貨ID');unique(d.ranks.map(r=>r.rank),'ランク');
   unique(d.studios.map(r=>r.bandId+':'+r.level),'練習Lv');
   for(const r of d.lives)for(const grant of [...r.perLb.fixed,...r.perLb.lotteries.flatMap(l=>l.outcomes.flatMap(o=>o.rewards))])
     if(grant.destination==='direct')throw new Error('直接EXPはライブ回数ごとの報酬に分離してください');
-  for(const r of d.studios){
-    if(r.normalMinutes%r.tickMinutes||r.capMinutes!==null&&(r.capMinutes<r.normalMinutes||r.capMinutes%r.tickMinutes))throw new Error('練習時間・上限は蓄積単位の倍数で指定してください');
-    if(r.overflowRate&&r.overflowRate.numerator>r.overflowRate.denominator)throw new Error('超過時の練習効率は1以下で指定してください');
-  }
+  for(const r of d.studios)if(r.normalMinutes%r.tickMinutes)throw new Error('練習時間は蓄積単位の倍数で指定してください');
   const all:Rewards[]=[...d.lives.flatMap(r=>[r.perLb,r.perPlay]),...d.studios.map(r=>r.rewards),
     ...d.ranks.flatMap(r=>r.daily?[r.daily]:[]),...(d.standardEvent?[d.standardEvent.cumulative,d.standardEvent.limited]:[]),
     ...d.fixedSources.map(f=>f.rewards)];

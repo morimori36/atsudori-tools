@@ -12,11 +12,10 @@ const unavailable = object({reason:text,resourceIds:array(id),destination:enumer
 const rewards = object({fixed:array(grant),lotteries:array(object({draws:ratio,totalWeight:positive,
   outcomes:array(object({weight:positive,rewards:array(grant)}))})),unavailable:array(unavailable)});
 const named = {id,name:text,basis:text};
-export const supplyDefinitionSchema = object({schemaVersion:{const:4},catalogRevision:id,revision:id,basis:text,
+export const supplyDefinitionSchema = object({schemaVersion:{const:5},catalogRevision:id,revision:id,basis:text,
   currencies:array(id),
   lives:array(object({...named,mode:enumeration(['play','skip']),scoreRank:text,lbMultiplier:positive,perLb:rewards,perPlay:rewards})),
-  studios:array(object({bandId:positive,level:positive,tickMinutes:positive,rewardScale:ratio,normalMinutes:int,capMinutes:nullable(int),
-    overflowRate:nullable(ratio),rounding:nullable(enumeration(['claim','tick'])),lotteryRounding:nullable(enumeration(['floor','fractional'])),rewards,basis:text})),
+  studios:array(object({bandId:positive,level:positive,tickMinutes:positive,rewardScale:ratio,normalMinutes:positive,rewards,basis:text})),
   ranks:array(object({rank:positive,studioMultiplier:nullable(ratio),daily:nullable(rewards)})),
   standardEvent:nullable(object({intervalDays:positive,basis:text,cumulative:rewards,limited:rewards})),
   fixedSources:array(object({...named,intervalDays:nullable(object({numerator:positive,denominator:positive})),rewards})),

@@ -76,12 +76,13 @@ export function calculateEconomy(master:Masterdata,collection:Collection,require
     const ids=unscoped?[]:[...new Set([...inventoryIds(r),...unknown.flatMap(u=>u.resourceIds)])];
     issue(source.id,reason,ids,ids.length>0||unknown.length>0);
   }
-  if(!definition)issue('supply','供給定義が未登録です。日平均供給を計算できません');
+  if(!definition)issue('supply','供給定義が未登録です');
   if(definition){
     for(const u of definition.unavailable)issue('supply',u.reason,u.resourceIds,!u.destination||u.destination==='inventory');
     const rank=definition.ranks.find(r=>r.rank===collection.tgwRank);
     if(conditions.lbPerDay>0){
       const candidates=definition.lives.filter(r=>r.mode==='play'&&r.scoreRank===conditions.scoreRank);
+      if(candidates.length>1)throw new Error('通常ライブ報酬が重複しています');
       if(candidates.length!==1)issue('live','ライブのスコアランクに対応する通常ライブ報酬が未登録・重複しています');
       else {
         const r=candidates[0]!;
@@ -95,25 +96,10 @@ export function calculateEconomy(master:Masterdata,collection:Collection,require
       const source={id:'studio:'+selected.bandId,name:master.bands.find(b=>b.id===selected.bandId)?.name??'練習',basis:row?.basis??definition.basis};
       if(!row){issue(source.id,'指定した練習Lvの報酬定義がありません');continue;}
       if(!rank?.studioMultiplier){missingRewards(source,row.rewards,'ランクによる練習報酬倍率が未確認です');continue;}
-      if(row.rounding===null||row.lotteryRounding===null){missingRewards(source,row.rewards,'練習報酬の端数処理が未確認です');continue;}
-      const multiplier=times(fraction(rank.studioMultiplier),fraction(row.rewardScale));
-      // A daily rate has no receipt cycle, waiting period, overflow or cap state.
-      // Claim rounding is usable only if each tick is already integral; otherwise
-      // receipts would change the result and no supported daily conversion is known.
-      const integral=(value:Fraction)=>value.n%value.d===0n;
-      const calculable:Rewards={fixed:[],lotteries:[],unavailable:row.rewards.unavailable};
-      const reason='練習報酬の受取単位の丸めを日平均へ換算する方法が未確認です';
-      for(const grant of row.rewards.fixed){
-        if(row.rounding==='claim'&&!integral(times(units(grant.quantity),multiplier)))
-          missingRewards(source,{fixed:[grant],lotteries:[],unavailable:[]},reason);
-        else calculable.fixed.push(grant);
-      }
-      for(const lottery of row.rewards.lotteries){
-        if(row.rounding==='claim'&&row.lotteryRounding==='floor'&&!integral(times(fraction(lottery.draws),multiplier)))
-          missingRewards(source,{fixed:[],lotteries:[lottery],unavailable:[]},reason);
-        else calculable.lotteries.push(lottery);
-      }
-      rewards(source,calculable,ratio(1440n,BigInt(row.tickMinutes)),multiplier,row.lotteryRounding);
+      const ticks=row.normalMinutes/row.tickMinutes;
+      if(!Number.isSafeInteger(ticks)||ticks<1)throw new Error('通常効率の回収周期が不正です');
+      const multiplier=times(times(fraction(rank.studioMultiplier),fraction(row.rewardScale)),units(ticks));
+      rewards(source,row.rewards,ratio(1440n,BigInt(row.normalMinutes)),multiplier,'floor');
     }
     {
       const source={id:'daily',name:'ランクのデイリー報酬',basis:definition.basis};
@@ -153,12 +139,12 @@ export function calculateEconomy(master:Masterdata,collection:Collection,require
     const sum=(certainty:Certainty)=>safe(entries.filter(e=>e.certainty===certainty).reduce((n,e)=>n+e.dailyQuantity,0));
     const stock=Object.hasOwn(inventory,resource.id)?inventory[resource.id]!:null;
     const requiredSubtotal=original.get(resource.id)?.required??0;
-    const required=requirements.incomplete?null:requiredSubtotal;
-    const shortage=stock===null||required===null?null:Math.max(0,required-stock);
+    const required=requiredSubtotal;
+    const shortage=Math.max(0,required-(stock??0));
     const supplyIncomplete=issues.some(i=>i.blocksProjection&&(!i.resourceIds.length||i.resourceIds.includes(resource.id)));
     const total=totals.get(resource.id)??zero;
-    const knownDailySupply=decimal(total),dailySupply=supplyIncomplete?null:knownDailySupply;
-    const status=shortage===null?'unknown':shortage===0?'fulfilled':dailySupply===null?'unknown':total.n===0n?'unreachable':'estimated';
+    const knownDailySupply=decimal(total),dailySupply=knownDailySupply;
+    const status=shortage===0?'fulfilled':total.n===0n?'unreachable':'estimated';
     const clearanceDays=status==='fulfilled'?0:status==='estimated'?integer((BigInt(shortage!)*total.d+total.n-1n)/total.n):null;
     return {resource,required,requiredSubtotal,stock,shortage,dailySupply,knownDailySupply,clearanceDays,status,
       confirmedDaily:sum('confirmed'),expectedDaily:sum('expected'),eventDaily:sum('estimated'),

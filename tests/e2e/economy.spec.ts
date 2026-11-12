@@ -13,7 +13,7 @@ async function setup(page:Page){
 for(const width of [1280,390,320])test(`minimal conditions, material order, focus and autosave at ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:900});const f=await setup(page);
  const row=page.locator('[data-economy-resource=paper]');await expect(row.locator('th,td')).toHaveText(['架空の折紙','31','1','30','3','10日']);
- await expect(page.locator('[data-economy-resource=member-exp]')).toContainText('算出不可');
+ await expect(page.locator('[data-economy-resource=member-exp]')).not.toContainText('算出不可');
  await expect(page.locator('.economy-conditions details,.economy-results details,[name=interval],[name=minutes],[name=skip],[name=skipPercent],[name=plays],[data-export],[data-reset]')).toHaveCount(0);
  const lb=page.getByLabel('LB消費量 / 日',{exact:true});await lb.fill('12');await expect(lb).toBeFocused();
  await page.getByLabel('ライブのスコアランク',{exact:true}).selectOption('Alto');
@@ -96,4 +96,25 @@ test('keeps an explicitly edited shared field in a draft without restoring unrel
  await chooseScreen(page,page.locator('nav [data-tab=economy]'));await expect(page.locator('[name=rank]')).toHaveValue('8');await expect(page.locator('[name=eventPremium]')).toBeChecked();
  await page.locator('[name=lb]').fill('13');
  const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),STORAGE_KEY);expect(saved.tgwRank).toBe(8);expect(saved.starBudgetScenario.eventPremium).toBe(true);
+});
+test('rejects old supply catalogs without altering the current master or collection',async({page})=>{
+ const f=await setup(page);await chooseScreen(page,page.locator('nav [data-tab=exchange]'));
+ const before=await page.evaluate(()=>({...localStorage}));
+ const old={...f.m,supplyDefinition:{...f.m.supplyDefinition,schemaVersion:4}};
+ await page.locator('#catalog-import').setInputFiles({name:'old-supply.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(old))});
+ await expect(page.getByRole('alert')).toContainText('再生成・再Import');
+ expect(await page.evaluate(()=>({...localStorage}))).toEqual(before);
+});
+test('protects a saved v4 catalog and retains ownership and inventory through explicit v5 recovery',async({page})=>{
+ const f=await setup(page);const old=JSON.stringify({...f.m,supplyDefinition:{...f.m.supplyDefinition,schemaVersion:4}});
+ await page.evaluate(old=>localStorage.setItem('atsudori-tools.catalog.v1',old),old);
+ const owned=await page.evaluate(key=>localStorage.getItem(key),STORAGE_KEY);await page.reload();
+ await expect(page.locator('#autosave-warning')).toBeVisible();
+ expect(await page.evaluate(()=>localStorage.getItem('atsudori-tools.catalog.v1'))).toBe(old);
+ expect(await page.evaluate(key=>localStorage.getItem(key),STORAGE_KEY)).toBe(owned);
+ await chooseScreen(page,page.locator('nav [data-tab=exchange]'));
+ await page.locator('#catalog-import').setInputFiles({name:'supply-v5.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(f.m))});
+ await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+ expect(await page.evaluate(key=>localStorage.getItem(key),STORAGE_KEY)).toBe(owned);
+ await chooseScreen(page,page.locator('nav [data-tab=economy]'));await expect(page.locator('[data-economy-resource=paper]')).toBeVisible();
 });
