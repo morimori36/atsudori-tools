@@ -12,13 +12,13 @@ it('distinguishes zero supply, fulfilled, unknown stock and incomplete demand',(
  const f=economyFixture();f.supply.standardEvent!.cumulative=reward();f.supply.standardEvent!.limited=reward();
  expect(paper(f)).toMatchObject({dailySupply:0,shortage:2000,clearanceDays:null,status:'unreachable'});
  f.c.resourceInventory!.paper=2200;expect(paper(f)).toMatchObject({shortage:0,clearanceDays:0,status:'fulfilled'});
- delete f.c.resourceInventory!.paper;expect(paper(f)).toMatchObject({stock:null,shortage:null,status:'unknown'});
- f.c.resourceInventory!.paper=0;f.requirements.incomplete=true;expect(paper(f)).toMatchObject({required:null,requiredSubtotal:2000,shortage:null,status:'unknown'});
+ delete f.c.resourceInventory!.paper;expect(paper(f)).toMatchObject({stock:null,shortage:2000,status:'unreachable'});
+ f.c.resourceInventory!.paper=0;f.requirements.incomplete=true;expect(paper(f)).toMatchObject({required:2000,requiredSubtotal:2000,shortage:2000,status:'unreachable'});
 });
 it('keeps unknown supply scoped and preserves known subtotals',()=>{
  const f=economyFixture();f.supply.standardEvent!.limited.unavailable=[{reason:'未確認報酬',resourceIds:['paper']}];
- expect(paper(f)).toMatchObject({dailySupply:null,knownDailySupply:3,status:'unknown'});
- f.supply.standardEvent=null;expect(paper(f).dailySupply).toBeNull();
+ expect(paper(f)).toMatchObject({dailySupply:3,knownDailySupply:3,status:'estimated'});
+ f.supply.standardEvent=null;expect(paper(f).dailySupply).toBe(0);
  f.c.resourceInventory!.paper=2000;expect(paper(f).clearanceDays).toBe(0);
  delete f.m.supplyDefinition;expect(paper(f).clearanceDays).toBe(0);
 });
@@ -33,4 +33,17 @@ it('keeps the existing supply contract and rejects unsupported extensions',async
  expect(importCatalog(exportCatalog(f.m))).toEqual(f.m);
  expect(()=>validateSupplyDefinition({...f.supply,offers:[]})).toThrow();
  expect(()=>validateSupplyDefinition({...f.supply,standardEvent:{...f.supply.standardEvent,unlimited:[]}})).toThrow();
+});
+
+it('computes partial demand, unknown stock and unknown supply together without mutation',()=>{
+ const f=economyFixture();f.requirements.incomplete=true;delete f.c.resourceInventory!.paper;
+ f.supply.unavailable=[{reason:'架空未確認分',resourceIds:[]}];const before=JSON.stringify(f);
+ expect(paper(f)).toMatchObject({required:2000,stock:null,shortage:2000,dailySupply:3,clearanceDays:667});
+ expect(JSON.stringify(f)).toBe(before);
+});
+it('shows numerical zeros for wholly unknown inputs and rejects corrupted references',()=>{
+ const f=economyFixture();f.requirements.incomplete=true;f.requirements.totals=[];f.c.resourceInventory={};delete f.m.supplyDefinition;
+ expect(paper(f)).toMatchObject({required:0,stock:null,shortage:0,dailySupply:0,clearanceDays:0,status:'fulfilled'});
+ f.m.supplyDefinition=f.supply;f.supply.unavailable.push({resourceIds:['missing-resource'],reason:'不正参照'});
+ expect(()=>run(f)).toThrow('参照素材');
 });

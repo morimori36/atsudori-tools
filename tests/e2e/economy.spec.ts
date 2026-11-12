@@ -13,7 +13,7 @@ async function setup(page:Page){
 for(const width of [1280,390,320])test(`minimal conditions, material order, focus and autosave at ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:900});const f=await setup(page);
  const row=page.locator('[data-economy-resource=paper]');await expect(row.locator('th,td')).toHaveText(['架空の折紙','31','1','30','3','10日']);
- await expect(page.locator('[data-economy-resource=member-exp]')).toContainText('算出不可');
+ await expect(page.locator('[data-economy-resource=member-exp]')).not.toContainText('算出不可');
  await expect(page.locator('.economy-conditions details,.economy-results details,[name=interval],[name=minutes],[name=skip],[name=skipPercent],[name=plays],[data-export],[data-reset]')).toHaveCount(0);
  const lb=page.getByLabel('LB消費量 / 日',{exact:true});await lb.fill('12');await expect(lb).toBeFocused();
  await page.getByLabel('ライブのスコアランク',{exact:true}).selectOption('Alto');
