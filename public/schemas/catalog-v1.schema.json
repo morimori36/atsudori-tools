@@ -4457,7 +4457,7 @@
       ],
       "properties": {
         "version": {
-          "const": 1
+          "const": 2
         },
         "revision": {
           "type": "string",
@@ -4465,8 +4465,8 @@
         },
         "gachas": {
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
+          "minItems": 4,
+          "maxItems": 4,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -4489,7 +4489,8 @@
                 "enum": [
                   "cm",
                   "pass",
-                  "paid"
+                  "paid",
+                  "event"
                 ]
               },
               "name": {

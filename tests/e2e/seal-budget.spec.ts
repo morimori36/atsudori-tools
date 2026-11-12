@@ -11,9 +11,16 @@ for(const width of [1280,375])test(`seal budget import, change and reload at ${w
  await chooseScreen(page,page.locator('nav [data-tab=seal-budget]'));
  await expect(page.locator('[data-seal-balance]')).toHaveText('0');
  await page.locator('[name=cm]').check();await expect(page.locator('[data-seal-income]')).toHaveText('2,640');
- await page.locator('[name=pass]').check();await page.locator('[name=paid]').selectOption('2');await page.locator('[data-seal-product]').check();
- await expect(page.locator('[data-seal-balance]')).toHaveText('3,893');
- await page.reload();await expect(page.locator('[name=paid]')).toHaveValue('2');await expect(page.locator('[name=cm]')).toBeChecked();await expect(page.locator('[data-seal-balance]')).toHaveText('3,893');
+ for(const event of [0,1,2])for(const paid of [0,1,2]){
+  await page.locator(`[name=event][value="${event}"]`).check();await page.locator(`[name=paid][value="${paid}"]`).check();
+  await expect(page.locator('[data-seal-income]')).toHaveText((2640+660*event+240*paid).toLocaleString('ja-JP'));
+ }
+ await page.locator('[name=pass]').check();await page.locator('[name=paid][value=2]').check();await page.locator('[name=event][value=1]').check();await page.locator('[data-seal-product]').check();
+ await expect(page.locator('[data-seal-balance]')).toHaveText('3,713');
+ await page.reload();await expect(page.locator('[name=paid][value=2]')).toBeChecked();await expect(page.locator('[name=event][value=1]')).toBeChecked();await expect(page.locator('[name=cm]')).toBeChecked();await expect(page.locator('[data-seal-balance]')).toHaveText('3,713');
+ await page.screenshot({path:`.cache/seal-budget-${width}.png`,fullPage:true});
+ expect(await page.locator('#seal-budget-form select').count()).toBe(0);
+ expect(await page.locator('[data-seal-results] li').count()).toBe(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const checkbox=await page.locator('[name=cm]').boundingBox();expect(checkbox!.width).toBeLessThanOrEqual(44);
 });
