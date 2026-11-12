@@ -1,3 +1,4 @@
+import { validateSealBudgetDefinition } from '../../domain/seal-budget/validate';
 import { validateStarBudgetDefinition } from '../../domain/star-budget/validate';
 import { validateMaterialDefinition, materialIssues } from '../../domain/materials/validate';
 import { validateSupplyDefinition, supplyIssues } from '../../domain/economy/validate';
@@ -36,7 +37,7 @@ const identity = (v: unknown, path: string): string => {
 /** Structure validation permits an explicit draft. Missing relationships are never filled in. */
 export function validateCatalog(value: unknown): Masterdata {
   const keys = ['format','schemaVersion','catalogId','revision', ...Object.keys(tableFields)];
-  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','supplyDefinition','starBudgetDefinition','songClearCounts','stamps','skillCategories'],keys);
+  const root = strictObject(value, '$', [...keys,'rankDefinition','materialDefinition','supplyDefinition','starBudgetDefinition','sealBudgetDefinition','songClearCounts','stamps','skillCategories'],keys);
   if (root.format !== 'atsudori-tools/catalog') fail('$.format', 'catalog形式ではありません');
   if (root.schemaVersion !== 1) fail('$.schemaVersion', '未対応の形式です。明示的な変換が必要です');
   identity(root.catalogId, '$.catalogId'); identity(root.revision, '$.revision');
@@ -96,6 +97,11 @@ export function validateCatalog(value: unknown): Masterdata {
   if(root.rankDefinition !== undefined) result.rankDefinition=validateRankDefinition(root.rankDefinition);
   if(root.materialDefinition !== undefined) result.materialDefinition=validateMaterialDefinition(root.materialDefinition);
   if(root.supplyDefinition !== undefined) result.supplyDefinition=validateSupplyDefinition(root.supplyDefinition);
+  if (root.sealBudgetDefinition !== undefined) {
+    const definition=validateSealBudgetDefinition(root.sealBudgetDefinition);
+    if(definition.revision!==root.revision)fail('$.sealBudgetDefinition.revision','catalogのrevisionと一致する必要があります');
+    result.sealBudgetDefinition=definition;
+  }
   if (root.starBudgetDefinition !== undefined) {
     const definition = validateStarBudgetDefinition(root.starBudgetDefinition);
     if (definition.revision !== root.revision) fail('$.starBudgetDefinition.revision', 'catalogのrevisionと一致する必要があります');

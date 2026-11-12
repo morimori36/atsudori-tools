@@ -1,6 +1,6 @@
 /** Hash routes keep direct links under the static Pages base path. */
 export const navigationGroups = [
-  { label: '評価・計算', tabs: [['rating', '評価値'], ['event', 'イベント周回'], ['economy', '素材別充足日数'], ['star-budget', 'スター予算'], ['manual', '表示値で計算']] },
+  { label: '評価・計算', tabs: [['rating', '評価値'], ['event', 'イベント周回'], ['economy', '素材別充足日数'], ['star-budget', 'スター予算'], ['seal-budget', 'シール予算'], ['manual', '表示値で計算']] },
   { label: '所持・育成', tabs: [['members', 'メンバー'], ['snaps', 'スナップ'], ['stamps', 'スタンプ'], ['inventory', '素材在庫'], ['materials', '必要素材'], ['progress', 'キャラランク'], ['items', 'バンドアイテム']] },
   { label: 'データ管理', tabs: [['exchange', 'JSON Import / Export']] },
 ] as const;
