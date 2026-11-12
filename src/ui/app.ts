@@ -193,7 +193,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function missingCatalog(): string {
     const issues = catalogIssues(master);
-    return '<section class="panel"><h2>' + (issues.length ? 'マスタに不足・不整合があります' : 'マスタ未登録') + '</h2><p>JSON Import / Exportで適切なマスタJSONをImportしてください。表示値での個別計算はマスタなしでも利用できます。</p>' +
+    return '<section class="panel catalog-setup"><h2>' + (issues.length ? 'マスタに不足・不整合があります' : 'マスタ未登録') + '</h2><p>JSON Import / Exportで適切なマスタJSONをImportしてください。表示値での個別計算はマスタなしでも利用できます。</p>' +
       (issues.length ? '<ul>' + issues.map(i => '<li>' + escape(i) + '</li>').join('') + '</ul>' : '') +
       '<button class="primary" data-tab="exchange">JSON Import / Exportを開く</button> <button class="secondary" data-tab="manual">表示値で計算</button></section>';
   }
@@ -240,7 +240,7 @@ export function mountApp(root: HTMLElement): void {
   }
   function ratingPage(): string {
     const controls = `<div class="rating-mode"><fieldset class="filter-group"><legend class="sr-only">評価値の表示</legend><div class="filter-options">${([['current', '現在'], ['potential', '育成後']] as const).map(([value, label]) => `<label><input type="radio" name="rating-mode" value="${value}" ${ratingMode === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></fieldset></div>${trainingSettingsMarkup(trainingSettings)}`;
-    if (!master.members.length || catalogIssues(master).length) return controls + missingCatalog();
+    if (!master.members.length || catalogIssues(master).length) return missingCatalog() + controls;
     const bands = ratingMode === 'potential' ? simulateTrainingEvaluation(master,collection,trainingSettings.current()).after.bands : summarizeBands(evaluateCollection(master,collection,collection,rankRules.current()));
     const colors = bands.flatMap(b => b.colors);
     if (!colors.length) return `${controls}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
@@ -433,7 +433,7 @@ export function mountApp(root: HTMLElement): void {
       <div class="header-meta"><label class="theme-setting">表示 <select data-theme aria-label="表示テーマ"><option value="system">システム</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label><span class="save-state ${saved ? '' : 'unsaved'}" role="status">${saved ? 'ブラウザ内に保存' : '保存未完了'}</span></div></header>
       <dialog id="navigation-dialog" class="navigation-dialog" data-navigation-dialog aria-label="画面メニュー"><div class="menu-heading"><strong>画面メニュー</strong><button class="secondary" data-menu-close>閉じる</button></div></dialog>
       <div class="layout"><nav class="navigation" aria-label="メインメニュー">${navigationGroups.map((group, index) => `<section class="navigation-group" aria-labelledby="nav-group-${index}"><h2 id="nav-group-${index}">${group.label}</h2>${group.tabs.map(([id, label]) => `<button data-tab="${id}" ${active === id ? 'class="active" aria-current="page"' : ''}>${label}${id === 'members' || id === 'snaps' ? `<span>${id === 'members' ? collection.members.length : collection.snaps.length}</span>` : ''}</button>`).join('')}</section>`).join('')}</nav>
-      <main class="${active === 'rating' ? 'rating-page' : active === 'progress' || active === 'items' ? 'progress-page' : ''}"><div class="page-heading">${active === 'rating' ? '' : `<div class="eyebrow">${active === 'seal-budget' ? 'SEAL BUDGET' : active === 'star-budget' ? 'STAR BUDGET' : active === 'event' ? 'EVENT PLANNER' : 'BAND RATING'}</div>`}<h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
+      <main class="${active === 'rating' ? 'rating-page' : active === 'progress' || active === 'items' ? 'progress-page' : ''}"><div class="page-heading"><h1 tabindex="-1">${title}</h1>${active === 'rating' ? '' : `<p>${description}</p>`}</div>
       <div id="autosave-warning" class="alert error" role="alert" hidden></div>
       ${notice ? `<div class="alert ${notice.error ? 'error' : 'success'}" role="${notice.error ? 'alert' : 'status'}">${escape(notice.text)}</div>` : ''}
       ${pageBody()}
