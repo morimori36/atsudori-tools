@@ -30,4 +30,4 @@ const scenario = object({ storyEventPercent: nullable({ ...integer, maximum: 100
   selectedProducts: { type: 'array', maxItems: PRODUCT_IDS.length, uniqueItems: true, items: { enum: PRODUCT_IDS } },
 });
 // Input-only compatibility: optional legacy fields are discarded by validation.
-export const starBudgetScenarioSchema = { ...scenario, properties: { ...scenario.properties, includeArena: { deprecated: true } } };
+export const starBudgetScenarioSchema = { ...scenario, properties: { ...scenario.properties, passPlan: {enum: ['none', ...PASS_GRADES]}, includeArena: { deprecated: true } } };

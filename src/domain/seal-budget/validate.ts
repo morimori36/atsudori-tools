@@ -27,7 +27,7 @@ function reward(v: unknown): DuplicateReward | null {
  return {kind: 'seals', amount: number(r.amount)};
 }
 export function validateSealBudgetDefinition(value: unknown): SealBudgetDefinition {
- const d = strictObject(value, 'sealBudgetDefinition', ['version', 'revision', 'gachas', 'products', 'pools', 'cards'], ['version', 'revision', 'gachas', 'products']);
+ const d = strictObject(value, 'sealBudgetDefinition', ['version', 'revision', 'gachas', 'products', 'pools', 'cards', 'planBenefits'], ['version', 'revision', 'gachas', 'products']);
  if (d.version !== 2 && d.version !== 3) throw new Error('シール予算定義v2またはv3を含むマスタを再Importしてください。旧定義は対応していません');
  const products = rows(d.products, 200).map(v => {
   const r = strictObject(v, 'product', ['id', 'name', 'tiers']);
@@ -49,6 +49,26 @@ export function validateSealBudgetDefinition(value: unknown): SealBudgetDefiniti
  const rawGachas = rows(d.gachas, 4);
  if (rawGachas.length !== 4) return fail();
  const revision = id(d.revision);
+ const benefits: Pick<SealBudgetDefinition, 'planBenefits'> = {};
+ if (Object.hasOwn(d, 'planBenefits')) {
+  const plans = strictObject(d.planBenefits, 'planBenefits', ['none', 'lite', 'standard', 'premium']);
+  benefits.planBenefits = Object.fromEntries(Object.entries(plans).map(([plan, value]) => {
+   const row = strictObject(value, 'planBenefits.' + plan, ['passGachas', 'paidDailyLimit', 'eventDailyLimit', 'basis']);
+   if (typeof row.basis !== 'string' || !row.basis.trim() || row.basis.length > 300) return fail();
+   const limit = (v: unknown) => v === null ? null : [0, 1, 2].includes(v as number) ? v as 0 | 1 | 2 : fail();
+   const passGachas = row.passGachas === null ? null : rows(row.passGachas, 20).map(value => {
+    const g = strictObject(value, 'passGachas', ['gachaId', 'draws', 'periodDays', 'poolId'], ['gachaId', 'draws', 'periodDays']);
+    if (!['pass', 'paid', 'event'].includes(g.gachaId as string)) return fail();
+    if (g.periodDays !== null && (typeof g.periodDays !== 'number' || !Number.isFinite(g.periodDays) || g.periodDays < 0.01 || g.periodDays > 1e6)) return fail();
+    const poolId = g.poolId === undefined ? undefined : id(g.poolId);
+    if (poolId !== undefined && (d.version !== 3 || !rows(d.pools, 200).some(p => (p as {id: unknown}).id === poolId))) return fail();
+    return {gachaId: g.gachaId as 'pass' | 'paid' | 'event', draws: g.draws === null ? null : positive(g.draws, 1e9), periodDays: g.periodDays as number | null, ...(poolId === undefined ? {} : {poolId})};
+   });
+   // A purchase-free plan cannot grant purchased-pass entitlements.
+   if (plan === 'none' && (passGachas === null || passGachas.length)) return fail();
+   return [plan, {passGachas, paidDailyLimit: limit(row.paidDailyLimit), eventDailyLimit: limit(row.eventDailyLimit), basis: row.basis}];
+  })) as NonNullable<SealBudgetDefinition['planBenefits']>;
+ }
  if (d.version === 2) {
   if (Object.hasOwn(d, 'pools') || Object.hasOwn(d, 'cards')) return fail();
   const gachas = rawGachas.map(v => {
@@ -59,7 +79,7 @@ export function validateSealBudgetDefinition(value: unknown): SealBudgetDefiniti
     memberSeals: number(r.memberSeals), snapSeals: number(r.snapSeals)};
   });
   unique(gachas.map(g => g.id));
-  return {version: 2, revision, gachas, products};
+  return {version: 2, revision, gachas, products, ...benefits};
  }
  const cards = rows(d.cards, 20000).map(v => {
   const r = strictObject(v, 'sealCard', ['kind', 'cardId', 'completedAt', 'beforeCompletion', 'afterCompletion']);
@@ -93,7 +113,7 @@ export function validateSealBudgetDefinition(value: unknown): SealBudgetDefiniti
   return {...base(r), poolId};
  });
  unique(gachas.map(g => g.id));
- return {version: 3, revision, gachas, products, pools, cards};
+ return {version: 3, revision, gachas, products, pools, cards, ...benefits};
 }
 function probabilitySum(values: (number | null)[], scale: number): void {
  const sum = values.reduce<number>((sum, p) => sum + (p ?? 0), 0);

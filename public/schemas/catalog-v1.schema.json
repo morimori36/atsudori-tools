@@ -4673,6 +4673,430 @@
                   }
                 }
               }
+            },
+            "planBenefits": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "none",
+                "lite",
+                "standard",
+                "premium"
+              ],
+              "properties": {
+                "none": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                },
+                "lite": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                },
+                "standard": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                },
+                "premium": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -5049,6 +5473,430 @@
                         "type": "null"
                       }
                     ]
+                  }
+                }
+              }
+            },
+            "planBenefits": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "none",
+                "lite",
+                "standard",
+                "premium"
+              ],
+              "properties": {
+                "none": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                },
+                "lite": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                },
+                "standard": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
+                  }
+                },
+                "premium": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "passGachas",
+                    "paidDailyLimit",
+                    "eventDailyLimit",
+                    "basis"
+                  ],
+                  "properties": {
+                    "passGachas": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "maxItems": 20,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "gachaId",
+                              "draws",
+                              "periodDays"
+                            ],
+                            "properties": {
+                              "gachaId": {
+                                "enum": [
+                                  "pass",
+                                  "paid",
+                                  "event"
+                                ]
+                              },
+                              "draws": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "periodDays": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0.01,
+                                    "maximum": 1000000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "poolId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "paidDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventDailyLimit": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    }
                   }
                 }
               }

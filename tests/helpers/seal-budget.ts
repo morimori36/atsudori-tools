@@ -1,8 +1,11 @@
-import type {FixedSealBudgetDefinition} from '../../src/domain/seal-budget/model';
+import type {FixedSealBudgetDefinition, PlanBenefits} from '../../src/domain/seal-budget/model';
+export const fictionalPlanBenefits = (): NonNullable<FixedSealBudgetDefinition['planBenefits']> => Object.fromEntries(
+ ['none', 'lite', 'standard', 'premium'].map(plan => [plan, {passGachas: [], paidDailyLimit: 2, eventDailyLimit: 2, basis: '独立した架空の利用条件'} satisfies PlanBenefits]),
+) as unknown as NonNullable<FixedSealBudgetDefinition['planBenefits']>;
 /** Independent synthetic rates and costs; not derived from game records. */
 export function sealDefinition():FixedSealBudgetDefinition {
  const base={draws:1,periodDays:1,memberProbabilityBp:2000,snapProbabilityBp:3000,otherProbabilityBp:5000,memberSeals:10,snapSeals:20,pointsPerDraw:2,sealsPerPoint:7,paidStarsPerDraw:0};
- return {version:2,revision:'test-1',gachas:[{...base,id:'cm',name:'架空の日次抽選',draws:4},{...base,id:'pass',name:'架空の週次抽選',periodDays:7,memberProbabilityBp:0,snapProbabilityBp:0,otherProbabilityBp:10000,pointsPerDraw:0},{...base,id:'paid',name:'架空の有償抽選',paidStarsPerDraw:8},{...base,id:'event',name:'架空のイベント抽選',paidStarsPerDraw:8}],products:[{id:'fictional-paper',name:'架空の紙',tiers:[{sealCost:11,monthlyLimit:3},{sealCost:17,monthlyLimit:2}]}]};
+ return {version:2,revision:'test-1',planBenefits:fictionalPlanBenefits(),gachas:[{...base,id:'cm',name:'架空の日次抽選',draws:4},{...base,id:'pass',name:'架空の週次抽選',periodDays:7,memberProbabilityBp:0,snapProbabilityBp:0,otherProbabilityBp:10000,pointsPerDraw:0},{...base,id:'paid',name:'架空の有償抽選',paidStarsPerDraw:8},{...base,id:'event',name:'架空のイベント抽選',paidStarsPerDraw:8}],products:[{id:'fictional-paper',name:'架空の紙',tiers:[{sealCost:11,monthlyLimit:3},{sealCost:17,monthlyLimit:2}]}]};
 }
 
 import type {CollectionSealBudgetDefinition, SealCardRule, SealPool} from '../../src/domain/seal-budget/model';
@@ -24,7 +27,7 @@ export function collectionSealFixture() {
  const featured: SealPool = {...pool, id: 'featured', probabilityScale: 1000000,
   cards: pool.cards.map((c, i) => ({...c, probability: [100001, 99999, 600000, 200000][i]!}))};
  const legacy = sealDefinition();
- const definition: CollectionSealBudgetDefinition = {version: 3, revision: master.revision, cards, products: legacy.products,
+ const definition: CollectionSealBudgetDefinition = {version: 3, revision: master.revision, planBenefits: fictionalPlanBenefits(), cards, products: legacy.products,
   pools: [pool, featured, {id: 'empty', probabilityScale: 1, cards: [], otherProbability: 1}],
   gachas: legacy.gachas.map(({id, name, draws, periodDays, pointsPerDraw, sealsPerPoint, paidStarsPerDraw}) =>
    ({id, name, draws, periodDays, pointsPerDraw, sealsPerPoint, paidStarsPerDraw, poolId: id === 'pass' ? 'empty' : id === 'event' ? 'featured' : 'ordinary'}))};

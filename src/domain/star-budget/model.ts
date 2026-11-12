@@ -1,5 +1,6 @@
 export const PASS_GRADES = ['lite', 'standard', 'premium'] as const;
 export type PassGrade = typeof PASS_GRADES[number];
+export type PassPlan = 'none' | PassGrade;
 export const PRODUCT_NAMES = {
   'crystal-luck': '幸運のクリスタル',
   'crystal-miracle': '奇跡のクリスタル',
@@ -72,6 +73,7 @@ export interface StarBudgetInput {
   scenario: StarBudgetScenario & { rank: number | null };
 }
 export interface StarBudgetScenario {
+  passPlan?: PassPlan;
   storyEventPercent: number | null;
   eventPremium: boolean;
   seasonPremium: boolean;

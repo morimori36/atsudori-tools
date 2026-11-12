@@ -1,3 +1,4 @@
+import type {PassPlan} from '../star-budget/model';
 export const GACHA_KINDS = ['cm', 'pass', 'paid', 'event'] as const;
 export type GachaKind = typeof GACHA_KINDS[number];
 interface GachaBase {
@@ -29,7 +30,21 @@ export interface SealPool {
 }
 export interface CollectionSealGacha extends GachaBase { poolId: string }
 export interface SealProduct { id: string; name: string; tiers: { sealCost: number | null; monthlyLimit: number | null }[] }
-interface DefinitionBase { revision: string; products: SealProduct[] }
+export interface PassGachaBenefit {
+  gachaId: 'pass' | 'paid' | 'event'; draws: number | null; periodDays: number | null;
+  /** Optional distribution for this free entitlement in collection mode. */
+  poolId?: string;
+}
+export interface PlanBenefits {
+  passGachas: PassGachaBenefit[] | null;
+  paidDailyLimit: 0 | 1 | 2 | null;
+  eventDailyLimit: 0 | 1 | 2 | null;
+  basis: string;
+}
+interface DefinitionBase {
+  revision: string; products: SealProduct[];
+  planBenefits?: Record<PassPlan, PlanBenefits>;
+}
 export interface FixedSealBudgetDefinition extends DefinitionBase { version: 2; gachas: SealGacha[] }
 export interface CollectionSealBudgetDefinition extends DefinitionBase {
   version: 3; gachas: CollectionSealGacha[]; pools: SealPool[]; cards: SealCardRule[];

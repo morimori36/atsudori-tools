@@ -14,7 +14,7 @@ const scenario = () => ({...defaultSealBudgetScenario(), cm: true, pass: true, p
 
 it('matches stage 1 when only R cards are complete, regardless of supplied collection in fixed mode', () => {
  const {master, collection} = collectionSealFixture();
- const fixed = calculateSealBudget(sealDefinition(), scenario(), {members: [], snaps: []});
+ const fixed = calculateSealBudget(sealDefinition(), {...scenario(), pass: false}, {members: [], snaps: []});
  const actual = calculateCollectionSealBudget(master, collection, scenario());
  expect(actual.income).toEqual(fixed.income);
  expect(actual).toMatchObject({mode: 'collection', totalIncome: 2880, totalExpense: 67, balance: 2813, notes: []});

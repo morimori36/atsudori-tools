@@ -19,7 +19,7 @@ for (const width of [320,375,390,1280]) for (const theme of ['light','dark'] as 
     await expect(premium(page)).toHaveText('+106.17');
     const results = page.locator('.budget-results'), conditions = page.locator('.budget-conditions');
     expect((await results.boundingBox())!.y).toBeLessThan((await conditions.boundingBox())!.y);
-    await expect(results.getByRole('columnheader')).toHaveText(['項目','なし','Lite','Standard','Premium']);
+    await expect(results.getByRole('columnheader')).toHaveText(['項目','なし（計画で選択中）','Lite','Standard','Premium']);
     await expect(results.locator('[data-budget-metric]').first()).toContainText('週平均総供給');
     await expect(results.locator('[data-budget-metric=weekly-cost] td')).toHaveText(['2,190','2,190','2,190','2,190']);
     await expect(results.locator('caption')).toHaveText('スター/週（円価格の行を除く）');
