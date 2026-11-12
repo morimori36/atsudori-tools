@@ -12,8 +12,8 @@ import {prepareCollectionImport} from '../../src/storage/collection-import';
 const scenario=()=>({...defaultSealBudgetScenario(),cm:true,pass:true,selectedProducts:['fictional-paper']});
 it.each([0,1,2] as const)('30 day income and full tier expense, paid=%s',paid=>{
  const r=calculateSealBudget(sealDefinition(),{...scenario(),paid});
- // One draw = .2*10 + .3*20 + 2*7 = 22. CM=120 draws; paid=30*n.
- expect(r.totalIncome).toBe(2640+660*paid);expect(r.totalExpense).toBe(67);expect(r.balance).toBe(2573+660*paid);
+ // CM=120*(.2*10+.3*20+2*7)=2640; paid counts R only: 30*n*8.
+ expect(r.totalIncome).toBe(2640+240*paid);expect(r.totalExpense).toBe(67);expect(r.balance).toBe(2573+240*paid);
  expect(r.income[0]).toMatchObject({member:240,snap:720,points:1680});expect(r.income[1]!.draws).toBeCloseTo(30/7);expect(r.income[1]!.total).toBe(0);
 });
 it('defaults are off and do not materialize stored values',()=>{expect(calculateSealBudget(sealDefinition(),defaultSealBudgetScenario())).toMatchObject({totalIncome:0,totalExpense:0,balance:0,notes:[]});});
@@ -33,4 +33,18 @@ it('round trips schemas, catalog and collection; preserves missing settings',()=
  expect(prepareCollectionImport(syntheticCollection(m),c,m,false).sealBudgetScenario).toBeUndefined();
  expect(()=>validateCollection(c,{...m,sealBudgetDefinition:undefined})).toThrow();
  expect(()=>validateCollection(c,{...m,sealBudgetDefinition:{...sealDefinition(),products:[]}})).toThrow();
+});
+
+it.each([0,1,2].flatMap(event=>[0,1,2].map(paid=>({event,paid}))))('independent event/paid counts: %o',({event,paid})=>{
+ const r=calculateSealBudget(sealDefinition(),{...scenario(),event:event as 0|1|2,paid:paid as 0|1|2});
+ expect(r.totalIncome).toBe(2640+660*event+240*paid);
+ expect(r.balance).toBe(2573+660*event+240*paid);
+ expect(r.income.find(g=>g.id==='paid')!.points).toBe(0);
+ expect(r.income.find(g=>g.id==='event')!.points).toBe(420*event);
+});
+it('preserves legacy paid selection without assuming event draws',()=>{
+ const legacy={cm:false,pass:false,paid:2 as const,selectedProducts:[]};
+ expect(validateSealBudgetScenario(legacy)).toEqual(legacy);
+ expect(calculateSealBudget(sealDefinition(),legacy).totalIncome).toBe(480);
+ expect(()=>validateSealBudgetDefinition({...sealDefinition(),version:1})).toThrow('再Import');
 });
