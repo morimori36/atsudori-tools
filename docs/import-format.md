@@ -225,4 +225,4 @@ collection v1の任意項目 `starBudgetScenario` は次の項目だけを必須
 
 collection v1の任意 `supplyConditions` は `lbPerDay`（非負の安全な整数）、`scoreRank`（非空文字列またはnull）、`studioLevels`（正整数のbandId・level、バンド重複なし）だけを持ちます。ランクは既存のtgwRank、Premium購入状態は既存のstarBudgetScenarioを参照します。通常Importで省略された条件は保持、明示された条件は全体置換、完全復元時の省略は保持しません。読込・Exportだけで既定値を補完しません。旧専用条件JSON・保存キーの読み取りや移行は行いません。[日平均の計算と不確実性](economy.md)を参照してください。
 
-シール予算はcatalogの `sealBudgetDefinition` とcollectionの `sealBudgetScenario` を使い、30日換算の抽選収入期待値と月上限交換の支出を試算します。実定義は同梱しません。[使い方・JSON契約](seal-budget.md)を参照してください。
+シール予算はcatalogの `sealBudgetDefinition` とcollectionの `sealBudgetScenario` を使い、30日換算の抽選収入期待値と月上限交換の支出を試算します。定義v2の固定方式を維持し、v3ではカード別の提供割合・重複変換条件と既存のメンバー／スナップ所持・育成段階から算出します。未知の寄与のみ計算上0とし、所持の二重入力・別保存は行いません。実定義は同梱しません。[使い方・JSON契約](seal-budget.md)を参照してください。
