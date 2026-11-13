@@ -8,16 +8,11 @@ const baseGacha = {id: {enum: ['cm', 'pass', 'paid', 'event']}, name, draws: {..
   pointsPerDraw: nullable(integer), sealsPerPoint: nullable(integer), paidStarsPerDraw: nullable(integer)};
 const products = {type: 'array', maxItems: 200, items: object({id, name, tiers: {type: 'array', minItems: 1, maxItems: 20, items: object({sealCost: nullable(integer), monthlyLimit: nullable(integer)})}})};
 const gachas = (item: unknown) => ({type: 'array', minItems: 4, maxItems: 4, items: item});
-const fixed = object({version: {const: 2}, revision: id, products,
-  gachas: gachas(object({...baseGacha,
-    memberProbabilityBp: nullable({...integer, maximum: 10000}), snapProbabilityBp: nullable({...integer, maximum: 10000}), otherProbabilityBp: nullable({...integer, maximum: 10000}),
-    memberSeals: nullable(integer), snapSeals: nullable(integer)})),
-});
 const ref = {kind: {enum: ['member', 'snap']}, cardId: positiveId};
 const reward = {anyOf: [{type: 'null'}, object({kind: {enum: ['pieces', 'none']}}), object({kind: {const: 'seals'}, amount: nullable(integer)})]};
 const collection = object({version: {const: 3}, revision: id, products,
   gachas: gachas(object({...baseGacha, poolId: id})),
-  cards: {type: 'array', maxItems: 20000, items: object({...ref, completedAt: nullable(positiveId), beforeCompletion: reward, afterCompletion: reward})},
+  cards: {type: 'array', maxItems: 20000, items: object({...ref, completedAt: nullable(positiveId), duplicateReward: reward})},
   pools: {type: 'array', maxItems: 200, items: object({id, probabilityScale: {...integer, minimum: 1},
     cards: {type: 'array', maxItems: 20000, items: object({...ref, probability: nullable(integer)})}, otherProbability: nullable(integer)})},
 });
@@ -31,8 +26,6 @@ const planBenefits = object(Object.fromEntries(['none', 'lite', 'standard', 'pre
   paidDailyLimit: nullable({enum: [0, 1, 2]}), eventDailyLimit: nullable({enum: [0, 1, 2]}),
   basis: {type: 'string', minLength: 1, maxLength: 300, pattern: '\\S'},
 })])));
-export const sealBudgetDefinitionSchema = {oneOf: [fixed, collection].map(schema => ({
-  ...schema, properties: {...schema.properties, planBenefits},
-}))};
+export const sealBudgetDefinitionSchema = {...collection, properties: {...collection.properties, planBenefits}};
 const scenario = object({cm: {type: 'boolean'}, pass: {type: 'boolean'}, paid: {enum: [0, 1, 2]}, selectedProducts: {type: 'array', maxItems: 200, uniqueItems: true, items: id}});
 export const sealBudgetScenarioSchema = {...scenario, required: ['cm', 'pass', 'paid', 'selectedProducts'], properties: {...scenario.properties, event: {enum: [0, 1, 2]}}};

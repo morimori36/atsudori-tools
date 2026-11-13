@@ -26,7 +26,7 @@ export function calculateSealBudget(
     reward === null ? null : reward.kind === 'seals' ? reward.amount : 0;
   const cardSeals = (rule: SealCardRule): number | null => {
     // Only duplicates of cards already complete at the start contribute.
-    const after = seals(rule.afterCompletion);
+    const after = seals(rule.duplicateReward);
     if (!collection) return after === 0 ? 0 : null;
     const stage = (rule.kind === 'member' ? members : snaps).get(rule.cardId);
     // In a valid collection, absent cards are explicitly unowned. The first copy is retained.
@@ -35,13 +35,13 @@ export function calculateSealBudget(
     if (rule.completedAt === null) return after === 0 ? 0 : null;
     return stage >= rule.completedAt ? after : 0;
   };
-  const rules = new Map(d.version === 3 ? d.cards.map(c => [`${c.kind}:${c.cardId}`, c]) : []);
-  const pools = new Map(d.version === 3 ? d.pools.map(p => [p.id, p]) : []);
+  const rules = new Map(d.cards.map(c => [`${c.kind}:${c.cardId}`, c]));
+  const pools = new Map(d.pools.map(p => [p.id, p]));
   const income = d.gachas.map(g => {
     const enabled = s[g.id];
     const draws = enabled ? checked(g.draws / g.periodDays * 30 * (g.id === 'paid' ? s.paid : g.id === 'event' ? (s.event ?? 0) : 1)) : 0;
     let member = 0, snap = 0;
-    if (draws && 'poolId' in g) {
+    if (draws) {
       const pool = pools.get(g.poolId)!;
       for (const card of pool.cards) {
         if (card.probability === 0) continue;
@@ -56,9 +56,6 @@ export function calculateSealBudget(
       if (pool.otherProbability === null) unknown(g.name + 'の提供割合');
       member = checked(member * draws);
       snap = checked(snap * draws);
-    } else if (draws && 'memberProbabilityBp' in g) {
-      member = checked(multiply(g.memberProbabilityBp, g.memberSeals, g.name + 'のRメンバー') / 10000 * draws);
-      snap = checked(multiply(g.snapProbabilityBp, g.snapSeals, g.name + 'のRスナップ') / 10000 * draws);
     }
     const points = draws && g.id !== 'paid' ? checked(multiply(g.pointsPerDraw, g.sealsPerPoint, g.name + 'のPt交換') * draws) : 0;
     return {id: g.id, name: g.name, draws, member, snap, points, total: checked(member + snap + points)};
@@ -67,5 +64,5 @@ export function calculateSealBudget(
     total: s.selectedProducts.includes(p.id) ? p.tiers.reduce((sum, t) => checked(sum + multiply(t.sealCost, t.monthlyLimit, p.name + 'の価格・月上限')), 0) : 0}));
   const totalIncome = income.reduce((sum, r) => checked(sum + r.total), 0);
   const totalExpense = expenses.reduce((sum, r) => checked(sum + r.total), 0);
-  return {income, expenses, totalIncome, totalExpense, balance: totalIncome - totalExpense, notes: [...notes], mode: d.version === 2 ? 'fixed' as const : 'collection' as const};
+  return {income, expenses, totalIncome, totalExpense, balance: totalIncome - totalExpense, notes: [...notes]};
 }

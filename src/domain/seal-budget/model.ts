@@ -5,11 +5,6 @@ interface GachaBase {
   id: GachaKind; name: string; draws: number; periodDays: number;
   pointsPerDraw: number | null; sealsPerPoint: number | null; paidStarsPerDraw: number | null;
 }
-/** Stage 1: explicit fixed assumption, never mixed with collection-based pools. */
-export interface SealGacha extends GachaBase {
-  memberProbabilityBp: number | null; snapProbabilityBp: number | null; otherProbabilityBp: number | null;
-  memberSeals: number | null; snapSeals: number | null;
-}
 export type SealCardKind = 'member' | 'snap';
 export interface SealCardRef { kind: SealCardKind; cardId: number }
 /** Pieces are not automatically exchanged for seals. null means unconfirmed. */
@@ -17,9 +12,8 @@ export type DuplicateReward = { kind: 'pieces' | 'none' } | { kind: 'seals'; amo
 export interface SealCardRule extends SealCardRef {
   /** Confirmed threshold in awakeningStage (member) or rank (snap), NOT trainingStage/Lv. */
   completedAt: number | null;
-  /** Retained declaration; incomplete duplicates contribute zero in this simulation. */
-  beforeCompletion: DuplicateReward | null;
-  afterCompletion: DuplicateReward | null;
+  /** Reward for a duplicate already complete at calculation start. */
+  duplicateReward: DuplicateReward | null;
 }
 export interface SealPool {
   id: string;
@@ -29,11 +23,11 @@ export interface SealPool {
   /** Confirmed non-card outcomes only. Missing card rates must remain null. */
   otherProbability: number | null;
 }
-export interface CollectionSealGacha extends GachaBase { poolId: string }
+export interface SealGacha extends GachaBase { poolId: string }
 export interface SealProduct { id: string; name: string; tiers: { sealCost: number | null; monthlyLimit: number | null }[] }
 export interface PassGachaBenefit {
   gachaId: 'pass' | 'paid' | 'event'; draws: number | null; periodDays: number | null;
-  /** Optional distribution for this free entitlement in collection mode. */
+  /** Optional distribution for this free entitlement. */
   poolId?: string;
 }
 export interface PlanBenefits {
@@ -46,10 +40,8 @@ interface DefinitionBase {
   revision: string; products: SealProduct[];
   planBenefits?: Record<PassPlan, PlanBenefits>;
 }
-export interface FixedSealBudgetDefinition extends DefinitionBase { version: 2; gachas: SealGacha[] }
-export interface CollectionSealBudgetDefinition extends DefinitionBase {
-  version: 3; gachas: CollectionSealGacha[]; pools: SealPool[]; cards: SealCardRule[];
+export interface SealBudgetDefinition extends DefinitionBase {
+  version: 3; gachas: SealGacha[]; pools: SealPool[]; cards: SealCardRule[];
 }
-export type SealBudgetDefinition = FixedSealBudgetDefinition | CollectionSealBudgetDefinition;
 export interface SealBudgetScenario { cm: boolean; pass: boolean; paid: 0 | 1 | 2; event?: 0 | 1 | 2; selectedProducts: string[] }
 export const defaultSealBudgetScenario = (): SealBudgetScenario => ({ cm: false, pass: false, paid: 0, event: 0, selectedProducts: [] });
