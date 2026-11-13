@@ -17,6 +17,7 @@ export type DuplicateReward = { kind: 'pieces' | 'none' } | { kind: 'seals'; amo
 export interface SealCardRule extends SealCardRef {
   /** Confirmed threshold in awakeningStage (member) or rank (snap), NOT trainingStage/Lv. */
   completedAt: number | null;
+  /** Retained declaration; incomplete duplicates contribute zero in this simulation. */
   beforeCompletion: DuplicateReward | null;
   afterCompletion: DuplicateReward | null;
 }
