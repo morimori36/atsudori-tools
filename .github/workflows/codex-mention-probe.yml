@@ -1,0 +1,22 @@
+name: codex-mention-probe
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  probe:
+    if: startsWith(github.head_ref, 'probe/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post @codex comment as github-actions bot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "@codex This is an automated probe posted by github-actions[bot] via GitHub Actions. Please reply to this pull request with a short comment confirming that you received this mention. Do not modify any code."
