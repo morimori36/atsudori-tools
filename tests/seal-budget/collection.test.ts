@@ -93,20 +93,20 @@ it.each(['completion', 'conversion', 'amount', 'probability'] as const)('exclude
  expect(JSON.stringify({master, collection})).toBe(original);
 });
 
-it('respects explicit conversion outcomes before and after completion', () => {
+it('counts only completed duplicates even with an explicit pre-completion seal reward', () => {
  const {master, collection, definition} = collectionSealFixture();
  definition.cards[0]!.afterCompletion = {kind: 'pieces'};
  definition.cards[2]!.beforeCompletion = {kind: 'seals', amount: 4};
- expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0}).totalIncome).toBe(2472); // 720+1680+.15*4*120
+ expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0}).totalIncome).toBe(2400); // 720+1680; incomplete duplicates never contribute
  definition.cards[2]!.beforeCompletion = {kind: 'none'};
  expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0}).totalIncome).toBe(2400);
 });
 
-it('keeps known rewards when both sides of an unknown completion threshold agree', () => {
+it('does not infer completion from matching rewards, but keeps known zero outcomes', () => {
  const {master, collection, definition} = collectionSealFixture();
  definition.cards[0]!.completedAt = null;
  definition.cards[0]!.beforeCompletion = {kind: 'seals', amount: 10};
- expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0})).toMatchObject({totalIncome: 2640, notes: []});
+ expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0})).toMatchObject({totalIncome: 2400, notes: ['架空の日次抽選の完凸条件は未確認のため除外']});
  definition.cards.forEach(c => {c.completedAt = null; c.beforeCompletion = {kind: 'pieces'}; c.afterCompletion = {kind: 'none'};});
  expect(calculateCollectionSealBudget(master, null, {...scenario(), paid: 0})).toMatchObject({totalIncome: 1680, notes: []});
 });
@@ -186,4 +186,70 @@ it('rejects inconsistent ownership and arithmetic overflow instead of treating t
  definition.gachas[0]!.draws = 1e9; definition.gachas[0]!.periodDays = .01;
  definition.cards[0]!.afterCompletion = {kind: 'seals', amount: 1e9};
  expect(() => calculateCollectionSealBudget(master, collection, scenario())).toThrow('計算範囲');
+});
+
+it.each(['unowned', 'partial', 'complete'] as const)('uses a shared virtual pool with %s starting ownership', state => {
+ const {master, collection, definition} = collectionSealFixture();
+ definition.gachas.forEach(g => {g.poolId = 'ordinary';});
+ if (state === 'unowned') {collection.members = []; collection.snaps = [];}
+ if (state === 'complete') {
+  collection.members.forEach(c => {c.awakeningStage = 2;});
+  collection.snaps.forEach(c => {c.rank = 2;});
+ }
+ const conditions = {...scenario(), pass: false, event: 1 as const};
+ const before = structuredClone({master, collection, conditions});
+ const r = calculateCollectionSealBudget(master, collection, conditions);
+ // 180 draws of cards; only 150 draws exchange 14 Pt-seals each.
+ expect(r.totalIncome).toBe(state === 'unowned' ? 2100 : state === 'partial' ? 3540 : 5340);
+ expect(r.notes).toEqual([]);
+ expect({master, collection, conditions}).toEqual(before);
+});
+
+it('retains known contributions and deduplicates each actual unknown cause across free entitlements', () => {
+ const {master, collection, definition} = collectionSealFixture();
+ definition.cards[0]!.completedAt = null;
+ definition.cards[1]!.afterCompletion = null;
+ collection.members[0]!.awakeningStage = 2;
+ definition.pools[0]!.cards[2]!.probability = null;
+ definition.planBenefits!.lite = {passGachas: [
+  {gachaId: 'pass', draws: 1, periodDays: 30, poolId: 'ordinary'},
+  {gachaId: 'pass', draws: 1, periodDays: 30, poolId: 'ordinary'},
+ ], paidDailyLimit: null, eventDailyLimit: 2, basis: '独立した架空条件'};
+ collection.starBudgetScenario = {storyEventPercent: null, eventPremium: false, seasonPremium: false,
+  passPlan: 'lite', selectedProducts: []};
+ const conditions = scenario();
+ const before = structuredClone({master, collection, conditions});
+ const r = calculateCollectionSealBudget(master, collection, conditions);
+ // All contributing cards are unknown, except the incomplete snap (known zero).
+ // CM Pt = 120*14; pass Pt is explicitly 0; paid unknown limit contributes 0.
+ expect(r).toMatchObject({totalIncome: 1680, totalExpense: 67, balance: 1613});
+ expect(r.notes).toHaveLength(7); // three causes per active gacha, plus paid limit
+ expect(new Set(r.notes).size).toBe(r.notes.length);
+ expect(r.notes).toContain('架空の日次抽選の提供割合は未確認のため除外');
+ expect(r.notes).toContain('架空の日次抽選の完凸条件は未確認のため除外');
+ expect(r.notes).toContain('架空の日次抽選のシール報酬は未確認のため除外');
+ expect({master, collection, conditions}).toEqual(before);
+});
+
+it('gives zero-probability completed cards no income or warning', () => {
+ const {master, collection, definition} = collectionSealFixture();
+ definition.pools[0]!.cards[0]!.probability = 0;
+ definition.pools[0]!.otherProbability = 2000;
+ const r = calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0});
+ expect(r).toMatchObject({totalIncome: 2400, notes: []});
+});
+
+it.each([
+ {unknown: false, probability: 2000, valid: true},
+ {unknown: false, probability: 1999, valid: false},
+ {unknown: false, probability: 2001, valid: false},
+ {unknown: true, probability: 2000, valid: true},
+ {unknown: true, probability: 1999, valid: true},
+ {unknown: true, probability: 2001, valid: false},
+])('preserves probability totals: %o', ({unknown, probability, valid}) => {
+ const {definition} = collectionSealFixture();
+ definition.pools[0]!.cards[0]!.probability = probability;
+ if (unknown) definition.pools[0]!.otherProbability = null;
+ const check = () => validateSealBudgetDefinition(definition);
+ if (valid) expect(check()).toEqual(definition); else expect(check).toThrow();
 });

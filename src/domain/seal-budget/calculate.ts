@@ -25,14 +25,15 @@ export function calculateSealBudget(
   const seals = (reward: DuplicateReward | null): number | null =>
     reward === null ? null : reward.kind === 'seals' ? reward.amount : 0;
   const cardSeals = (rule: SealCardRule): number | null => {
-    const before = seals(rule.beforeCompletion), after = seals(rule.afterCompletion);
-    if (!collection) return before === 0 && after === 0 ? 0 : null;
+    // Only duplicates of cards already complete at the start contribute.
+    const after = seals(rule.afterCompletion);
+    if (!collection) return after === 0 ? 0 : null;
     const stage = (rule.kind === 'member' ? members : snaps).get(rule.cardId);
     // In a valid collection, absent cards are explicitly unowned. The first copy is retained.
     if (stage === undefined) return 0;
     if (!Number.isSafeInteger(stage) || stage < 1) throw new Error('シール予算: 所持の育成段階が不正です');
-    if (rule.completedAt === null) return before !== null && before === after ? before : null;
-    return stage >= rule.completedAt ? after : before;
+    if (rule.completedAt === null) return after === 0 ? 0 : null;
+    return stage >= rule.completedAt ? after : 0;
   };
   const rules = new Map(d.version === 3 ? d.cards.map(c => [`${c.kind}:${c.cardId}`, c]) : []);
   const pools = new Map(d.version === 3 ? d.pools.map(p => [p.id, p]) : []);
@@ -44,11 +45,15 @@ export function calculateSealBudget(
       const pool = pools.get(g.poolId)!;
       for (const card of pool.cards) {
         if (card.probability === 0) continue;
-        const value = multiply(card.probability, cardSeals(rules.get(`${card.kind}:${card.cardId}`)!), g.name + 'のカード別変換') / pool.probabilityScale;
+        const rule = rules.get(`${card.kind}:${card.cardId}`)!;
+        const reward = cardSeals(rule);
+        const label = g.name + (card.probability === null ? 'の提供割合'
+          : !collection ? 'の所持状態' : rule.completedAt === null ? 'の完凸条件' : 'のシール報酬');
+        const value = multiply(card.probability, reward, label) / pool.probabilityScale;
         if (card.kind === 'member') member = checked(member + value);
         else snap = checked(snap + value);
       }
-      if (pool.otherProbability === null) unknown(g.name + 'の排出対象・提供割合');
+      if (pool.otherProbability === null) unknown(g.name + 'の提供割合');
       member = checked(member * draws);
       snap = checked(snap * draws);
     } else if (draws && 'memberProbabilityBp' in g) {
