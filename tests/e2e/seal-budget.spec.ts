@@ -116,7 +116,7 @@ test('receipt keeps unknown notes visible and treats external names and IDs as t
  }, {m, c, ck: CATALOG_STORAGE_KEY, sk: STORAGE_KEY});
  await page.reload();
  await expect(page.locator('.seal-notes')).toBeVisible();
- await expect(page.locator('.seal-notes')).toContainText('Rスナップは未確認のため除外');
+ await expect(page.locator('.seal-notes')).toContainText('シール報酬は未確認のため除外');
  await expect(page.locator('[data-seal-income]')).toHaveText('1,920');
  await expect(page.locator('[data-seal-cost]')).toHaveText('67');
  await expect(page.locator('.seal-gacha-info h3').first()).toHaveText(d.gachas[0]!.name);
