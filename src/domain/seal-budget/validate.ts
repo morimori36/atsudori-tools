@@ -28,7 +28,7 @@ function reward(v: unknown): DuplicateReward | null {
 }
 export function validateSealBudgetDefinition(value: unknown): SealBudgetDefinition {
  const d = strictObject(value, 'sealBudgetDefinition', ['version', 'revision', 'gachas', 'products', 'pools', 'cards', 'planBenefits'], ['version', 'revision', 'gachas', 'products']);
- if (d.version !== 2 && d.version !== 3) throw new Error('シール予算定義v2またはv3を含むマスタを再Importしてください。旧定義は対応していません');
+ if (d.version !== 3) throw new Error('現行のシール予算定義v3を含むマスタを再Importしてください。旧定義・未知の形式は対応していません');
  const products = rows(d.products, 200).map(v => {
   const r = strictObject(v, 'product', ['id', 'name', 'tiers']);
   const tiers = rows(r.tiers, 20).map(v => {
@@ -61,7 +61,7 @@ export function validateSealBudgetDefinition(value: unknown): SealBudgetDefiniti
     if (!['pass', 'paid', 'event'].includes(g.gachaId as string)) return fail();
     if (g.periodDays !== null && (typeof g.periodDays !== 'number' || !Number.isFinite(g.periodDays) || g.periodDays < 0.01 || g.periodDays > 1e6)) return fail();
     const poolId = g.poolId === undefined ? undefined : id(g.poolId);
-    if (poolId !== undefined && (d.version !== 3 || !rows(d.pools, 200).some(p => (p as {id: unknown}).id === poolId))) return fail();
+    if (poolId !== undefined && !rows(d.pools, 200).some(p => (p as {id: unknown}).id === poolId)) return fail();
     return {gachaId: g.gachaId as 'pass' | 'paid' | 'event', draws: g.draws === null ? null : positive(g.draws, 1e9), periodDays: g.periodDays as number | null, ...(poolId === undefined ? {} : {poolId})};
    });
    // A purchase-free plan cannot grant purchased-pass entitlements.
@@ -69,22 +69,10 @@ export function validateSealBudgetDefinition(value: unknown): SealBudgetDefiniti
    return [plan, {passGachas, paidDailyLimit: limit(row.paidDailyLimit), eventDailyLimit: limit(row.eventDailyLimit), basis: row.basis}];
   })) as NonNullable<SealBudgetDefinition['planBenefits']>;
  }
- if (d.version === 2) {
-  if (Object.hasOwn(d, 'pools') || Object.hasOwn(d, 'cards')) return fail();
-  const gachas = rawGachas.map(v => {
-   const r = strictObject(v, 'gacha', [...baseKeys, 'memberProbabilityBp', 'snapProbabilityBp', 'otherProbabilityBp', 'memberSeals', 'snapSeals']);
-   const probabilities = ['memberProbabilityBp', 'snapProbabilityBp', 'otherProbabilityBp'].map(k => number(r[k], 10000));
-   probabilitySum(probabilities, 10000);
-   return {...base(r), memberProbabilityBp: probabilities[0]!, snapProbabilityBp: probabilities[1]!, otherProbabilityBp: probabilities[2]!,
-    memberSeals: number(r.memberSeals), snapSeals: number(r.snapSeals)};
-  });
-  unique(gachas.map(g => g.id));
-  return {version: 2, revision, gachas, products, ...benefits};
- }
  const cards = rows(d.cards, 20000).map(v => {
-  const r = strictObject(v, 'sealCard', ['kind', 'cardId', 'completedAt', 'beforeCompletion', 'afterCompletion']);
+  const r = strictObject(v, 'sealCard', ['kind', 'cardId', 'completedAt', 'duplicateReward']);
   return {...cardRef(r), completedAt: r.completedAt === null ? null : positive(r.completedAt),
-   beforeCompletion: reward(r.beforeCompletion), afterCompletion: reward(r.afterCompletion)};
+   duplicateReward: reward(r.duplicateReward)};
  });
  unique(cards.map(cardKey));
  const rules = new Set(cards.map(cardKey));
@@ -121,7 +109,7 @@ function probabilitySum(values: (number | null)[], scale: number): void {
 }
 /** Validate public card IDs and declared completion stages without inferring game rules. */
 export function sealBudgetIssues(master: Masterdata, definition = master.sealBudgetDefinition): string[] {
- if (!definition || definition.version === 2) return [];
+ if (!definition) return [];
  const issues: string[] = [];
  const members = new Map(master.members.map(c => [c.id, c]));
  const snaps = new Map(master.snaps.map(c => [c.id, c]));

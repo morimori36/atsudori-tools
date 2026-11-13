@@ -44,7 +44,7 @@ export function calculatePlannedSeals(
       const gacha = copy.gachas.find(g => g.id === benefit.gachaId)!;
       gacha.draws = benefit.draws;
       gacha.periodDays = benefit.periodDays;
-      if ('poolId' in gacha && benefit.poolId !== undefined) gacha.poolId = benefit.poolId;
+      if (benefit.poolId !== undefined) gacha.poolId = benefit.poolId;
       const bonus = calculateSealBudget(copy, {cm: false, pass: false, paid: 0, event: 0,
         selectedProducts: [], [benefit.gachaId]: benefit.gachaId === 'pass' ? true : 1}, collection);
       for (const row of bonus.income) {

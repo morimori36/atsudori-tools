@@ -1,7 +1,7 @@
 import {it, expect} from 'vitest';
 import Ajv from 'ajv/dist/2020';
 import {readFileSync} from 'node:fs';
-import {collectionSealFixture, sealDefinition} from '../helpers/seal-budget';
+import {collectionSealFixture} from '../helpers/seal-budget';
 import {calculateSealBudget} from '../../src/domain/seal-budget/calculate';
 import {calculateCollectionSealBudget} from '../../src/app/seal-budget';
 import {defaultSealBudgetScenario} from '../../src/domain/seal-budget/model';
@@ -12,13 +12,11 @@ import {prepareCollectionImport} from '../../src/storage/collection-import';
 import {loadCatalog, loadCollection, saveCatalog, saveCollection, CATALOG_STORAGE_KEY, STORAGE_KEY} from '../../src/storage/local';
 const scenario = () => ({...defaultSealBudgetScenario(), cm: true, pass: true, paid: 1 as const, selectedProducts: ['fictional-paper']});
 
-it('matches stage 1 when only R cards are complete, regardless of supplied collection in fixed mode', () => {
+it('uses only completed starting ownership', () => {
  const {master, collection} = collectionSealFixture();
- const fixed = calculateSealBudget(sealDefinition(), {...scenario(), pass: false}, {members: [], snaps: []});
- const actual = calculateCollectionSealBudget(master, collection, scenario());
- expect(actual.income).toEqual(fixed.income);
- expect(actual).toMatchObject({mode: 'collection', totalIncome: 2880, totalExpense: 67, balance: 2813, notes: []});
- expect(fixed.mode).toBe('fixed');
+ expect(calculateCollectionSealBudget(master, collection, scenario())).toMatchObject({
+  totalIncome: 2880, totalExpense: 67, balance: 2813, notes: [],
+ });
 });
 
 it.each(['member', 'snap'] as const)('uses current %s ownership, not a duplicate flag or training level', kind => {
@@ -84,8 +82,8 @@ it('distinguishes an unknown snapshot from an empty collection and retains Pt in
 it.each(['completion', 'conversion', 'amount', 'probability'] as const)('excludes only unknown %s contribution, preserves source nulls', kind => {
  const {master, collection, definition} = collectionSealFixture();
  if (kind === 'completion') definition.cards[0]!.completedAt = null;
- if (kind === 'conversion') definition.cards[0]!.afterCompletion = null;
- if (kind === 'amount') definition.cards[0]!.afterCompletion = {kind: 'seals', amount: null};
+ if (kind === 'conversion') definition.cards[0]!.duplicateReward = null;
+ if (kind === 'amount') definition.cards[0]!.duplicateReward = {kind: 'seals', amount: null};
  if (kind === 'probability') definition.pools[0]!.cards[0]!.probability = null;
  const original = JSON.stringify({master, collection});
  expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0})).toMatchObject({totalIncome: 2400, totalExpense: 67, balance: 2333});
@@ -93,21 +91,20 @@ it.each(['completion', 'conversion', 'amount', 'probability'] as const)('exclude
  expect(JSON.stringify({master, collection})).toBe(original);
 });
 
-it('counts only completed duplicates even with an explicit pre-completion seal reward', () => {
+it('counts only completed duplicates with a declared seal reward', () => {
  const {master, collection, definition} = collectionSealFixture();
- definition.cards[0]!.afterCompletion = {kind: 'pieces'};
- definition.cards[2]!.beforeCompletion = {kind: 'seals', amount: 4};
+ definition.cards[0]!.duplicateReward = {kind: 'pieces'};
+ definition.cards[2]!.duplicateReward = {kind: 'seals', amount: 4};
  expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0}).totalIncome).toBe(2400); // 720+1680; incomplete duplicates never contribute
- definition.cards[2]!.beforeCompletion = {kind: 'none'};
+ definition.cards[2]!.duplicateReward = {kind: 'none'};
  expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0}).totalIncome).toBe(2400);
 });
 
-it('does not infer completion from matching rewards, but keeps known zero outcomes', () => {
+it('does not infer completion from a declared reward, but keeps known zero outcomes', () => {
  const {master, collection, definition} = collectionSealFixture();
  definition.cards[0]!.completedAt = null;
- definition.cards[0]!.beforeCompletion = {kind: 'seals', amount: 10};
  expect(calculateCollectionSealBudget(master, collection, {...scenario(), paid: 0})).toMatchObject({totalIncome: 2400, notes: ['架空の日次抽選の完凸条件は未確認のため除外']});
- definition.cards.forEach(c => {c.completedAt = null; c.beforeCompletion = {kind: 'pieces'}; c.afterCompletion = {kind: 'none'};});
+ definition.cards.forEach(c => {c.completedAt = null; c.duplicateReward = {kind: 'none'};});
  expect(calculateCollectionSealBudget(master, null, {...scenario(), paid: 0})).toMatchObject({totalIncome: 1680, notes: []});
 });
 
@@ -146,7 +143,7 @@ it('round trips definition v3 and existing collection without new ownership fiel
  expect(calculateCollectionSealBudget(master, merged).totalIncome).toBe(1680);
 });
 
-it.each(['bad pool', 'bad rule', 'duplicate rule', 'duplicate pool', 'duplicate card', 'negative', 'fractional', 'bad sum', 'bad scale', 'missing cards', 'bad outcome', 'missing amount', 'mixed v2', 'future version'])(
+it.each(['bad pool', 'bad rule', 'duplicate rule', 'duplicate pool', 'duplicate card', 'negative', 'fractional', 'bad sum', 'bad scale', 'missing cards', 'bad outcome', 'missing amount', 'extra gacha field', 'future version'])(
  'rejects invalid v3 definition: %s', kind => {
  const {definition: d, master} = collectionSealFixture();
  if (kind === 'bad pool') d.gachas[0]!.poolId = 'absent';
@@ -159,9 +156,9 @@ it.each(['bad pool', 'bad rule', 'duplicate rule', 'duplicate pool', 'duplicate 
  if (kind === 'bad sum') d.pools[0]!.cards[0]!.probability = 2001;
  if (kind === 'bad scale') d.pools[0]!.probabilityScale = 0;
  if (kind === 'missing cards') delete (d as Partial<typeof d>).cards;
- if (kind === 'bad outcome') Object.assign(d.cards[0]!.beforeCompletion!, {amount: 0});
- if (kind === 'missing amount') d.cards[0]!.afterCompletion = {kind: 'seals'} as never;
- if (kind === 'mixed v2') Object.assign(d.gachas[0]!, {memberProbabilityBp: 2000});
+ if (kind === 'bad outcome') Object.assign(d.cards[0]!, {duplicateReward: {kind: 'pieces', amount: 0}});
+ if (kind === 'missing amount') d.cards[0]!.duplicateReward = {kind: 'seals'} as never;
+ if (kind === 'extra gacha field') Object.assign(d.gachas[0]!, {retiredField: 2000});
  if (kind === 'future version') Object.assign(d, {version: 4});
  expect(() => validateSealBudgetDefinition(d)).toThrow();
  // References and sums require semantic validation, independent of structural Schema.
@@ -184,7 +181,7 @@ it('rejects inconsistent ownership and arithmetic overflow instead of treating t
  expect(() => calculateCollectionSealBudget(master, {...collection, members: [...collection.members, collection.members[0]!]}, scenario())).toThrow();
  expect(() => calculateCollectionSealBudget(master, {...collection, snaps: [{...collection.snaps[0]!, rank: 8}]}, scenario())).toThrow();
  definition.gachas[0]!.draws = 1e9; definition.gachas[0]!.periodDays = .01;
- definition.cards[0]!.afterCompletion = {kind: 'seals', amount: 1e9};
+ definition.cards[0]!.duplicateReward = {kind: 'seals', amount: 1e9};
  expect(() => calculateCollectionSealBudget(master, collection, scenario())).toThrow('計算範囲');
 });
 
@@ -208,7 +205,7 @@ it.each(['unowned', 'partial', 'complete'] as const)('uses a shared virtual pool
 it('retains known contributions and deduplicates each actual unknown cause across free entitlements', () => {
  const {master, collection, definition} = collectionSealFixture();
  definition.cards[0]!.completedAt = null;
- definition.cards[1]!.afterCompletion = null;
+ definition.cards[1]!.duplicateReward = null;
  collection.members[0]!.awakeningStage = 2;
  definition.pools[0]!.cards[2]!.probability = null;
  definition.planBenefits!.lite = {passGachas: [

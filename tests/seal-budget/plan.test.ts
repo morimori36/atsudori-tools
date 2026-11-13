@@ -161,16 +161,15 @@ it('retains known numbers while honoring catalog payment restrictions', () => {
   expect(run(f).status).toBe('unconfirmed');
 });
 
-it('reuses fixed-v2 conversion for plan benefits without collection-mode fallback', () => {
+it('uses the referenced gacha pool and Pt policy for plan benefits', () => {
   const f = selectPlan(budgetPlanFixture(), 'lite');
-  const fixed = sealDefinition();
-  fixed.revision = f.master.revision;
-  fixed.planBenefits!.lite.passGachas = [{gachaId: 'pass', draws: 2, periodDays: 9}];
-  fixed.gachas.find(g => g.id === 'pass')!.pointsPerDraw = 2;
-  f.master.sealBudgetDefinition = fixed;
+  const definition = sealDefinition();
+  definition.revision = f.master.revision;
+  definition.planBenefits!.lite.passGachas = [{gachaId: 'pass', draws: 2, periodDays: 9}];
+  definition.gachas.find(g => g.id === 'pass')!.pointsPerDraw = 2;
+  f.master.sealBudgetDefinition = definition;
   f.collection.sealBudgetScenario!.pass = true;
   const r = run(f);
-  expect(r.seals.mode).toBe('fixed');
   expect(r.seals.totalIncome).toBeCloseTo(14 * 2 * 30 / 9);
   expect(r.stars!.gachaExpense).toBe(0);
 });

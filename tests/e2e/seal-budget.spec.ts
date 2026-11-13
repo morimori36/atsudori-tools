@@ -8,6 +8,8 @@ for(const width of [1280,375])test(`seal budget import, change and reload at ${w
  const m={...syntheticCatalog(),sealBudgetDefinition:sealDefinition()};
  await page.locator('#catalog-import').setInputFiles({name:'fictional.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(m))});
  await expect(page.getByText('マスタをImportしました',{exact:true})).toBeVisible();
+ await page.locator('#import-file').setInputFiles({name:'fictional-collection.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(syntheticCollection(m)))});
+ await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
  await chooseScreen(page,page.locator('nav [data-tab=seal-budget]'));
  await expect(page.locator('[data-seal-balance]')).toHaveText('0');
  await page.locator('[name=cm]').check();await expect(page.locator('[data-seal-income]')).toHaveText('2,640');
@@ -101,7 +103,7 @@ test('receipt preserves saved contributions on failure, then retries without clo
 
 test('receipt keeps unknown notes visible and treats external names and IDs as text', async ({page}) => {
  const d = sealDefinition();
- d.gachas[0]!.snapSeals = null;
+ d.cards[1]!.duplicateReward = null;
  d.gachas[0]!.name = '<img src=x onerror=alert(1)>';
  d.products[0]!.id = 'paper.test-1';
  d.products[0]!.name = '架空の長い商品名'.repeat(8);
@@ -114,7 +116,7 @@ test('receipt keeps unknown notes visible and treats external names and IDs as t
  }, {m, c, ck: CATALOG_STORAGE_KEY, sk: STORAGE_KEY});
  await page.reload();
  await expect(page.locator('.seal-notes')).toBeVisible();
- await expect(page.locator('.seal-notes')).toContainText('Rスナップは未確認のため除外');
+ await expect(page.locator('.seal-notes')).toContainText('シール報酬は未確認のため除外');
  await expect(page.locator('[data-seal-income]')).toHaveText('1,920');
  await expect(page.locator('[data-seal-cost]')).toHaveText('67');
  await expect(page.locator('.seal-gacha-info h3').first()).toHaveText(d.gachas[0]!.name);

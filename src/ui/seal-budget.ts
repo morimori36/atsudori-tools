@@ -89,7 +89,7 @@ export function createSealBudgetView(
             <tbody data-seal-breakdown></tbody>
           </table></div>
         </details>
-        <details class="ui-details"><summary>試算の前提</summary><p>${definition.version === 2 ? '固定方式：Rメンバー・Rスナップは全て完凸、SR・SSRは未完凸と仮定します。' : '実所持方式：全対象ガチャで共通の仮想プールを使います。レアリティ×種別の枠確率を均等配分したカード別確率で試算し、実開催の排出対象・ピックアップ・開催期間は再現しません。開始時の所持を固定し、完凸済みカードの重複だけをシールに含めます。未所持・未完凸・試算中の新規完凸は寄与0です。'}イベントの余剰Ptは期限内にシール交換し、アワーノーツのPtは保有します。イベント開催が継続する想定の30日換算で、実際の開催日数を予測しません。スター収支は共通のPremium購入・ランク・交換商品の設定を使います。</p></details>
+        <details class="ui-details"><summary>試算の前提</summary><p>実所持方式：全対象ガチャで共通の仮想プールを使います。レアリティ×種別の枠確率を均等配分したカード別確率で試算し、実開催の排出対象・ピックアップ・開催期間は再現しません。開始時の所持を固定し、完凸済みカードの重複だけをシールに含めます。未所持・未完凸・試算中の新規完凸は寄与0です。イベントの余剰Ptは期限内にシール交換し、アワーノーツのPtは保有します。イベント開催が継続する想定の30日換算で、実際の開催日数を予測しません。スター収支は共通のPremium購入・ランク・交換商品の設定を使います。</p></details>
       </section>
       <div class="seal-mobile-balance" data-seal-mobile-balance aria-hidden="true" hidden></div>
     </div>`;
