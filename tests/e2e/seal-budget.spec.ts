@@ -180,6 +180,22 @@ for (const width of [1280, 375]) test(`collection-based seal budget follows memb
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('collection mode displays known income and distinct unknown causes once', async ({page}) => {
+ const {master, collection, definition} = collectionSealFixture();
+ definition.cards[0]!.completedAt = null;
+ definition.pools[0]!.cards[1]!.probability = null;
+ collection.sealBudgetScenario = {cm: true, pass: false, paid: 0, event: 0, selectedProducts: []};
+ await page.goto('./#seal-budget');
+ await page.evaluate(({master, collection, ck, sk}) => {
+  localStorage.setItem(ck, JSON.stringify(master)); localStorage.setItem(sk, JSON.stringify(collection));
+ }, {master, collection, ck: CATALOG_STORAGE_KEY, sk: STORAGE_KEY});
+ await page.reload();
+ await expect(page.locator('[data-seal-income]')).toHaveText('1,680');
+ await expect(page.locator('[data-seal-balance]')).toHaveText('+1,680');
+ await expect(page.locator('.seal-notes')).toHaveText(
+  '架空の日次抽選の完凸条件は未確認のため除外。架空の日次抽選の提供割合は未確認のため除外。スター予算定義が未登録のためスター収支は未確認');
+});
+
 test('collection mode excludes unknown completion and protects storage on rejected catalog update', async ({page}) => {
  const {master, collection, definition} = collectionSealFixture();
  definition.cards[0]!.completedAt = null;
