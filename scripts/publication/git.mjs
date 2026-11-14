@@ -24,7 +24,7 @@ export function scanHistory(roots, { cwd = process.cwd(), files = true, base } =
     if (type === 'commit' || type === 'tag') {
       const text = git(['cat-file', type, id], cwd);
       assertSafeMetadata(text);
-      assertCommitIdentity(text.split('\n\n', 1)[0], type === 'tag', id);
+      assertCommitIdentity(text.split('\n\n', 1)[0], type === 'tag');
       inspected++;
     } else if (files && (type === 'blob' || type === 'tree')) {
       assertSafeText(entry.slice(id.length));

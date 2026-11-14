@@ -65,13 +65,10 @@ test('commit identities require a noreply author even for GitHub-committed machi
 
 test('public-history audit identity check rejects a personal machine-account email', () => {
   const noreply = '2+morimori36-muse@users.noreply.github.com';
-  const historical = '3890f87c224fd6aead504bd6b00ecd849ca71110';
   assert.equal(isSafeCommitIdentity(noreply, 'GitHub', 'noreply@github.com'), true);
   assert.equal(isSafeCommitIdentity('machine@invalid.example', 'GitHub', 'noreply@github.com'), false);
-  assert.equal(isSafeCommitIdentity('muse95965@gmail.com', 'GitHub', 'noreply@github.com', historical), true);
-  assert.equal(isSafeCommitIdentity('muse95965@gmail.com', 'GitHub', 'noreply@github.com', 'a'.repeat(40)), false);
-  assert.equal(isSafeCommitIdentity('other@invalid.example', 'GitHub', 'noreply@github.com', historical), false);
-  assert.equal(isSafeCommitIdentity('muse95965@gmail.com', 'Someone', 'someone@invalid.example', historical), false);
+  assert.equal(isSafeCommitIdentity('author@example.invalid', 'GitHub', 'noreply@github.com'), false);
+  assert.equal(isSafeCommitIdentity(noreply, 'Someone', 'committer@example.invalid'), false);
 });
 
 test('a real local push passes with the hook installed; no-op and deletion updates publish no new objects', () => {

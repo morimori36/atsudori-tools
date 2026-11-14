@@ -31,18 +31,12 @@ export function assertSafeMetadata(text: string): void {
 
 const userNoreply = (email: string): boolean => /^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$/.test(email);
 
-const historicalIdentityExceptions = new Map([
-  // Squash merge for #101, created before noreply authorship was enforced.
-  ['3890f87c224fd6aead504bd6b00ecd849ca71110', 'muse95965@gmail.com'],
-]);
-
-export function isSafeCommitIdentity(authorEmail: string, committerName: string, committerEmail: string, commit = ''): boolean {
+export function isSafeCommitIdentity(authorEmail: string, committerName: string, committerEmail: string): boolean {
   const githubCommitter = committerName === 'GitHub' && committerEmail === 'noreply@github.com';
-  const historicalAuthor = historicalIdentityExceptions.get(commit) === authorEmail;
-  return (userNoreply(authorEmail) || historicalAuthor) && (userNoreply(committerEmail) || githubCommitter);
+  return userNoreply(authorEmail) && (userNoreply(committerEmail) || githubCommitter);
 }
 
-export function assertCommitIdentity(text: string, tag = false, commit = ''): void {
+export function assertCommitIdentity(text: string, tag = false): void {
   const parse = (field: string) => {
     const line = text.split('\n').find(line => line.startsWith(field + ' '));
     const match = line?.match(/^[a-z]+ (.*) <([^<>]+)> \d+ [+-]\d{4}$/);
@@ -53,5 +47,5 @@ export function assertCommitIdentity(text: string, tag = false, commit = ''): vo
     return;
   }
   const author = parse('author'), committer = parse('committer');
-  if (!isSafeCommitIdentity(author.email, committer.name, committer.email, commit)) throw new PublicationFinding('commit-identity');
+  if (!isSafeCommitIdentity(author.email, committer.name, committer.email)) throw new PublicationFinding('commit-identity');
 }
