@@ -45,6 +45,8 @@ export function calculatePlannedSeals(
       gacha.draws = benefit.draws;
       gacha.periodDays = benefit.periodDays;
       if (benefit.poolId !== undefined) gacha.poolId = benefit.poolId;
+      // Free benefits award no gacha points: keep the referenced row and pool, zero only Pt here.
+      gacha.pointsPerDraw = 0;
       const bonus = calculateSealBudget(copy, {cm: false, pass: false, paid: 0, event: 0,
         selectedProducts: [], [benefit.gachaId]: benefit.gachaId === 'pass' ? true : 1}, collection);
       for (const row of bonus.income) {
