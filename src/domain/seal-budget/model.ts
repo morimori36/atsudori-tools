@@ -43,5 +43,5 @@ interface DefinitionBase {
 export interface SealBudgetDefinition extends DefinitionBase {
   version: 3; gachas: SealGacha[]; pools: SealPool[]; cards: SealCardRule[];
 }
-export interface SealBudgetScenario { cm: boolean; pass: boolean; paid: 0 | 1 | 2; event?: 0 | 1 | 2; selectedProducts: string[] }
-export const defaultSealBudgetScenario = (): SealBudgetScenario => ({ cm: false, pass: false, paid: 0, event: 0, selectedProducts: [] });
+export interface SealBudgetScenario { cm: boolean; pass: boolean; eventFree?: boolean; paid: 0 | 1 | 2; event?: 0 | 1 | 2; selectedProducts: string[] }
+export const defaultSealBudgetScenario = (): SealBudgetScenario => ({ cm: false, pass: false, eventFree: false, paid: 0, event: 0, selectedProducts: [] });

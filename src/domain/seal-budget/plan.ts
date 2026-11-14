@@ -33,9 +33,13 @@ export function calculatePlannedSeals(
     const source = d.gachas.find(row => row.id === g.id)!;
     return {...g, quantity: source.draws * Number(effective[g.id] ?? 0), periodDays: source.periodDays};
   });
-  if (s.pass && plan !== 'none') {
+  const freeBenefits: {gachaId: 'pass' | 'paid' | 'event'; name: string; draws: number; member: number; snap: number; points: number; total: number}[] = [];
+  if ((s.pass || s.eventFree) && plan !== 'none') {
     if (!benefits || benefits.passGachas === null) notes.add('パス付属ガチャの回数・条件は未確認のため除外');
     else for (const benefit of benefits.passGachas) {
+      // `paid` predates the independent event switch and remains governed by `pass`.
+      const selected = benefit.gachaId === 'event' ? (s.eventFree ?? false) : s.pass;
+      if (!selected) continue;
       if (benefit.draws === null || benefit.periodDays === null) {
         notes.add('パス付属ガチャの回数・条件は未確認のため除外');
         continue;
@@ -47,9 +51,11 @@ export function calculatePlannedSeals(
       if (benefit.poolId !== undefined) gacha.poolId = benefit.poolId;
       // Free benefits award no gacha points: keep the referenced row and pool, zero only Pt here.
       gacha.pointsPerDraw = 0;
-      const bonus = calculateSealBudget(copy, {cm: false, pass: false, paid: 0, event: 0,
+      const bonus = calculateSealBudget(copy, {cm: false, pass: false, eventFree: false, paid: 0, event: 0,
         selectedProducts: [], [benefit.gachaId]: benefit.gachaId === 'pass' ? true : 1}, collection);
       for (const row of bonus.income) {
+        if (row.id === benefit.gachaId) freeBenefits.push({...row, gachaId: benefit.gachaId,
+          name: benefit.gachaId === 'event' ? `${row.name}（パス付属無料分）` : `${row.name}（パスガチャ無料分）`});
         const target = result.income.find(g => g.id === row.id)!;
         for (const key of ['draws', 'member', 'snap', 'points', 'total'] as const) target[key] += row[key];
       }
@@ -61,5 +67,5 @@ export function calculatePlannedSeals(
   if ([result.totalIncome, result.balance, ...result.income.flatMap(g => [g.draws, g.total])]
     .some(n => !Number.isFinite(n) || Math.abs(n) > Number.MAX_SAFE_INTEGER)) throw new Error('ガチャ計画の計算範囲を超えています');
   result.notes = [...new Set([...result.notes, ...notes])];
-  return {seals: result, paidDraws, unavailable, planNotes: [...notes]};
+  return {seals: result, paidDraws, freeBenefits, unavailable, planNotes: [...notes]};
 }

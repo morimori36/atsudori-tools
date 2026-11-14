@@ -58,18 +58,21 @@ export function createSealBudgetView(
         <p class="ui-feedback" data-seal-message role="status"></p>
         <fieldset class="seal-form-body" ${state.protected ? 'disabled' : ''}>
           <legend class="sr-only">シール予算の試算条件</legend>
-          <fieldset class="seal-plan"><legend>アワーノーツパス</legend><div class="seal-counts seal-plan-controls">${Object.entries(grades).map(([value, label]) => `<label><input type="radio" name="passPlan" value="${value}" ${(state.collection.starBudgetScenario?.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">スター予算と共通の購入プランです。</p></fieldset>
+          <fieldset class="seal-plan"><legend>アワーノーツパス</legend><div class="seal-counts seal-plan-controls">${Object.entries(grades).map(([value, label]) => `<label><input type="radio" name="passPlan" value="${value}" ${(state.collection.starBudgetScenario?.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">スター予算と共通の購入プランです。プランを変えても無料分の選択は変更しません。</p>
+            <label class="seal-toggle"><input type="checkbox" name="eventFree" ${scenario.eventFree ? 'checked' : ''} aria-describedby="seal-event-free-help"><span>イベントガチャ無料分を利用</span></label>
+            <p class="ui-help" id="seal-event-free-help" data-event-free-help>登録マスタと選択プランに無料特典がある場合だけ計上します。旧データを含め、未選択時はOFFです。</p>
+          </fieldset>
           <div class="seal-section-heading"><h2>ガチャを選ぶ</h2><p>変更は所持データへ自動保存</p></div>
           <div class="seal-gachas">${definition.gachas.map(g => `<fieldset class="seal-gacha" data-seal-gacha="${g.id}">
             <legend class="sr-only">${esc(g.name)}</legend>
-            <div class="seal-gacha-info"><h3>${esc(g.name)}</h3><p id="seal-${g.id}-help">${g.id === 'pass' ? '選択パスに含まれる無料ガチャを利用' : g.id === 'cm' ? `${num(g.periodDays)}日ごとに${num(g.draws)}回` : help[g.id]}</p></div>
+            <div class="seal-gacha-info"><h3>${esc(g.name)}${g.id === 'event' ? '（有償分）' : ''}</h3><p id="seal-${g.id}-help">${g.id === 'pass' ? 'パスガチャ無料分を利用' : g.id === 'cm' ? `${num(g.periodDays)}日ごとに${num(g.draws)}回` : help[g.id]}</p></div>
             <div class="seal-gacha-control">${g.id === 'cm' || g.id === 'pass'
               ? `<label class="seal-toggle"><input type="checkbox" name="${g.id}" aria-describedby="seal-${g.id}-help" ${scenario[g.id] ? 'checked' : ''}><span>利用する</span></label>`
               : `<div class="seal-counts">${[0, 1, 2].map(n => `<label><input type="radio" name="${g.id}" value="${n}" aria-describedby="seal-${g.id}-help seal-count-help" ${(scenario[g.id] ?? 0) === n ? 'checked' : ''}><span>${n}回</span></label>`).join('')}</div><small>1日あたり</small>`}
             </div>
             <div class="seal-contribution" data-seal-contribution="${g.id}"></div>
           </fieldset>`).join('')}</div>
-          <p class="ui-help seal-count-help" id="seal-count-help">有償ガチャは1日あたりの回数を選び、30日間続ける想定です。選択パスの利用上限と無料特典を反映します。</p>
+          <p class="ui-help seal-count-help" id="seal-count-help">イベントガチャ 0/1/2回/日は有償分です。有償ガチャを30日間続ける想定で、選択パスの利用上限を反映します。</p>
           <section class="seal-products" aria-labelledby="seal-products-heading">
             <div class="seal-section-heading"><h2 id="seal-products-heading">毎月の全交換</h2><p data-seal-selected></p></div>
             <p class="ui-help" id="seal-products-help">選んだ商品の全価格段階を月上限まで計上します。</p>
@@ -119,6 +122,13 @@ export function createSealBudgetView(
         const savedScenario = st.collection.sealBudgetScenario ?? defaultSealBudgetScenario();
         const plan = calculateCollectionBudgetPlan(st.master, st.collection, savedScenario);
         const r = plan.seals;
+        const selectedPlan = st.collection.starBudgetScenario?.passPlan ?? 'none';
+        const eventBenefits = definition!.planBenefits?.[selectedPlan]?.passGachas;
+        const eventBenefit = eventBenefits?.find(b => b.gachaId === 'event');
+        const eventHelp = host.querySelector<HTMLElement>('[data-event-free-help]')!;
+        eventHelp.textContent = eventBenefit
+          ? `${grades[selectedPlan]}特典：${eventBenefit.draws === null || eventBenefit.periodDays === null ? '回数・周期は未確認' : `${num(eventBenefit.draws)}回 / ${num(eventBenefit.periodDays)}日`}。${savedScenario.eventFree ? '利用ON' : '利用OFF'}。`
+          : `${grades[selectedPlan]}には登録済みのイベント無料特典がないため計上0です。選択は保持します。`;
         const stale = !!invalid || st.unsaved;
         const balanceClass = r.balance < 0 ? 'seal-shortfall' : r.balance > 0 ? 'seal-surplus' : '';
         target.innerHTML = `${stale ? '<p class="seal-stale">変更前の条件による結果です。各ガチャの収入・交換費用も変更前の条件です。</p>' : ''}
@@ -139,7 +149,21 @@ export function createSealBudgetView(
           el.textContent = p.selected ? num(p.total) : '交換OFF';
         }
         host.querySelector<HTMLElement>('[data-seal-selected]')!.textContent = `${savedScenario.selectedProducts.length} / ${definition!.products.length}商品を計上`;
-        breakdown.innerHTML = r.income.map(g => `<tr><th scope="row">${esc(g.name)}</th><td>${num(g.member)}</td><td>${num(g.snap)}</td><td>${num(g.points)}</td><td>${num(g.total)}</td></tr>`).join('');
+        const freeById = new Map<string, {member: number; snap: number; points: number; total: number}>();
+        for (const row of plan.freeBenefits) {
+          const prior = freeById.get(row.gachaId) ?? {member: 0, snap: 0, points: 0, total: 0};
+          freeById.set(row.gachaId, {member: prior.member + row.member, snap: prior.snap + row.snap,
+            points: prior.points + row.points, total: prior.total + row.total});
+        }
+        const paidRows = r.income.map(g => {
+          const free = freeById.get(g.id);
+          return {...g, name: g.id === 'event' ? `${g.name}（有償分）` : g.name,
+            member: g.member - (free?.member ?? 0), snap: g.snap - (free?.snap ?? 0),
+            points: g.points - (free?.points ?? 0), total: g.total - (free?.total ?? 0)};
+        });
+        const detailRows = [...paidRows, ...plan.freeBenefits];
+        breakdown.innerHTML = detailRows.map(g => `<tr><th scope="row">${esc(g.name)}</th><td>${num(g.member)}</td><td>${num(g.snap)}</td><td>${num(g.points)}${g.name.includes('無料分') ? '（Pt 0）' : ''}</td><td>${num(g.total)}</td></tr>`).join('')
+          + `<tr class="seal-income-total"><th scope="row">ガチャ別合計</th><td>${num(r.income.reduce((n,g)=>n+g.member,0))}</td><td>${num(r.income.reduce((n,g)=>n+g.snap,0))}</td><td>${num(r.income.reduce((n,g)=>n+g.points,0))}</td><td>${num(r.totalIncome)}</td></tr>`;
         mobile.innerHTML = `<span>${stale ? '変更前・' : ''}30日換算の差引${r.balance < 0 ? '（不足）' : ''}</span><strong class="${balanceClass}">${signed(r.balance)}<small>シール</small></strong>`;
         mobile.hidden = false;
       } catch {
@@ -153,7 +177,7 @@ export function createSealBudgetView(
       const check = (name: string) => (form.elements.namedItem(name) as HTMLInputElement).checked;
       try {
         const next = {
-          cm: check('cm'), pass: check('pass'),
+          cm: check('cm'), pass: check('pass'), eventFree: check('eventFree'),
           paid: Number((form.elements.namedItem('paid') as RadioNodeList).value) as 0 | 1 | 2,
           event: Number((form.elements.namedItem('event') as RadioNodeList).value) as 0 | 1 | 2,
           selectedProducts: [...form.querySelectorAll<HTMLInputElement>('[data-seal-product]:checked')].map(el => el.dataset.sealProduct!),
