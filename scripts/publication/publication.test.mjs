@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { assertSafeText, assertSafeMetadata, assertCommitIdentity, PublicationFinding } from './rules.ts';
+import { assertSafeText, assertSafeMetadata, assertCommitIdentity, isSafeCommitIdentity, PublicationFinding } from './rules.ts';
 import { git, scanHistory, scanUpdates } from './git.mjs';
 import { installHooks } from './install-hooks.mjs';
 import { checkMetadata, eventMetadata } from './metadata.mjs';
@@ -47,18 +47,26 @@ test('detects credential families, key headers, URL passwords and long credentia
   assert.throws(() => assertSafeMetadata('/atsudori-' + 'band-rating/'), PublicationFinding);
 });
 
-test('commit identities require noreply, with a machine-account exception only on GitHub-committed merges', () => {
+test('commit identities require a noreply author even for GitHub-committed machine-account commits', () => {
   const header = (author, committer) => 'tree ' + 'a'.repeat(40) + '\nauthor ' + author + '\ncommitter ' + committer + '\n';
   const stamp = ' 1700000000 +0900';
   const noreply = 'Fictional <1+fictional@users.noreply.github.com>' + stamp;
   const github = 'GitHub <noreply@github.com>' + stamp;
-  const machine = 'morimori36-muse <machine@invalid.example>' + stamp;
+  const machineNoreply = 'morimori36-muse <2+morimori36-muse@users.noreply.github.com>' + stamp;
+  const machinePersonal = 'morimori36-muse <machine@invalid.example>' + stamp;
   assertCommitIdentity(header(noreply, noreply));
   assertCommitIdentity(header(noreply, github));
-  assertCommitIdentity(header(machine, github)); // GitHub validation merge for a machine-account PR.
-  assert.throws(() => assertCommitIdentity(header(machine, noreply)), PublicationFinding); // Not GitHub-committed.
+  assertCommitIdentity(header(machineNoreply, github));
+  assert.throws(() => assertCommitIdentity(header(machinePersonal, github)), PublicationFinding);
+  assert.throws(() => assertCommitIdentity(header(machinePersonal, noreply)), PublicationFinding);
   assert.throws(() => assertCommitIdentity(header('Someone <someone@invalid.example>' + stamp, github)), PublicationFinding); // Not the machine account.
   assert.throws(() => assertCommitIdentity(header(noreply, 'Someone <someone@invalid.example>' + stamp)), PublicationFinding);
+});
+
+test('public-history audit identity check rejects a personal machine-account email', () => {
+  const noreply = '2+morimori36-muse@users.noreply.github.com';
+  assert.equal(isSafeCommitIdentity(noreply, 'GitHub', 'noreply@github.com'), true);
+  assert.equal(isSafeCommitIdentity('machine@invalid.example', 'GitHub', 'noreply@github.com'), false);
 });
 
 test('a real local push passes with the hook installed; no-op and deletion updates publish no new objects', () => {

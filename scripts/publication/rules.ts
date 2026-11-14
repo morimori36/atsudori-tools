@@ -30,10 +30,11 @@ export function assertSafeMetadata(text: string): void {
 }
 
 const userNoreply = (email: string): boolean => /^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$/.test(email);
-// GitHub records the PR creator as the author of its validation merge commits.
-// The machine account is an approved PR creator, so its authorship is accepted
-// only on commits GitHub itself committed.
-const machineAccount = 'morimori36-muse';
+
+export function isSafeCommitIdentity(authorEmail: string, committerName: string, committerEmail: string): boolean {
+  const githubCommitter = committerName === 'GitHub' && committerEmail === 'noreply@github.com';
+  return userNoreply(authorEmail) && (userNoreply(committerEmail) || githubCommitter);
+}
 
 export function assertCommitIdentity(text: string, tag = false): void {
   const parse = (field: string) => {
@@ -46,7 +47,5 @@ export function assertCommitIdentity(text: string, tag = false): void {
     return;
   }
   const author = parse('author'), committer = parse('committer');
-  const githubCommitter = committer.name === 'GitHub' && committer.email === 'noreply@github.com';
-  if (!userNoreply(author.email) && !(githubCommitter && author.name === machineAccount)) throw new PublicationFinding('commit-identity');
-  if (!userNoreply(committer.email) && !githubCommitter) throw new PublicationFinding('commit-identity');
+  if (!isSafeCommitIdentity(author.email, committer.name, committer.email)) throw new PublicationFinding('commit-identity');
 }

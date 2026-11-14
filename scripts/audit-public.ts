@@ -1,7 +1,7 @@
 import { readFileSync,readdirSync,statSync,existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join,relative } from 'node:path';
-import { assertSafeText } from './publication/rules.ts';
+import { assertSafeText,isSafeCommitIdentity } from './publication/rules.ts';
 const git=(args:string[],input?:string):Buffer=>execFileSync('git',args,{input:input===undefined?undefined:Buffer.from(input,'utf8'),maxBuffer:32*1024*1024});
 const ignored=new Set(['.git','node_modules','.cache','dist','test-results','playwright-report','coverage']);
 function walk(dir:string):string[]{return readdirSync(dir,{withFileTypes:true}).flatMap(e=>ignored.has(e.name)?[]:e.isSymbolicLink()?(()=>{throw new Error('Symlink not allowed in public source');})():e.isDirectory()?walk(join(dir,e.name)):[relative('.',join(dir,e.name)).replaceAll('\\','/')]);}
@@ -27,16 +27,9 @@ if(commits.length){
   const roots=git(['rev-list','--all','--max-parents=0']).toString().trim().split('\n').filter(Boolean);
   if(roots.length!==1)throw new Error('Expected one independent root history');
   const identities=git(['log','--all','--format=%an%x00%ae%x00%cn%x00%ce']).toString().trim().split('\n');
-  const userNoreply=(email:string)=>/^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$/.test(email);
-  // GitHub creates PR validation merges with its own official noreply committer and
-  // records the PR creator as author; the machine account is an approved PR creator.
-  const machineAccount='morimori36-muse';
   if(identities.some(line=>{
-    const [authorName,author,committerName,committer]=line.split('\0');
-    const githubCommitter=committerName==='GitHub'&&committer==='noreply@github.com';
-    const authorOk=userNoreply(author!)||(githubCommitter&&authorName===machineAccount);
-    const committerOk=userNoreply(committer!)||githubCommitter;
-    return !(authorOk&&committerOk);
+    const [,author,committerName,committer]=line.split('\0');
+    return !isSafeCommitIdentity(author!,committerName!,committer!);
   }))throw new Error('Non-noreply commit identity');
   const entries=git(['rev-list','--objects','--all']).toString().trim().split('\n').map(l=>{const i=l.indexOf(' ');return {sha:i<0?l:l.slice(0,i),path:i<0?'':l.slice(i+1)};}).filter(e=>e.path);
   const batch=git(['cat-file','--batch'],entries.map(e=>e.sha).join('\n')+'\n');
