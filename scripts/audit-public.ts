@@ -26,12 +26,17 @@ let historical=0;
 if(commits.length){
   const roots=git(['rev-list','--all','--max-parents=0']).toString().trim().split('\n').filter(Boolean);
   if(roots.length!==1)throw new Error('Expected one independent root history');
-  const identities=git(['log','--all','--format=%ae%x00%cn%x00%ce']).toString().trim().split('\n');
+  const identities=git(['log','--all','--format=%an%x00%ae%x00%cn%x00%ce']).toString().trim().split('\n');
   const userNoreply=(email:string)=>/^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$/.test(email);
+  // GitHub creates PR validation merges with its own official noreply committer and
+  // records the PR creator as author; the machine account is an approved PR creator.
+  const machineAccount='morimori36-muse';
   if(identities.some(line=>{
-    const [author,committerName,committer]=line.split('\0');
-    // GitHub creates PR validation merges with its own official noreply committer.
-    return !userNoreply(author!)||!(userNoreply(committer!)||(committerName==='GitHub'&&committer==='noreply@github.com'));
+    const [authorName,author,committerName,committer]=line.split('\0');
+    const githubCommitter=committerName==='GitHub'&&committer==='noreply@github.com';
+    const authorOk=userNoreply(author!)||(githubCommitter&&authorName===machineAccount);
+    const committerOk=userNoreply(committer!)||githubCommitter;
+    return !(authorOk&&committerOk);
   }))throw new Error('Non-noreply commit identity');
   const entries=git(['rev-list','--objects','--all']).toString().trim().split('\n').map(l=>{const i=l.indexOf(' ');return {sha:i<0?l:l.slice(0,i),path:i<0?'':l.slice(i+1)};}).filter(e=>e.path);
   const batch=git(['cat-file','--batch'],entries.map(e=>e.sha).join('\n')+'\n');

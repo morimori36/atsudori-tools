@@ -29,14 +29,24 @@ export function assertSafeMetadata(text: string): void {
   if (text.includes(legacyPath)) throw new PublicationFinding('obsolete-site-reference');
 }
 
+const userNoreply = (email: string): boolean => /^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$/.test(email);
+// GitHub records the PR creator as the author of its validation merge commits.
+// The machine account is an approved PR creator, so its authorship is accepted
+// only on commits GitHub itself committed.
+const machineAccount = 'morimori36-muse';
+
 export function assertCommitIdentity(text: string, tag = false): void {
-  const fields = tag ? ['tagger'] : ['author', 'committer'];
-  for (const field of fields) {
+  const parse = (field: string) => {
     const line = text.split('\n').find(line => line.startsWith(field + ' '));
     const match = line?.match(/^[a-z]+ (.*) <([^<>]+)> \d+ [+-]\d{4}$/);
-    const email = match?.[2] ?? '';
-    const user = /^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$/.test(email);
-    const github = field === 'committer' && match?.[1] === 'GitHub' && email === 'noreply@github.com';
-    if (!user && !github) throw new PublicationFinding('commit-identity');
+    return { name: match?.[1] ?? '', email: match?.[2] ?? '' };
+  };
+  if (tag) {
+    if (!userNoreply(parse('tagger').email)) throw new PublicationFinding('commit-identity');
+    return;
   }
+  const author = parse('author'), committer = parse('committer');
+  const githubCommitter = committer.name === 'GitHub' && committer.email === 'noreply@github.com';
+  if (!userNoreply(author.email) && !(githubCommitter && author.name === machineAccount)) throw new PublicationFinding('commit-identity');
+  if (!userNoreply(committer.email) && !githubCommitter) throw new PublicationFinding('commit-identity');
 }

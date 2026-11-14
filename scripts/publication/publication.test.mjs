@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { assertSafeText, assertSafeMetadata, PublicationFinding } from './rules.ts';
+import { assertSafeText, assertSafeMetadata, assertCommitIdentity, PublicationFinding } from './rules.ts';
 import { git, scanHistory, scanUpdates } from './git.mjs';
 import { installHooks } from './install-hooks.mjs';
 import { checkMetadata, eventMetadata } from './metadata.mjs';
@@ -45,6 +45,20 @@ test('detects credential families, key headers, URL passwords and long credentia
   }
   for (const value of ['const accessToken = process.env.EXAMPLE_ACCESS_TOKEN;', 'API_KEY=${EXAMPLE_KEY}', 'password: null', 'Independent fictional prose.']) assertSafeText(value);
   assert.throws(() => assertSafeMetadata('/atsudori-' + 'band-rating/'), PublicationFinding);
+});
+
+test('commit identities require noreply, with a machine-account exception only on GitHub-committed merges', () => {
+  const header = (author, committer) => 'tree ' + 'a'.repeat(40) + '\nauthor ' + author + '\ncommitter ' + committer + '\n';
+  const stamp = ' 1700000000 +0900';
+  const noreply = 'Fictional <1+fictional@users.noreply.github.com>' + stamp;
+  const github = 'GitHub <noreply@github.com>' + stamp;
+  const machine = 'morimori36-muse <machine@invalid.example>' + stamp;
+  assertCommitIdentity(header(noreply, noreply));
+  assertCommitIdentity(header(noreply, github));
+  assertCommitIdentity(header(machine, github)); // GitHub validation merge for a machine-account PR.
+  assert.throws(() => assertCommitIdentity(header(machine, noreply)), PublicationFinding); // Not GitHub-committed.
+  assert.throws(() => assertCommitIdentity(header('Someone <someone@invalid.example>' + stamp, github)), PublicationFinding); // Not the machine account.
+  assert.throws(() => assertCommitIdentity(header(noreply, 'Someone <someone@invalid.example>' + stamp)), PublicationFinding);
 });
 
 test('a real local push passes with the hook installed; no-op and deletion updates publish no new objects', () => {
