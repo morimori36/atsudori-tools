@@ -30,6 +30,8 @@ for (const width of [320, 390, 1280]) test(`integrated plan shares settings, pro
   await page.locator('[name=pass]').check();
   await expect(page.locator('[data-plan-income]')).toHaveText('814.29');
   await expect(page.locator('[data-plan-balance]')).toHaveText('+317.14');
+  await expect(page.locator('[data-seal-income]')).toHaveText('346.67');
+  await page.locator('[name=eventFree]').check();
   await expect(page.locator('[data-seal-income]')).toHaveText('406.67');
   await expect(page.locator('[data-plan-status]')).toHaveText('平均収支の範囲で継続可能な目安');
   const successful = await saved();
