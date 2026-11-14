@@ -128,10 +128,11 @@ export function sealBudgetIssues(master: Masterdata, definition = master.sealBud
  return issues;
 }
 export function validateSealBudgetScenario(value:unknown,definition?:SealBudgetDefinition):SealBudgetScenario {
- const s=strictObject(value,'sealBudgetScenario',['cm','pass','paid','event','selectedProducts'],['cm','pass','paid','selectedProducts']);
+ const s=strictObject(value,'sealBudgetScenario',['cm','pass','eventFree','paid','event','selectedProducts'],['cm','pass','paid','selectedProducts']);
  if(typeof s.cm!=='boolean'||typeof s.pass!=='boolean'||![0,1,2].includes(s.paid as number))return fail();
+ if(s.eventFree!==undefined && typeof s.eventFree!=='boolean')return fail();
  if(s.event!==undefined && ![0,1,2].includes(s.event as number))return fail();
  const selectedProducts=rows(s.selectedProducts,200).map(id);unique(selectedProducts);
  if(definition && selectedProducts.some(id=>!definition.products.some(p=>p.id===id)))fail();
- return {cm:s.cm,pass:s.pass,paid:s.paid as 0|1|2,...(s.event===undefined?{}:{event:s.event as 0|1|2}),selectedProducts};
+ return {cm:s.cm,pass:s.pass,...(s.eventFree===undefined?{}:{eventFree:s.eventFree}),paid:s.paid as 0|1|2,...(s.event===undefined?{}:{event:s.event as 0|1|2}),selectedProducts};
 }

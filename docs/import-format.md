@@ -228,5 +228,7 @@ collection v1の任意 `supplyConditions` は `lbPerDay`（非負の安全な整
 
 シール予算はcatalogの `sealBudgetDefinition` とcollectionの `sealBudgetScenario` を使い、30日換算の抽選収入期待値と月上限交換の支出を試算します。現行定義v3の実所持方式だけを使い、カード別の提供割合・重複変換条件と既存のメンバー／スナップ所持・育成段階から算出します。未知の寄与のみ計算上0とし、所持の二重入力・別保存は行いません。実定義は同梱しません。[使い方・JSON契約](seal-budget.md)を参照してください。
 
+`sealBudgetScenario.eventFree` は省略可能なbooleanで、パス付属イベントガチャ無料分だけの利用選択です。省略時は計算上OFFのまま保持し、`pass` からの推定やImport／Export時の自動補完は行いません。
+
 
 ガチャ計画のパス選択は`collection.starBudgetScenario.passPlan`だけを共有します。外部`sealBudgetDefinition.planBenefits`はプラン別の無料特典（既存ガチャ／任意pool参照）、有償回数上限と根拠を任意追加します。旧catalog・collectionはそのまま受理し、未確認の特典を推測せず、読込・Exportで既定値を追加しません。新項目を知らない旧アプリへの逆Importは非対応です。[統合計算と特典の契約](seal-budget.md#共通ガチャ計画とスター収支)を参照してください。

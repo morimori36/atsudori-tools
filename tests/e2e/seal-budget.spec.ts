@@ -3,6 +3,7 @@ import {sealDefinition, collectionSealFixture} from '../helpers/seal-budget';
 import {syntheticCatalog,syntheticCollection} from '../helpers/synthetic';
 import {CATALOG_STORAGE_KEY,STORAGE_KEY} from '../../src/storage/local';
 import {chooseScreen} from '../helpers/navigation';
+import {defaultStarBudgetScenario} from '../../src/domain/star-budget/model';
 for(const width of [1280,375])test(`seal budget import, change and reload at ${width}`,async({page})=>{
  await page.setViewportSize({width,height:900});await page.goto('./#exchange');
  const m={...syntheticCatalog(),sealBudgetDefinition:sealDefinition()};
@@ -33,6 +34,32 @@ test('protects damaged storage and reports saving failure without changing resul
  await page.evaluate(({c,k})=>localStorage.setItem(k,JSON.stringify(c)),{c:syntheticCollection(m),k:STORAGE_KEY});await page.reload();
  await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('quota');};});await page.locator('[name=cm]').check();
  await expect(page.locator('[data-seal-message]')).toContainText('未保存');await expect(page.locator('[data-seal-income]')).toHaveText('0');
+});
+
+test('Premium pass and event free entitlements are independent and itemized', async ({page}) => {
+ const m = {...syntheticCatalog(), sealBudgetDefinition: sealDefinition()};
+ m.sealBudgetDefinition.planBenefits!.premium.passGachas = [
+  {gachaId: 'pass', draws: 2, periodDays: 10, poolId: 'ordinary'},
+  {gachaId: 'event', draws: 1, periodDays: 1, poolId: 'ordinary'},
+ ];
+ const c = syntheticCollection(m);
+ c.starBudgetScenario = {...defaultStarBudgetScenario(), passPlan: 'premium'};
+ c.sealBudgetScenario = {cm: false, pass: false, paid: 0, event: 0, selectedProducts: []};
+ await page.goto('./#seal-budget');
+ await page.evaluate(({m,c,ck,sk}) => { localStorage.setItem(ck, JSON.stringify(m)); localStorage.setItem(sk, JSON.stringify(c)); },
+  {m,c,ck: CATALOG_STORAGE_KEY,sk: STORAGE_KEY});
+ await page.reload();
+ await expect(page.locator('[name=eventFree]')).not.toBeChecked();
+ await expect(page.locator('[data-event-free-help]')).toContainText('1回 / 1日');
+ await page.locator('[name=eventFree]').check();
+ await expect(page.locator('[name=pass]')).not.toBeChecked();
+ await page.getByText('ガチャ別収入の内訳', {exact: false}).click();
+ const free = page.locator('[data-seal-breakdown] tr').filter({hasText: 'パス付属無料分'});
+ await expect(free).toContainText('Pt 0');
+ await page.locator('[name=event][value="1"]').check();
+ await expect(page.locator('[data-seal-breakdown] tr').filter({hasText: '有償分'})).toBeVisible();
+ await page.reload();
+ await expect(page.locator('[name=eventFree]')).toBeChecked();
 });
 
 for (const width of [320, 375, 390, 1280]) for (const theme of ['light', 'dark'] as const) {

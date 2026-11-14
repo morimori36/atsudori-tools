@@ -25,7 +25,7 @@ it.each(plans)('counts only %s pass supply once and uses its actual free gacha s
   expect(r.stars!.gachaExpense).toBe(0);
   expect(r.stars!.paidIncome).toBeCloseTo((1200 + 390 * i) / 7);
   expect(r.stars!.freeIncome).toBeCloseTo(2700 / 7 + 30 * i);
-  expect(r.seals.totalIncome).toBeCloseTo(i ? 8 * (i + 1) * 30 / 9 + (i === 3 ? 8 * 30 / 4 : 0) : 0);
+  expect(r.seals.totalIncome).toBeCloseTo(i ? 8 * (i + 1) * 30 / 9 : 0);
   expect(r.status).toBe('sustainable');
   const weekly = calculateStarBudget({definition: f.master.starBudgetDefinition!,
     scenario: {...f.collection.starBudgetScenario!, rank: 1}}).comparisons[i]!;
@@ -144,6 +144,7 @@ it('returns numeric zero for an all-unknown integrated budget without overwritin
 it('keeps known free entitlements when another free entitlement has an unknown period', () => {
   const f = selectPlan(budgetPlanFixture(), 'premium');
   f.collection.sealBudgetScenario!.pass = true;
+  f.collection.sealBudgetScenario!.eventFree = true;
   f.definition.planBenefits!.premium.passGachas![1]!.periodDays = null;
   expect(schema('catalog')(f.master)).toBe(true);
   const before = structuredClone(f), r = run(f);
@@ -181,7 +182,7 @@ it('uses the referenced gacha pool for plan benefits but awards no Pt for free d
 
 it('awards no Pt for free pass and free event draws while paid event draws keep Pt income', () => {
   const f = selectPlan(budgetPlanFixture(), 'premium');
-  f.collection.sealBudgetScenario = {cm: false, pass: true, paid: 0, event: 1, selectedProducts: []};
+  f.collection.sealBudgetScenario = {cm: false, pass: true, eventFree: true, paid: 0, event: 1, selectedProducts: []};
   const r = run(f);
   const pass = r.seals.income.find(g => g.id === 'pass')!;
   expect(pass.draws).toBeCloseTo(4 * 30 / 9);
@@ -195,6 +196,30 @@ it('awards no Pt for free pass and free event draws while paid event draws keep 
   expect(event.points).toBeCloseTo(30 * 2 * 7);
   expect(event.total).toBeCloseTo(event.member + event.snap + event.points);
   expect(r.seals.totalIncome).toBeCloseTo(pass.total + event.total);
+});
+
+it.each([[false, false], [true, false], [false, true], [true, true]] as const)('selects Premium pass=%s and eventFree=%s independently', (pass, eventFree) => {
+  const f = selectPlan(budgetPlanFixture(), 'premium');
+  f.collection.sealBudgetScenario = {cm: false, pass, eventFree, paid: 0, event: 0, selectedProducts: []};
+  const r = run(f);
+  expect(r.seals.totalIncome).toBeCloseTo((pass ? 8 * 4 * 30 / 9 : 0) + (eventFree ? 8 * 30 / 4 : 0));
+  expect(r.freeBenefits.map(row => row.gachaId)).toEqual([...(pass ? ['pass' as const] : []), ...(eventFree ? ['event' as const] : [])]);
+  expect(r.freeBenefits.every(row => row.points === 0)).toBe(true);
+  expect(r.stars!.gachaExpense).toBe(0);
+});
+
+it('preserves an omitted eventFree through export while calculating it as OFF', () => {
+  const f = selectPlan(budgetPlanFixture(), 'premium');
+  delete f.collection.sealBudgetScenario!.eventFree;
+  f.collection.sealBudgetScenario!.pass = true;
+  expect(run(f).freeBenefits.map(row => row.gachaId)).toEqual(['pass']);
+  expect(importCollection(exportCollection(f.collection, f.master), f.master).sealBudgetScenario).not.toHaveProperty('eventFree');
+});
+
+it.each([0, 1, 'true', null])('rejects non-boolean eventFree %s', value => {
+  const f = budgetPlanFixture(); Object.assign(f.collection.sealBudgetScenario!, {eventFree: value});
+  expect(schema('collection')(f.collection)).toBe(false);
+  expect(() => run(f)).toThrow();
 });
 
 it('throws on invalid star costs and unsafe arithmetic rather than excluding them as unknown', () => {
