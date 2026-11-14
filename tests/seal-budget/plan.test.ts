@@ -25,7 +25,7 @@ it.each(plans)('counts only %s pass supply once and uses its actual free gacha s
   expect(r.stars!.gachaExpense).toBe(0);
   expect(r.stars!.paidIncome).toBeCloseTo((1200 + 390 * i) / 7);
   expect(r.stars!.freeIncome).toBeCloseTo(2700 / 7 + 30 * i);
-  expect(r.seals.totalIncome).toBeCloseTo(i ? 22 * (i + 1) * 30 / 9 + (i === 3 ? 22 * 30 / 4 : 0) : 0);
+  expect(r.seals.totalIncome).toBeCloseTo(i ? 8 * (i + 1) * 30 / 9 + (i === 3 ? 8 * 30 / 4 : 0) : 0);
   expect(r.status).toBe('sustainable');
   const weekly = calculateStarBudget({definition: f.master.starBudgetDefinition!,
     scenario: {...f.collection.starBudgetScenario!, rank: 1}}).comparisons[i]!;
@@ -147,7 +147,7 @@ it('keeps known free entitlements when another free entitlement has an unknown p
   f.definition.planBenefits!.premium.passGachas![1]!.periodDays = null;
   expect(schema('catalog')(f.master)).toBe(true);
   const before = structuredClone(f), r = run(f);
-  expect(r.seals.totalIncome).toBeCloseTo(22 * 4 * 30 / 9);
+  expect(r.seals.totalIncome).toBeCloseTo(8 * 4 * 30 / 9);
   expect(r.stars!.gachaExpense).toBe(0);
   expect(r.notes).toContain('パス付属ガチャの回数・条件は未確認のため除外');
   expect(r.status).toBe('unconfirmed');
@@ -161,17 +161,40 @@ it('retains known numbers while honoring catalog payment restrictions', () => {
   expect(run(f).status).toBe('unconfirmed');
 });
 
-it('uses the referenced gacha pool and Pt policy for plan benefits', () => {
+it('uses the referenced gacha pool for plan benefits but awards no Pt for free draws', () => {
   const f = selectPlan(budgetPlanFixture(), 'lite');
   const definition = sealDefinition();
   definition.revision = f.master.revision;
-  definition.planBenefits!.lite.passGachas = [{gachaId: 'pass', draws: 2, periodDays: 9}];
+  definition.planBenefits!.lite.passGachas = [{gachaId: 'pass', draws: 2, periodDays: 9, poolId: 'ordinary'}];
   definition.gachas.find(g => g.id === 'pass')!.pointsPerDraw = 2;
   f.master.sealBudgetDefinition = definition;
   f.collection.sealBudgetScenario!.pass = true;
   const r = run(f);
-  expect(r.seals.totalIncome).toBeCloseTo(14 * 2 * 30 / 9);
+  const row = r.seals.income.find(g => g.id === 'pass')!;
+  expect(row.draws).toBeCloseTo(2 * 30 / 9);
+  expect(row.member).toBeCloseTo(2 * 2 * 30 / 9);
+  expect(row.snap).toBeCloseTo(6 * 2 * 30 / 9);
+  expect(row.points).toBe(0);
+  expect(r.seals.totalIncome).toBeCloseTo(8 * 2 * 30 / 9);
   expect(r.stars!.gachaExpense).toBe(0);
+});
+
+it('awards no Pt for free pass and free event draws while paid event draws keep Pt income', () => {
+  const f = selectPlan(budgetPlanFixture(), 'premium');
+  f.collection.sealBudgetScenario = {cm: false, pass: true, paid: 0, event: 1, selectedProducts: []};
+  const r = run(f);
+  const pass = r.seals.income.find(g => g.id === 'pass')!;
+  expect(pass.draws).toBeCloseTo(4 * 30 / 9);
+  expect(pass.member).toBeCloseTo(2 * 4 * 30 / 9);
+  expect(pass.snap).toBeCloseTo(6 * 4 * 30 / 9);
+  expect(pass.points).toBe(0);
+  const event = r.seals.income.find(g => g.id === 'event')!;
+  expect(event.draws).toBeCloseTo(30 + 30 / 4);
+  expect(event.member).toBeCloseTo(30 * 1.00001 + 2 * 30 / 4);
+  expect(event.snap).toBeCloseTo(30 * 1.99998 + 6 * 30 / 4);
+  expect(event.points).toBeCloseTo(30 * 2 * 7);
+  expect(event.total).toBeCloseTo(event.member + event.snap + event.points);
+  expect(r.seals.totalIncome).toBeCloseTo(pass.total + event.total);
 });
 
 it('throws on invalid star costs and unsafe arithmetic rather than excluding them as unknown', () => {
