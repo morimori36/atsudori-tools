@@ -14,7 +14,7 @@
 - 破損保存は明示的な復旧まで上書きしない。保存失敗を成功と表示しない。エラーに元データ全文を含めない。
 - DOM・計算・選出・育成・validation・保存を分離する。Vite/TypeScriptの単一アプリを保ち、不要な機能・ライブラリ・画像・サーバーを加えない。
 - テストは完全な架空データ。期待値は式を独立に検算してdocs/testing.mdへ根拠を書く。実装の出力で期待値を作らない。非公開回帰は外部のPrivate資料をローカルで読む。
-- npm run check、npm run test:e2e、npm run audit:publicを実行する。schema変更はnpm run schema:writeと文書も同期。npmキャッシュは.cache/npm。
+- 検証は下記「作業種別ごとの検証方針」に従い、包括検証はGitHub Actionsで実行する。schema変更はnpm run schema:writeと文書も同期。npmキャッシュは.cache/npm。
 - cloneごとにnpm run hooks:installでpush前検査を有効にする。既存の独自hookは上書きせず、設定を確認する。push前にはnpm run audit:push、PR作成・編集前には予定するメタデータをローカルJSONへ保存してnpm run audit:metadata -- --file PATHで検査する。[公開前検査の範囲と限界](docs/publication-checks.md)に従い、機械検査と内容レビューを両方行う。
 - GitHub Flow / Conventional Commits / PR / Squash Merge。コミットの作者・committerには確認済みGitHub noreplyだけを使う。
 - 自作コードは当面ライセンスなし（All rights reserved）。MIT等のLICENSEファイルを追加しない。第三者ライブラリ・素材のライセンスと権利表示は遵守する。この方針の変更、Public化、初回の本番公開、履歴書換え、force-pushは所有者の明示的承認が必要。所有者の指示により、検証済みmainへのpush後のPages自動デプロイは承認済み。現在ファイル・全Git履歴・配信artifactの監査と指定テスト・E2Eがすべて成功するまではPublic化・Pagesデプロイを行わない。
@@ -23,6 +23,18 @@
 
 - ランク推定用のミッション条件・閾値・EXP報酬・累積ランクEXP・表示ラベル・総合ランクボーナス表は外部catalogのrankDefinitionに内包する。旧独立JSONと旧保存キーは確認付きの移行元としてのみ読み取り、新規に分離保存しない。実定義・具体例をソース、文書、テスト、初期データ、配信物へ追加しない。未登録・不一致で推定せず、既存の所持・手入力進捗・ランク上書きの保存を維持する。
 
+
+## 作業種別ごとの検証方針
+
+包括的な検証はGitHub Actionsの`Verify and Pages`（verifyジョブ）が担い、タスク内・ローカルでは作業種別に応じた対象を絞った検証を行う。合格条件は従来どおりで、check（型検査＋全単体テスト）、E2E（Chromium・WebKit）、audit:public、メタデータ検査（CIではイベント形式で実行するaudit:metadata相当）、test:publication、Schema同期検査がすべて成功すること。実行場所がGitHub Actionsへ移るだけで、条件は弱めない。verifyジョブの結果が未確認・未実行のままマージしない。検証範囲の読み方は[docs/ci-verification.md](docs/ci-verification.md)に従う。
+
+- 通常の実装修正: タスク内では変更に関連するテストと型検査を実行する。全回帰・E2E・audit:publicはGitHub Actionsが実行し、すべて成功してからマージする。
+- CI失敗対応: GitHub Actionsのログから失敗箇所と原因を特定し、タスク内では失敗したテストと関連テストだけを再実行する。合否は再実行後のActions結果で判断する。
+- 契約変更: 従来どおりmodel・Schema・validator・生成側・テスト・文書を同期し、検証はGitHub Actionsの全項目（Schema同期検査を含む）で判断する。
+- 公開側の基準値・固定データの更新: 変更値の根拠と生成手順を文書化し、関連テストをタスク内で実行する。合格条件はGitHub Actionsの全項目成功とし、値の更新だけを理由に検証を省略しない。
+- 実データの納品に関わる変更: 納品自体はこのリポジトリの範囲外とする。納品に影響する公開側の変更の合格条件は、GitHub Actionsの全項目と監査が成功することのままとする。
+
+環境起因で実行できない検証（ローカルのNode版不一致、Playwrightブラウザ未導入など）は、理由を添えて未実行として記録し、成功として数えない。ブラウザ未導入の場合の導入試行は1回までとし、繰り返し試行しない。
 
 ## 素材別充足日数シミュレーター（Issue #82・2026-11-12の所有者方針）
 
