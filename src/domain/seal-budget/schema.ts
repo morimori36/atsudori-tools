@@ -28,4 +28,4 @@ const planBenefits = object(Object.fromEntries(['none', 'lite', 'standard', 'pre
 })])));
 export const sealBudgetDefinitionSchema = {...collection, properties: {...collection.properties, planBenefits}};
 const scenario = object({cm: {type: 'boolean'}, pass: {type: 'boolean'}, paid: {enum: [0, 1, 2]}, selectedProducts: {type: 'array', maxItems: 200, uniqueItems: true, items: id}});
-export const sealBudgetScenarioSchema = {...scenario, required: ['cm', 'pass', 'paid', 'selectedProducts'], properties: {...scenario.properties, event: {enum: [0, 1, 2]}}};
+export const sealBudgetScenarioSchema = {...scenario, required: ['cm', 'pass', 'paid', 'selectedProducts'], properties: {...scenario.properties, eventFree: {type: 'boolean'}, event: {enum: [0, 1, 2]}}};
