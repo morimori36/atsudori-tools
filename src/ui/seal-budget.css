@@ -35,6 +35,8 @@
 .seal-contribution { text-align: right; font-variant-numeric: tabular-nums; }
 .seal-contribution strong { display: block; font-size: 21px; color: var(--seal-income); }
 .seal-contribution small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.seal-gacha-free { min-width: 0; padding-top: 14px; border-top: 1px dashed var(--line); }
+.seal-gacha-free .ui-help { margin: 0; font-size: 11px; }
 .seal-count-help { margin: 12px 0 28px; }
 .seal-products > .ui-help { margin: -6px 0 16px; }
 .seal-product { display: flex; align-items: center; gap: 12px; min-height: 88px; padding: 18px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
@@ -82,6 +84,7 @@
   .seal-gacha { grid-template-columns: minmax(0, 1fr) 180px 100px; }
   .seal-gacha-info { grid-column: auto; }
   .seal-counts { width: 180px; }
+  .seal-gacha-free { grid-column: 1 / 3; }
 }
 @media (max-width: 1100px) {
   .seal-workspace { grid-template-columns: minmax(0, 1fr); gap: 24px; }
@@ -89,6 +92,7 @@
   .seal-editor { grid-column: 1; grid-row: auto; }
   .seal-gacha { grid-template-columns: minmax(0, 1fr) 210px 100px; }
   .seal-gacha-info { grid-column: auto; }
+  .seal-gacha-free { grid-column: 1 / 3; }
 }
 @media (max-width: 700px) {
   .seal-workspace { gap: 24px; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
@@ -111,6 +115,7 @@
   .seal-gachas, .seal-product-list { padding-inline: 18px; }
   .seal-gacha { grid-template-columns: minmax(0, 1fr) auto; padding-block: 22px; gap: 14px 10px; }
   .seal-gacha-info { grid-column: 1 / -1; }
+  .seal-gacha-free { grid-column: 1; }
   .seal-counts { width: 186px; }
   .seal-contribution strong { font-size: 20px; }
   .seal-product-name strong { font-size: 13px; }
