@@ -7,3 +7,5 @@ This document does not grant a license to the project's original code or to data
 Vite's generated module-preload helper is MIT licensed. The build copies the installed Vite package's full LICENSE.md, including its bundled-dependency notices, into VITE_LICENSE.txt. TypeScript, Vitest, Playwright and their dependencies are development tools pinned by package-lock.json; their distributed license files apply.
 
 The build includes this notice as THIRD_PARTY_NOTICES.txt. It contains no source catalog rows, observed game values or personal collection information.
+
+Repository development skills (not bundled into the application): yomiyasu by nanaism, MIT, with its Unicode license; Modern Web Guidance by GoogleChrome, Apache-2.0. Full license texts are retained under `.agents/skills/`. Sources, revisions and local adaptations are documented in docs/development-skills.md. These licenses apply to the respective third-party files, not the project's original code.
