@@ -63,3 +63,7 @@ UIの新規作成、レイアウト変更、視覚デザインの改善を行う
 UI変更を伴わないタスクでは読み込む必要はない。
 
 Skillの指針は参考とし、既存の機能要件・データ保護・ユーザーの明示的な指示を優先する。
+
+## 文章とWeb実装のSkill
+
+リポジトリ内の `.agents/skills/` を参照する。日本語のUI文言・説明・文書・PR本文の作成や改稿では、必要に応じて `yomiyasu/SKILL.md` を使い、仕様・数値・専門用語・確定した意味を保って自然さ・簡潔さ・読みやすさを改善する。HTML/CSS/TypeScriptのフロントエンド実装・改修では、関連するWeb標準・アクセシビリティ・性能・ブラウザ互換性を `modern-web-guidance/SKILL.md` と関連ガイドで確認する。視覚デザインは既存のfrontend-design、Web実装の技術的判断はModern Web Guidanceが補う。毎回の機械的な実行やSkill利用のためだけの変更は不要。導入元・更新方法・外部通信は [docs/development-skills.md](docs/development-skills.md) を参照する。
