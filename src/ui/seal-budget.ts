@@ -103,7 +103,7 @@ export function createSealBudgetView(
       target.innerHTML = '';
       mobile.hidden = true;
       breakdown.innerHTML = '';
-      for (const el of host.querySelectorAll('[data-seal-contribution], [data-seal-cost], [data-seal-selected]')) el.textContent = '';
+      for (const el of host.querySelectorAll('[data-seal-contribution], [data-seal-free-contribution], [data-seal-cost], [data-seal-selected]')) el.textContent = '';
     }
     function display() {
       const status = host.querySelector<HTMLElement>('[data-seal-message]')!, st = current();
@@ -145,7 +145,7 @@ export function createSealBudgetView(
         }
         for (const g of r.income) {
           const paidTotal = g.id === 'event' ? g.total - (freeById.get(g.id)?.total ?? 0) : g.total;
-          host.querySelector<HTMLElement>(`[data-seal-contribution="${g.id}"]`)!.innerHTML = `<strong>${num(paidTotal)}</strong><small>シール / 30日${savedScenario[g.id] || g.draws > 0 ? '' : '・未選択'}${g.id === 'event' ? '（有償分）' : ''}</small>`;
+          host.querySelector<HTMLElement>(`[data-seal-contribution="${g.id}"]`)!.innerHTML = `<strong>${num(paidTotal)}</strong><small>シール / 30日${savedScenario[g.id] ? '' : '・未選択'}${g.id === 'event' ? '（有償分）' : ''}</small>`;
         }
         const eventFreeContribution = host.querySelector<HTMLElement>('[data-seal-free-contribution="event"]');
         if (eventFreeContribution) {
