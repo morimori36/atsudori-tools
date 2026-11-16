@@ -58,19 +58,17 @@ export function createSealBudgetView(
         <p class="ui-feedback" data-seal-message role="status"></p>
         <fieldset class="seal-form-body" ${state.protected ? 'disabled' : ''}>
           <legend class="sr-only">シール予算の試算条件</legend>
-          <fieldset class="seal-plan"><legend>アワーノーツパス</legend><div class="seal-counts seal-plan-controls">${Object.entries(grades).map(([value, label]) => `<label><input type="radio" name="passPlan" value="${value}" ${(state.collection.starBudgetScenario?.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">スター予算と共通の購入プランです。プランを変えても無料分の選択は変更しません。</p>
-            <label class="seal-toggle"><input type="checkbox" name="eventFree" ${scenario.eventFree ? 'checked' : ''} aria-describedby="seal-event-free-help"><span>イベントガチャ無料分を利用</span></label>
-            <p class="ui-help" id="seal-event-free-help" data-event-free-help>登録マスタと選択プランに無料特典がある場合だけ計上します。旧データを含め、未選択時はOFFです。</p>
-          </fieldset>
+          <fieldset class="seal-plan"><legend>アワーノーツパス</legend><div class="seal-counts seal-plan-controls">${Object.entries(grades).map(([value, label]) => `<label><input type="radio" name="passPlan" value="${value}" ${(state.collection.starBudgetScenario?.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">スター予算と共通の購入プランです。プランを変えても無料分の選択は変更しません。</p></fieldset>
           <div class="seal-section-heading"><h2>ガチャを選ぶ</h2><p>変更は所持データへ自動保存</p></div>
           <div class="seal-gachas">${definition.gachas.map(g => `<fieldset class="seal-gacha" data-seal-gacha="${g.id}">
             <legend class="sr-only">${esc(g.name)}</legend>
-            <div class="seal-gacha-info"><h3>${esc(g.name)}${g.id === 'event' ? '（有償分）' : ''}</h3><p id="seal-${g.id}-help">${g.id === 'pass' ? 'パスガチャ無料分を利用' : g.id === 'cm' ? `${num(g.periodDays)}日ごとに${num(g.draws)}回` : help[g.id]}</p></div>
-            <div class="seal-gacha-control">${g.id === 'cm' || g.id === 'pass'
+            <div class="seal-gacha-info"><h3>${esc(g.name)}</h3><p id="seal-${g.id}-help">${g.id === 'pass' ? 'パスガチャ無料分を利用' : g.id === 'cm' ? `${num(g.periodDays)}日ごとに${num(g.draws)}回` : help[g.id]}</p></div>
+            <div class="seal-gacha-control ${g.id === 'event' ? 'seal-gacha-paid' : ''}">${g.id === 'cm' || g.id === 'pass'
               ? `<label class="seal-toggle"><input type="checkbox" name="${g.id}" aria-describedby="seal-${g.id}-help" ${scenario[g.id] ? 'checked' : ''}><span>利用する</span></label>`
               : `<div class="seal-counts">${[0, 1, 2].map(n => `<label><input type="radio" name="${g.id}" value="${n}" aria-describedby="seal-${g.id}-help seal-count-help" ${(scenario[g.id] ?? 0) === n ? 'checked' : ''}><span>${n}回</span></label>`).join('')}</div><small>1日あたり</small>`}
             </div>
             <div class="seal-contribution" data-seal-contribution="${g.id}"></div>
+            ${g.id === 'event' ? `<div class="seal-gacha-free"><label class="seal-toggle"><input type="checkbox" name="eventFree" ${scenario.eventFree ? 'checked' : ''} aria-describedby="seal-event-free-help"><span>無料分を利用する</span></label><p class="ui-help" id="seal-event-free-help" data-event-free-help>登録マスタと選択プランに無料特典がある場合だけ計上します。旧データを含め、未選択時はOFFです。</p></div><div class="seal-contribution" data-seal-free-contribution="event"></div>` : ''}
           </fieldset>`).join('')}</div>
           <p class="ui-help seal-count-help" id="seal-count-help">イベントガチャ 0/1/2回/日は有償分です。有償ガチャを30日間続ける想定で、選択パスの利用上限を反映します。</p>
           <section class="seal-products" aria-labelledby="seal-products-heading">
@@ -105,7 +103,7 @@ export function createSealBudgetView(
       target.innerHTML = '';
       mobile.hidden = true;
       breakdown.innerHTML = '';
-      for (const el of host.querySelectorAll('[data-seal-contribution], [data-seal-cost], [data-seal-selected]')) el.textContent = '';
+      for (const el of host.querySelectorAll('[data-seal-contribution], [data-seal-free-contribution], [data-seal-cost], [data-seal-selected]')) el.textContent = '';
     }
     function display() {
       const status = host.querySelector<HTMLElement>('[data-seal-message]')!, st = current();
@@ -139,8 +137,20 @@ export function createSealBudgetView(
           </dl>
           ${renderStars(plan)}
           ${plan.notes.length ? `<p class="seal-notes">${plan.notes.map(esc).join('。')}</p>` : ''}`;
+        const freeById = new Map<string, {member: number; snap: number; points: number; total: number}>();
+        for (const row of plan.freeBenefits) {
+          const prior = freeById.get(row.gachaId) ?? {member: 0, snap: 0, points: 0, total: 0};
+          freeById.set(row.gachaId, {member: prior.member + row.member, snap: prior.snap + row.snap,
+            points: prior.points + row.points, total: prior.total + row.total});
+        }
         for (const g of r.income) {
-          host.querySelector<HTMLElement>(`[data-seal-contribution="${g.id}"]`)!.innerHTML = `<strong>${num(g.total)}</strong><small>シール / 30日${savedScenario[g.id] || g.draws > 0 ? '' : '・未選択'}</small>`;
+          const paidTotal = g.id === 'event' ? g.total - (freeById.get(g.id)?.total ?? 0) : g.total;
+          host.querySelector<HTMLElement>(`[data-seal-contribution="${g.id}"]`)!.innerHTML = `<strong>${num(paidTotal)}</strong><small>シール / 30日${savedScenario[g.id] ? '' : '・未選択'}${g.id === 'event' ? '（有償分）' : ''}</small>`;
+        }
+        const eventFreeContribution = host.querySelector<HTMLElement>('[data-seal-free-contribution="event"]');
+        if (eventFreeContribution) {
+          const freeTotal = freeById.get('event')?.total ?? 0;
+          eventFreeContribution.innerHTML = `<strong>${num(freeTotal)}</strong><small>シール / 30日${savedScenario.eventFree ? '' : '・未選択'}（無料分）</small>`;
         }
         // Compare IDs as data, rather than interpolating external IDs into selectors.
         const costs = new Map(r.expenses.map(p => [p.id, p]));
@@ -149,12 +159,6 @@ export function createSealBudgetView(
           el.textContent = p.selected ? num(p.total) : '交換OFF';
         }
         host.querySelector<HTMLElement>('[data-seal-selected]')!.textContent = `${savedScenario.selectedProducts.length} / ${definition!.products.length}商品を計上`;
-        const freeById = new Map<string, {member: number; snap: number; points: number; total: number}>();
-        for (const row of plan.freeBenefits) {
-          const prior = freeById.get(row.gachaId) ?? {member: 0, snap: 0, points: 0, total: 0};
-          freeById.set(row.gachaId, {member: prior.member + row.member, snap: prior.snap + row.snap,
-            points: prior.points + row.points, total: prior.total + row.total});
-        }
         const paidRows = r.income.map(g => {
           const free = freeById.get(g.id);
           return {...g, name: g.id === 'event' ? `${g.name}（有償分）` : g.name,
