@@ -33,19 +33,19 @@ function setup() {
 
 it.each(['error', 'protected'] as const)('clears free contributions after successful rendering on %s', mode => {
  const {state, node, refresh, protect} = setup();
- expect(node('[data-seal-free-contribution="event"]').innerHTML).toContain('<strong>');
+ expect(node('[data-seal-contribution="eventFree"]').innerHTML).toContain('<strong>');
  if (mode === 'protected') protect();
  else state.master.sealBudgetDefinition!.version = 2 as 3;
  refresh();
  expect(node('[data-seal-results]').innerHTML).toContain(mode === 'protected' ? '復旧後' : 'role="alert"');
- expect(node('[data-seal-free-contribution="event"]').textContent).toBe('');
+ expect(node('[data-seal-contribution="eventFree"]').textContent).toBe('');
  expect(node('[data-seal-contribution="event"]').textContent).toBe('');
 });
 
 it('judges paid and free event selection independently of combined draws', () => {
  const {state, node, refresh} = setup();
  const paid = () => node('[data-seal-contribution="event"]').innerHTML;
- const free = () => node('[data-seal-free-contribution="event"]').innerHTML;
+ const free = () => node('[data-seal-contribution="eventFree"]').innerHTML;
  expect(paid()).toContain('<strong>0</strong>');
  expect(paid()).toContain('未選択');
  expect(free()).not.toContain('未選択');
