@@ -66,6 +66,14 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_FILE: .cache/ci/chromium.json
         run: npm run test:e2e -- --reporter=list,json
+      - name: Attach seal event selection screenshots
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: seal-event-selection-review
+          path: .cache/seal-event-free-*.png
+          retention-days: 30
+          if-no-files-found: error
       - name: Capture empty-state navigation before and after
         id: navigation
         if: github.event_name == 'pull_request'
