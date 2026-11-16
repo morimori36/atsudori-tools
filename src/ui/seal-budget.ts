@@ -108,7 +108,7 @@ export function createSealBudgetView(
       target.innerHTML = '';
       mobile.hidden = true;
       breakdown.innerHTML = '';
-      for (const el of host.querySelectorAll('[data-seal-contribution], [data-seal-free-contribution], [data-seal-cost], [data-seal-selected]')) el.textContent = '';
+      for (const el of host.querySelectorAll('[data-seal-contribution], [data-seal-cost], [data-seal-selected]')) el.textContent = '';
     }
     function display() {
       const status = host.querySelector<HTMLElement>('[data-seal-message]')!, st = current();
