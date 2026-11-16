@@ -55,7 +55,7 @@ test('Premium pass and event free entitlements are independent and itemized', as
  await expect(page.locator('[data-event-free-help]')).toContainText('1回 / 1日');
  await page.locator('[name=eventFree]').check();
  await expect(page.locator('[data-seal-contribution=event] strong')).toHaveText('0');
- await expect(page.locator('[data-seal-contribution=event]')).toContainText('有償分');
+ await expect(page.locator('[data-seal-gacha=event] h3')).toContainText('有償分');
  await expect(page.locator('[data-seal-contribution=eventFree] strong')).not.toHaveText('0');
  await expect(page.locator('[name=pass]')).not.toBeChecked();
  await page.getByText('ガチャ別収入の内訳', {exact: false}).click();
