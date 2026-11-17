@@ -52,7 +52,7 @@ test('Premium pass and event free entitlements are independent and itemized', as
  await expect(page.locator('[name=eventFree]')).not.toBeChecked();
  await expect(page.locator('.seal-plan [name=eventFree]')).toHaveCount(0);
  await expect(page.locator('[data-seal-gacha=eventFree] [name=eventFree]')).toHaveCount(1);
- await expect(page.locator('[data-event-free-help]')).toContainText('1回 / 1日');
+ await expect(page.locator('[data-event-free-help]')).toHaveText('Premium特典。ガチャPtは付与されません。');
  await page.locator('[name=eventFree]').check();
  await expect(page.locator('[data-seal-contribution=event] strong')).toHaveText('0');
  await expect(page.locator('[data-seal-gacha=event] h3')).toContainText('有償分');
@@ -289,10 +289,39 @@ for (const width of [320, 375, 390, 1280]) test(`event free item stays independe
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
  await page.screenshot({path: `.cache/seal-event-free-${width}.png`, fullPage: true});
  await page.locator('[name=passPlan][value=none]').check();
- await expect(free.locator('[data-event-free-help]')).toContainText('計上0');
+ await expect(free.locator('[data-event-free-help]')).toHaveText('Premium特典。ガチャPtは付与されません。');
  await expect(free.getByRole('checkbox')).toBeChecked();
  await expect(free.locator('.seal-contribution strong')).toHaveText('0');
  await expect(paid.locator('.seal-contribution strong')).toHaveText('660');
  await free.getByRole('checkbox').uncheck();
  await expect(free.locator('.seal-contribution')).toContainText('未選択');
+});
+
+for (const unknown of [false, true]) test(`event free help stays fixed across plans and selection (unknown=${unknown})`, async ({page}) => {
+ const m = {...syntheticCatalog(), sealBudgetDefinition: sealDefinition()};
+ m.sealBudgetDefinition.planBenefits!.premium.passGachas = [
+  {gachaId: 'event', draws: unknown ? null : 1, periodDays: 1, poolId: 'ordinary'},
+ ];
+ const c = syntheticCollection(m);
+ c.starBudgetScenario = {...defaultStarBudgetScenario(), passPlan: 'premium'};
+ c.sealBudgetScenario = {cm: false, pass: false, paid: 0, event: 0, eventFree: false, selectedProducts: []};
+ await page.goto('./#seal-budget');
+ await page.evaluate(({m,c,ck,sk}) => {localStorage.setItem(ck,JSON.stringify(m));localStorage.setItem(sk,JSON.stringify(c));},
+  {m,c,ck:CATALOG_STORAGE_KEY,sk:STORAGE_KEY});
+ await page.reload();
+ const help = page.locator('[data-event-free-help]');
+ const toggle = page.locator('[name=eventFree]');
+ for (const plan of ['premium', 'none', 'lite', 'standard', 'premium']) {
+  await page.locator(`[name=passPlan][value=${plan}]`).check();
+  for (const selected of [true, false]) {
+   await toggle.setChecked(selected);
+   await expect(toggle).toBeChecked({checked: selected});
+   await expect(help).toHaveText('Premium特典。ガチャPtは付与されません。');
+   await expect(page.locator('[data-seal-income]')).toHaveText(plan === 'premium' && selected && !unknown ? '240' : '0');
+   if (unknown && plan === 'premium' && selected) await expect(page.locator('.seal-notes')).toContainText('未確認');
+  }
+ }
+ await page.reload();
+ await expect(help).toHaveText('Premium特典。ガチャPtは付与されません。');
+ await expect(toggle).not.toBeChecked();
 });
