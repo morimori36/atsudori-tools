@@ -71,7 +71,7 @@ export function createSealBudgetView(
             <div class="seal-contribution" data-seal-contribution="${g.id}"></div>
           </fieldset>${g.id === 'event' ? `<fieldset class="seal-gacha" data-seal-gacha="eventFree">
             <legend class="sr-only">${esc(g.name)}（Premium無料分）</legend>
-            <div class="seal-gacha-info"><h3>${esc(g.name)}（Premium無料分）</h3><p id="seal-event-free-help" data-event-free-help>Premium特典。登録マスタと選択プランに無料特典がある場合だけ計上します。</p></div>
+            <div class="seal-gacha-info"><h3>${esc(g.name)}（Premium無料分）</h3><p id="seal-event-free-help" data-event-free-help>Premium特典。ガチャPtは付与されません。</p></div>
             <div class="seal-gacha-control"><label class="seal-toggle"><input type="checkbox" name="eventFree" ${scenario.eventFree ? 'checked' : ''} aria-describedby="seal-event-free-help"><span>利用する</span></label></div>
             <div class="seal-contribution" data-seal-contribution="eventFree"></div>
           </fieldset>` : ''}`).join('')}</div>
@@ -125,13 +125,6 @@ export function createSealBudgetView(
         const savedScenario = st.collection.sealBudgetScenario ?? defaultSealBudgetScenario();
         const plan = calculateCollectionBudgetPlan(st.master, st.collection, savedScenario);
         const r = plan.seals;
-        const selectedPlan = st.collection.starBudgetScenario?.passPlan ?? 'none';
-        const eventBenefits = definition!.planBenefits?.[selectedPlan]?.passGachas;
-        const eventBenefit = eventBenefits?.find(b => b.gachaId === 'event');
-        const eventHelp = host.querySelector<HTMLElement>('[data-event-free-help]')!;
-        eventHelp.textContent = eventBenefit
-          ? `${grades[selectedPlan]}特典：${eventBenefit.draws === null || eventBenefit.periodDays === null ? '回数・周期は未確認' : `${num(eventBenefit.draws)}回 / ${num(eventBenefit.periodDays)}日`}。${savedScenario.eventFree ? '利用ON' : '利用OFF'}。`
-          : `${grades[selectedPlan]}には登録済みのイベント無料特典がないため計上0です。選択は保持します。`;
         const stale = !!invalid || st.unsaved;
         const balanceClass = r.balance < 0 ? 'seal-shortfall' : r.balance > 0 ? 'seal-surplus' : '';
         target.innerHTML = `${stale ? '<p class="seal-stale">変更前の条件による結果です。各ガチャの収入・交換費用も変更前の条件です。</p>' : ''}
