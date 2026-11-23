@@ -10,6 +10,7 @@ import { validateStarBudget } from '../domain/star-budget/validate';
 const esc = (value: unknown): string => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const num = (n: number): string => n !== 0 && Math.abs(n) < 0.01 ? n.toExponential(2) : n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
 const amount = (a: BudgetAmount): string => a.value === null ? `未確認（既知分 ${num(a.knownSubtotal)}）` : num(a.value);
+const difference = (a: BudgetAmount): string => a.value === null ? '算出不可' : (a.value > 0 ? '+' : '') + num(a.value);
 const grades = { none: 'なし', lite: 'Lite', standard: 'Standard', premium: 'Premium' };
 const errorText = (error: unknown): string => error instanceof Error ? error.message : '操作を完了できませんでした';
 
@@ -37,7 +38,7 @@ export function createStarBudgetView(
             ${uiNumberField({id:'budget-rank', name:'scenario.rank', label:'T.G.Wランク', value:s.rank, min:1, max:Number.MAX_SAFE_INTEGER})}
             ${uiNumberField({id:'budget-story', name:'scenario.storyEventPercent', label:'ストーリー付きイベント割合（%）', value:s.storyEventPercent, min:0, max:100, help:'0%=なし / 100%=毎回あり（全話回収）'})}
           </div></fieldset>
-          <fieldset class="ui-group"><legend>ガチャ計画のアワーノーツパス</legend><div class="budget-checks">${Object.entries(grades).map(([value, label]) => `<label class="ui-choice"><input type="radio" name="scenario.passPlan" value="${value}" ${(s.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">シール予算と共通の購入プランです。比較表は全4種類を表示します。</p></fieldset>
+          <fieldset class="ui-group"><legend>ガチャ計画のアワーノーツパス</legend><div class="budget-checks">${Object.entries(grades).map(([value, label]) => `<label class="ui-choice"><input type="radio" name="scenario.passPlan" value="${value}" ${(s.passPlan ?? 'none') === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="ui-help">シール予算と共通の購入プランです。</p></fieldset>
           <fieldset class="ui-group"><legend>供給に含める報酬</legend><p class="ui-help">アリーナは継続スターの根拠未確認のため予算対象外です。旧設定は現在の収支に適用しません。</p><div class="budget-checks">
             ${uiCheckbox({id:'budget-event',name:'scenario.eventPremium',label:'イベントミッションPremiumを購入',checked:s.eventPremium})}
             ${uiCheckbox({id:'budget-season',name:'scenario.seasonPremium',label:'シーズンミッションPremiumを購入',checked:s.seasonPremium})}
@@ -92,27 +93,43 @@ export function createStarBudgetView(
         const state = current();
         const r = calculateStarBudget({ definition: state.master.starBudgetDefinition!,
           scenario: { ...(state.collection.starBudgetScenario ?? defaultStarBudgetScenario()), rank: state.collection.tgwRank ?? null } });
-        const rows: [string, string, (c: typeof r.comparisons[number]) => string][] = [
-          ['total-supply', '週平均総供給', c => amount(c.totalSupply)],
-          ['weekly-cost', '週の全交換費用', c => amount(c.weeklyCost)],
-          ['balance', '総差引/週', c => c.balance.value === null ? '算出不可' : (c.balance.value > 0 ? '+' : '') + num(c.balance.value)],
-          ['free-supply', '無償供給/週', c => amount(c.freeSupply)],
-          ['paid-supply', '有償供給/週', c => amount(c.paidSupply)],
-          ['free-balance', '無償差引/週', c => c.freeBalance.value === null ? '算出不可' : num(c.freeBalance.value)],
-          ['paid-balance', '有償差引/週', c => c.paidBalance.value === null ? '算出不可' : num(c.paidBalance.value) + (c.paidBalance.value < 0 ? '（不足）' : '')],
-          ['status', '継続全交換の収支', c => ({ unknown: '未確認のため保留', shortfall: 'スター不足', surplus: '平均余剰あり', balanced: '差引0' })[c.status]],
-          ['common-supply', '日課等の共通供給', c => amount(c.commonSupply)], ['pass-supply', 'パス追加スター', c => amount(c.passSupply)],
-          ['yen', 'アワーノーツパス参考円/30日', c => amount(c.yenPer30Days)],
+        const plan = state.collection.starBudgetScenario?.passPlan ?? 'none';
+        const detailRows: [string, string, (c: typeof r.comparisons[number]) => string][] = [
+          ['free-supply', '無償供給', c => amount(c.freeSupply)],
+          ['paid-supply', '有償供給', c => amount(c.paidSupply)],
+          ['free-balance', '無償差引', c => difference(c.freeBalance)],
+          ['paid-balance', '有償差引', c => difference(c.paidBalance)],
+          ['common-supply', '日課等の共通供給', c => amount(c.commonSupply)],
+          ['pass-supply', 'パス追加スター', c => amount(c.passSupply)],
+          ['yen', 'パス参考価格（円/30日）', c => amount(c.yenPer30Days)],
         ];
         const issues = [...new Set(r.comparisons.flatMap(c => [...c.totalSupply.reasons, ...c.weeklyCost.reasons, ...c.balance.reasons, ...c.yenPer30Days.reasons, ...c.freeBalance.reasons, ...c.paidBalance.reasons]))];
         target.innerHTML = `<section class="panel budget-results" aria-labelledby="budget-comparison-heading"><div class="panel-heading"><h2 id="budget-comparison-heading" tabindex="-1">アワーノーツパス4種類の比較</h2><button type="button" class="secondary small" data-budget-conditions>試算条件へ</button></div>
           <p class="ui-help" data-budget-result-context>T.G.Wランク: ${state.collection.tgwRank === undefined ? '未確認' : num(state.collection.tgwRank)} · 選択: ${r.products.filter(p => p.selected).length}商品</p>
           <p class="ui-feedback budget-stale" data-budget-result-state hidden></p>
-          <p class="ui-scroll-hint" id="budget-comparison-help">左右にスクロールして4種類を比較できます。</p>
-          <div class="budget-scroll budget-comparison-scroll" tabindex="0" role="region" aria-label="パス4種類の収支比較" aria-describedby="budget-comparison-help"><table class="budget-comparison"><caption>スター/週（円価格の行を除く）</caption><thead><tr><th scope="col">項目</th>${r.comparisons.map(c => `<th scope="col" ${c.grade === (state.collection.starBudgetScenario?.passPlan ?? 'none') ? 'aria-current="true"' : ''}>${grades[c.grade]}${c.grade === (state.collection.starBudgetScenario?.passPlan ?? 'none') ? '（計画で選択中）' : ''}</th>`).join('')}</tr></thead><tbody>${rows.map(([key, label, value]) => `<tr data-budget-metric="${key}" class="${['total-supply','weekly-cost','balance'].includes(key) ? 'budget-primary' : ''}"><th scope="row">${label}</th>${r.comparisons.map(c => `<td ${key === 'balance' ? `data-budget-balance="${c.grade}" class="budget-${c.status}"` : ''}>${esc(value(c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-          <p class="ui-help budget-interpretation">初期残高0の週平均の増減です。ガチャ支出は差し引いていません。無償を優先して交換に使い、有償差引の負数は全交換継続の不足です。獲得タイミングや資金繰りは保証しません。</p>
-          ${r.comparisons.some(c => c.status === 'unknown') ? '<p class="ui-feedback budget-pending">未確認が残る収支は保留です。既知分の小計と未確認理由を確認してください。</p>' : ''}
-          ${issues.length ? `<details open class="ui-details" data-section="issues"><summary>未確認事項</summary><ul>${issues.map(i => `<li>${esc(i)}</li>`).join('')}</ul></details>` : ''}<details class="ui-details" data-section="supply"><summary>供給の内訳・根拠と前提</summary><ul>${r.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul><div class="budget-scroll" tabindex="0" aria-label="供給の内訳"><table><thead><tr><th scope="col">供給源</th><th scope="col">スター/週</th><th scope="col">根拠・換算条件</th></tr></thead><tbody>${r.supply.map(row => `<tr data-budget-source="${row.id}"><th scope="row">${esc(row.name)}</th><td>${esc(amount(row))}</td><td>${row.evidence.map(e => `<div>${esc(e)}</div>`).join('')}</td></tr>`).join('')}${r.comparisons.filter(c => c.grade !== 'none').map(c => `<tr><th scope="row">${grades[c.grade]}</th><td>${esc(amount(c.passSupply))}</td><td>${c.evidence.map(e => `<div>${esc(e)}</div>`).join('')}</td></tr>`).join('')}</tbody></table></div></details><details class="ui-details" data-section="cost"><summary>選択商品合計・価格の根拠</summary><p>週の全交換費用: ${esc(amount(r.weeklyCost))} スター</p><ul>${r.products.filter(p => p.selected).map(p => `<li>${esc(p.name)}: ${esc(amount(p))} スター/週<ul>${p.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul></li>`).join('')}</ul></details></section>`;
+          <table class="budget-comparison">
+            <caption>スター/週（週平均）</caption>
+            <thead><tr><th scope="col">パス</th><th scope="col">総供給</th><th scope="col">全交換費</th><th scope="col">差引</th></tr></thead>
+            <tbody>${r.comparisons.map(c => `<tr>
+              <th scope="row"${c.grade === plan ? ' aria-current="true"' : ''}>${grades[c.grade]}${c.grade === plan ? '<small class="budget-current-plan">計画で選択中</small>' : ''}</th>
+              <td data-budget-metric="total-supply">${esc(amount(c.totalSupply))}</td>
+              <td data-budget-metric="weekly-cost">${esc(amount(c.weeklyCost))}</td>
+              <td data-budget-balance="${c.grade}" class="budget-difference budget-${c.status}">${esc(difference(c.balance))}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+          <p class="ui-help budget-interpretation">初期残高0で試算。ガチャ支出は含みません。交換には無償スターを優先します。獲得時期や資金繰りは保証しません。</p>
+          ${issues.length ? `<details open class="ui-details" data-section="issues"><summary>未確認事項</summary><ul>${issues.map(i => `<li>${esc(i)}</li>`).join('')}</ul></details>` : ''}
+          <details class="ui-details" data-section="currency"><summary>通貨内訳・パス参考価格</summary>
+            <p class="ui-help">有償差引の負数は、全交換を続けるために必要な追加スターを示します。</p>
+            <div class="budget-scroll" role="region" tabindex="0" aria-label="通貨内訳とパス参考価格の比較">
+              <table class="budget-breakdown">
+                <caption>スター/週（パス参考価格の行を除く）</caption>
+                <thead><tr><th scope="col">項目</th>${r.comparisons.map(c => `<th scope="col">${grades[c.grade]}</th>`).join('')}</tr></thead>
+                <tbody>${detailRows.map(([key, label, value]) => `<tr data-budget-metric="${key}"><th scope="row">${label}</th>${r.comparisons.map(c => `<td>${esc(value(c))}</td>`).join('')}</tr>`).join('')}</tbody>
+              </table>
+            </div>
+          </details>
+          <details class="ui-details" data-section="supply"><summary>供給の内訳・根拠と前提</summary><ul>${r.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul><div class="budget-scroll" tabindex="0" aria-label="供給の内訳"><table><thead><tr><th scope="col">供給源</th><th scope="col">スター/週</th><th scope="col">根拠・換算条件</th></tr></thead><tbody>${r.supply.map(row => `<tr data-budget-source="${row.id}"><th scope="row">${esc(row.name)}</th><td>${esc(amount(row))}</td><td>${row.evidence.map(e => `<div>${esc(e)}</div>`).join('')}</td></tr>`).join('')}${r.comparisons.filter(c => c.grade !== 'none').map(c => `<tr><th scope="row">${grades[c.grade]}</th><td>${esc(amount(c.passSupply))}</td><td>${c.evidence.map(e => `<div>${esc(e)}</div>`).join('')}</td></tr>`).join('')}</tbody></table></div></details><details class="ui-details" data-section="cost"><summary>選択商品合計・価格の根拠</summary><p>週の全交換費用: ${esc(amount(r.weeklyCost))} スター</p><ul>${r.products.filter(p => p.selected).map(p => `<li>${esc(p.name)}: ${esc(amount(p))} スター/週<ul>${p.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul></li>`).join('')}</ul></details></section>`;
         target.querySelector('[data-budget-conditions]')!.addEventListener('click', () => {
           const heading = host.querySelector<HTMLElement>('#budget-conditions-heading')!;
           heading.focus({preventScroll:true}); heading.scrollIntoView({block:'start'});
