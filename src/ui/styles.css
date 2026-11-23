@@ -263,7 +263,7 @@ footer p { margin-bottom: 4px; }
   .filter-options span { min-height: 44px; padding: 11px 8px; }
   .catalog-help { flex-basis: 100%; }
   .collection-card { grid-template-columns: 1fr; padding: 10px 12px; gap: 8px; }
-  .collection-card form:has(.card-growth[hidden]) { display: none; }
+  .catalog-grid .collection-card form:has(.card-growth[hidden]) { display: none; }
   .catalog-tools input[type=search], .catalog-tools select { min-height: 44px; font-size: 16px; }
   .snap-grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -439,6 +439,13 @@ footer { overflow-wrap: anywhere; }
 .character-total > strong { font-size: 16px; }
 
 .rating-candidate { display: block; }
+button.rating-candidate {
+  background: transparent; color: inherit; padding: 4px; min-height: 32px;
+  border-radius: 4px; text-align: start; overflow-wrap: anywhere;
+  text-decoration: underline; text-underline-offset: .18em;
+}
+button.rating-candidate:hover { background: light-dark(#f0eef8, #39304a); }
+@media (pointer: coarse) { button.rating-candidate { min-height: 44px; } }
 
 /* Band items retain horizontal scrolling, but dedicate width to touch-safe +/- controls. */
 .progress-cards[data-progress-scroll="items"] { flex-direction: column; align-items: stretch; }
@@ -500,6 +507,12 @@ footer { overflow-wrap: anywhere; }
 .training-dialog .training-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
 .training-dialog select { width: 100%; }
 .training-dialog-actions { display: flex; justify-content: end; margin-top: 1rem; }
+.rating-editor:modal { overscroll-behavior: contain; }
+.rating-editor::backdrop { overflow: hidden; overscroll-behavior: contain; }
+.rating-editor .collection-card { grid-template-columns: minmax(0, 1fr); gap: 10px; cursor: default; }
+.rating-editor .form-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.rating-editor .training-dialog-actions { gap: 8px; }
+.rating-editor button:disabled { opacity: .6; cursor: default; }
 
 .bond-pairs { width: 100%; table-layout: fixed; font-size: 12px; margin-top: 12px; }
 .bond-pairs th, .bond-pairs td { min-width: 0; padding: 6px 3px; white-space: normal; overflow-wrap: anywhere; }

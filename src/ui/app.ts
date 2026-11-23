@@ -14,6 +14,7 @@ import { progressCharacters, characterDisplayOrder, characterRowsForDisplay } fr
 import { createMaterialsPage, bindMaterialCopy, materialShortageText } from './materials';
 import { createTrainingSettings } from '../storage/training-settings';
 import { trainingSettingsMarkup, bindTrainingSettings, preserveTrainingView } from './training-settings';
+type CardKind = 'members' | 'snaps';
 type Theme = 'light' | 'dark' | 'system';
 const themeKey = 'atsudori-theme';
 function getTheme(): Theme {
@@ -36,12 +37,12 @@ import { estimateCharacterRank, estimateCharacterRanks, sumCharacterRanks } from
 import { estimateBondRankTheory } from '../domain/character-rank/bond-theory';
 import { editableProgressKeys }  from '../domain/character-rank/definitions';
 import type { CharacterProgress } from '../domain/character-rank/definitions';
-import type { Masterdata } from '../data/catalog/model';
+import type { Masterdata, MemberMaster, SnapMaster } from '../data/catalog/model';
 import { emptyCatalog, validateCatalog, catalogIssues, importCatalog, exportCatalog, CATALOG_LIMIT } from '../data/catalog/validate';
 import { deriveMemberDisplay, deriveSnapDisplay } from '../data/catalog/growth';
 import { calculateRating } from '../domain/rating/calculate';
 import type { RatingInput, Stats } from '../domain/rating/calculate';
-import type { Choice, MemberCandidate, SnapCandidate } from '../domain/selection/select';
+import type { Choice } from '../domain/selection/select';
 import { cardTypeName, cardTypeAccent } from '../data/catalog/card-types';
 import { summarizeBands, summarizeCharacters, evaluateCollection } from '../app/evaluate-collection';
 import { simulateTrainingEvaluation } from '../app/training-simulation';
@@ -158,13 +159,15 @@ export function mountApp(root: HTMLElement): void {
   let importReadId = 0;
   let catalogReadId = 0;
 
-  function persist(next: Collection): void {
-    collection = validateCollection(next, master);
+  function persist(next: Collection, requireSave = false): void {
+    const validated = validateCollection(next, master);
+    if (!requireSave) collection = validated;
     if (!allowWrites) { saved = false; storageMessage = '元の保存JSONを保護しています。Exportか、Import画面で新規作成・置き換えを選んでください。'; }
     else {
-      const result = saveCollection(storage, collection, master);
+      const result = saveCollection(storage, validated, master);
       saved = result.status === 'saved';
-      storageMessage = result.status === 'failed' ? `ブラウザ保存ができませんでした。JSONをExportしてください。${result.error}` : '';
+      if (saved) collection = validated;
+      storageMessage = result.status === 'failed' ? (requireSave ? 'ブラウザに保存できませんでした。' : `ブラウザ保存ができませんでした。JSONをExportしてください。${result.error}`) : '';
     }
   }
   function replaceCatalog(next: Masterdata): void {
@@ -207,11 +210,14 @@ export function mountApp(root: HTMLElement): void {
     catch (error) { notice = { error: true, text: errorMessage(error) }; }
     render();
   }
-  function choice<T extends MemberCandidate | SnapCandidate>(value: Choice<T>, card: (id: number) => Masterdata['members'][number] | Masterdata['snaps'][number]): string {
+  function choice(value: Choice<{ id: number }>, kind: CardKind): string {
     if (value.status === 'none') return '<span class="muted">なし</span>';
-    const label = (candidate: T) => `<span class="rating-candidate">${cardIdentity(card(candidate.id))}</span>`;
     const candidates = value.status === 'selected' ? [value.candidate] : value.candidates;
-    return `<span class="rating-choices">${candidates.map(label).join('')}</span>`;
+    return `<span class="rating-choices">${candidates.map(({ id }) => {
+      const card = master[kind].find(row => row.id === id);
+      if (!card) return '<span class="muted">カードのマスタ未登録</span>';
+      return `<button type="button" class="rating-candidate" data-rating-edit="${kind}" data-card-id="${id}" aria-haspopup="dialog" aria-label="${escape(card.name)}［${escape(card.title)}］の所持・育成を編集">${cardIdentity(card)}</button>`;
+    }).join('')}</span>`;
   }
   function noteMarker(notes: readonly string[], id: string, label: string): string {
     if (!notes.length) return '';
@@ -259,13 +265,91 @@ export function mountApp(root: HTMLElement): void {
           const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${slot.selection.characterId}`;
           const key = `note-${band.bandId}-${color.cardType}-${memberKey}`;
           const note = noteMarker(slot.selection.notices, key, '暫定選出の注記');
-          return `<tr data-rating-slot="${memberKey}"><td><div class="candidate">${choice(slot.selection.member, id => master.members.find(m => m.id === id)!)}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
-          <td><div class="candidate">${choice(slot.selection.snap, id => master.snaps.find(s => s.id === id)!)}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
+          return `<tr data-rating-slot="${memberKey}"><td><div class="candidate">${choice(slot.selection.member, 'members')}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
+          <td><div class="candidate">${choice(slot.selection.snap, 'snaps')}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
           <td class="numeric">${slot.result ? `<strong class="slot-rating">${number(slot.result.bandRating)}</strong>`
             : `<span class="pending-pill">${slot.selection.status === 'resolved' ? '入力待ち' : '選出未確定'}</span>${noteMarker(slot.reasons, key + '-pending', '計算待ちの理由')}`}</td></tr>`;
         }).join('')}`).join('</tbody><tbody>')}
         </tbody></table></div></details>`).join('')}</section>`).join('')}
 `;
+  }
+  function bindRatingEditors(): void {
+    root.querySelectorAll<HTMLButtonElement>('[data-rating-edit]').forEach(button => {
+      button.addEventListener('click', () => {
+        const kind = button.dataset.ratingEdit as CardKind;
+        const id = Number(button.dataset.cardId);
+        const card = master[kind].find(row => row.id === id)!;
+        const dialog = document.createElement('dialog');
+        const writable = allowWrites && allowCatalogWrites;
+        dialog.className = 'training-dialog rating-editor';
+        dialog.setAttribute('aria-labelledby', 'rating-editor-title');
+        dialog.innerHTML = `<h2 id="rating-editor-title">現在の所持・育成を編集</h2>
+          ${writable ? `<p class="muted">保存すると、実際の所持・育成データに反映されます。</p>
+            ${collectionCard(kind, card, true)}` : '<p>保存データを保護中です。JSON Import / Exportで復旧してください。</p>'}
+          <div class="training-dialog-actions">
+            <button type="button" class="secondary" data-rating-close autofocus>閉じる</button>
+            ${writable ? '<button type="button" class="primary" data-rating-save disabled>保存</button>' : ''}
+          </div>`;
+        const restore = captureRatingView(button);
+        let committed = false;
+        const close = dialog.querySelector<HTMLButtonElement>('[data-rating-close]')!;
+        close.addEventListener('click', () => dialog.close());
+        if (writable) {
+          const saveButton = dialog.querySelector<HTMLButtonElement>('[data-rating-save]')!;
+          bindCollectionCard(kind, id, dialog.querySelector('article')!, () => {
+            committed = true;
+            dialog.close();
+          }, { saveButton });
+        }
+        dialog.addEventListener('close', () => {
+          dialog.remove();
+          if (active === 'rating') restore(committed);
+        }, { once: true });
+        root.append(dialog);
+        dialog.showModal();
+      });
+    });
+  }
+  function captureRatingView(button: HTMLButtonElement): (committed: boolean) => void {
+    const details = button.closest<HTMLDetailsElement>('.color-result')!;
+    const row = button.closest('tr')!;
+    const character = row.parentElement!.querySelector<HTMLElement>('[data-rating-character]')!;
+    // If selection changes, anchor to the surviving row, character, color, or band.
+    const offsets = [button, row, character, details, details.parentElement!].map(el => el.getBoundingClientRect().top);
+    const key = (el: HTMLDetailsElement): string => `${el.dataset.band}:${el.dataset.color}`;
+    const sections = new Map([...root.querySelectorAll<HTMLDetailsElement>('.color-result')].map(el =>
+      [key(el), { open: el.open, scroll: el.querySelector('.table-scroll')!.scrollLeft }]));
+    const x = window.scrollX, y = window.scrollY;
+    return committed => {
+      if (!committed) {
+        button.focus({ preventScroll: true });
+        window.scrollTo(x, y);
+        return;
+      }
+      render();
+      let current: HTMLDetailsElement | undefined;
+      for (const el of root.querySelectorAll<HTMLDetailsElement>('.color-result')) {
+        const state = sections.get(key(el));
+        if (state) {
+          el.open = state.open;
+          el.querySelector('.table-scroll')!.scrollLeft = state.scroll;
+        }
+        if (key(el) === key(details)) current = el;
+      }
+      const group = current?.querySelector(`[data-rating-character="${character.dataset.ratingCharacter}"]`);
+      const sameRow = group?.parentElement?.querySelector(`[data-rating-slot="${row.dataset.ratingSlot}"]`);
+      const selector = `[data-rating-edit="${button.dataset.ratingEdit}"][data-card-id="${button.dataset.cardId}"]`;
+      const sameCard = sameRow?.querySelector<HTMLElement>(selector) ?? group?.parentElement?.querySelector<HTMLElement>(selector);
+      const band = root.querySelector<HTMLElement>(`.band-result[data-band="${details.dataset.band}"]`);
+      const anchors = [sameCard, sameRow, group, current, band];
+      const index = anchors.findIndex(Boolean);
+      if (index !== -1) window.scrollTo(x, window.scrollY + anchors[index]!.getBoundingClientRect().top - offsets[index]!);
+      else window.scrollTo(x, y);
+      const focus = sameCard ?? sameRow?.querySelector<HTMLElement>('[data-rating-edit]') ??
+        group?.parentElement?.querySelector<HTMLElement>('[data-rating-edit]') ??
+        current?.querySelector('summary') ?? root.querySelector<HTMLElement>('.page-heading h1');
+      focus?.focus({ preventScroll: true });
+    };
   }
   function catalogPage(kind: 'members' | 'snaps'): string {
     const members = kind === 'members';
@@ -293,26 +377,28 @@ export function mountApp(root: HTMLElement): void {
       <button class="secondary small" type="button" data-reset-filters>絞り込みを解除</button>
       <p class="muted catalog-count" role="status"></p>
       <p class="muted catalog-help">カードをクリックして所持切替 · 段階の変更は自動保存</p>
-    </section><div class="catalog-grid ${members ? 'member-grid' : 'snap-grid'}">${rows.map(row => {
-      const owned = members ? collection.members.find(m => m.cardId === row.id) : collection.snaps.find(s => s.supportCardId === row.id);
-      const member = members ? owned as OwnedMember | undefined : undefined;
-      const snap = !members ? collection.snaps.find(s => s.supportCardId === row.id) : undefined;
-      const characters = 'characterId' in row ? [row.characterId] : row.characterIds;
-      const draft = drafts.get(kind + row.id);
-      const value = (key: string, saved?: number): string | number => draft ? draft[key] ?? '' : saved ?? '';
-      const checked = (key: string, saved: boolean): boolean => draft ? key in draft : saved;
-      const stages = (key: string, label: string, saved: number | undefined, levels: number[]): string =>
-        editableStages(`${kind}-${row.id}`, key, label, value(key, saved), levels);
-      return `<article ${collectionCardAttributes(row, Boolean(owned))} data-catalog-id="${row.id}" data-member-card="${members ? row.id : ''}" data-snap-card="${members ? '' : row.id}">
-        ${collectionCardIdentity(row, checked('owned', Boolean(owned)), !members ? characterRowsForDisplay(characters.map(id => master.characters.find(c => c.id === id)!), master.characters, c => c.id).map(c => c.name).join(' / ') : '')}
-        <form data-card-form="${row.id}"><input type="hidden" name="${members ? 'cardId' : 'supportCardId'}" value="${row.id}">
-        <input type="checkbox" name="owned" hidden ${checked('owned', Boolean(owned)) ? 'checked' : ''}>
-        <fieldset class="card-growth" ${checked('owned', Boolean(owned)) ? '' : 'hidden'}><legend class="sr-only">育成状況</legend><input type="hidden" name="${members ? 'memberLevel' : 'snapLevel'}" value="${owned?.level ?? ''}"><p class="derived-level" data-level-output></p><div class="form-grid">
-        ${members ? stages('trainingStage', '特訓段階', member?.trainingStage, master.memberTraining.filter(r => r.group === ('trainingGroup' in row ? row.trainingGroup : -1)).map(r => r.stage)) + stages('awakeningStage', '覚醒段階 A', member?.awakeningStage, master.memberAwakening.filter(r => r.group === ('awakeningGroup' in row ? row.awakeningGroup : -1)).map(r => r.stage)) + stages('liveSkillLevel', 'ライブスキルLv', member?.liveSkillLevel, 'liveSkillLevels' in row ? row.liveSkillLevels : []) + stages('gekisouSkillLevel', '撃奏スキルLv', member?.gekisouSkillLevel, 'gekisouSkillLevels' in row ? row.gekisouSkillLevels : []) : stages('snapRank', '上限解放 U', snap?.rank, master.snapRanks.filter(r => r.group === ('rankGroup' in row ? row.rankGroup : -1)).map(r => r.rank))}
-        </div><details class="card-details" ><summary>${members ? '表示P/T/V' : '表示％'}</summary><p class="preview-line" data-preview></p>
+    </section><div class="catalog-grid ${members ? 'member-grid' : 'snap-grid'}">${rows.map(row => collectionCard(kind, row)).join('')}</div><p class="panel catalog-empty" hidden>条件に一致するカードがありません。絞り込みを変更してください。</p>`;
+  }
+  function collectionCard(kind: CardKind, row: MemberMaster | SnapMaster, inDialog = false): string {
+    const members = kind === 'members';
+    const owned = members ? collection.members.find(m => m.cardId === row.id) : collection.snaps.find(s => s.supportCardId === row.id);
+    const member = members ? owned as OwnedMember | undefined : undefined;
+    const snap = !members ? collection.snaps.find(s => s.supportCardId === row.id) : undefined;
+    const characters = 'characterId' in row ? [row.characterId] : row.characterIds;
+    const draft = inDialog ? undefined : drafts.get(kind + row.id);
+    const value = (key: string, saved?: number): string | number => draft ? draft[key] ?? '' : saved ?? '';
+    const checked = (key: string, saved: boolean): boolean => draft ? key in draft : saved;
+    const stages = (key: string, label: string, saved: number | undefined, levels: number[]): string =>
+      editableStages(`${kind}-${row.id}`, key, label, value(key, saved), levels);
+    return `<article ${collectionCardAttributes(row, Boolean(owned))} ${inDialog ? '' : `data-catalog-id="${row.id}" data-member-card="${members ? row.id : ''}" data-snap-card="${members ? '' : row.id}"`}>
+      ${collectionCardIdentity(row, checked('owned', Boolean(owned)), !members ? characterRowsForDisplay(characters.map(id => master.characters.find(c => c.id === id)!), master.characters, c => c.id).map(c => c.name).join(' / ') : '')}
+      <form data-card-form="${row.id}"><input type="hidden" name="${members ? 'cardId' : 'supportCardId'}" value="${row.id}">
+      <input type="checkbox" name="owned" hidden ${checked('owned', Boolean(owned)) ? 'checked' : ''}>
+      <fieldset class="card-growth" ${checked('owned', Boolean(owned)) ? '' : 'hidden'}><legend class="sr-only">育成状況</legend><input type="hidden" name="${members ? 'memberLevel' : 'snapLevel'}" value="${owned?.level ?? ''}"><p class="derived-level" data-level-output></p><div class="form-grid">
+      ${members ? stages('trainingStage', '特訓段階', member?.trainingStage, master.memberTraining.filter(r => r.group === ('trainingGroup' in row ? row.trainingGroup : -1)).map(r => r.stage)) + stages('awakeningStage', '覚醒段階 A', member?.awakeningStage, master.memberAwakening.filter(r => r.group === ('awakeningGroup' in row ? row.awakeningGroup : -1)).map(r => r.stage)) + stages('liveSkillLevel', 'ライブスキルLv', member?.liveSkillLevel, 'liveSkillLevels' in row ? row.liveSkillLevels : []) + stages('gekisouSkillLevel', '撃奏スキルLv', member?.gekisouSkillLevel, 'gekisouSkillLevels' in row ? row.gekisouSkillLevels : []) : stages('snapRank', '上限解放 U', snap?.rank, master.snapRanks.filter(r => r.group === ('rankGroup' in row ? row.rankGroup : -1)).map(r => r.rank))}
+      </div><details class="card-details" ><summary>${members ? '表示P/T/V' : '表示％'}</summary><p class="preview-line" data-preview></p>
 
-        </details></fieldset><p class="card-input-state" data-draft-state role="status">${draft ? '未保存の入力' : ''}</p></form></article>`;
-    }).join('')}</div><p class="panel catalog-empty" hidden>条件に一致するカードがありません。絞り込みを変更してください。</p>`;
+      </details></fieldset><p class="card-input-state" data-draft-state role="status">${draft ? '未保存の入力' : ''}</p></form></article>`;
   }
   function membersPage(): string { return catalogPage('members'); }
   function snapsPage(): string { return catalogPage('snaps'); }
@@ -454,6 +540,7 @@ export function mountApp(root: HTMLElement): void {
       }
       root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
     }));
+    if (active === 'rating') bindRatingEditors();
     if (active === 'rating' || active === 'materials' || active === 'progress') bindTrainingSettings(root,trainingSettings);
     if (active === 'materials') bindMaterialCopy(root,()=>materialShortageText(master,collection,trainingSettings.current()));
     if (active === 'progress') characterExpView?.bind(root,refreshProgress);
@@ -548,91 +635,110 @@ export function mountApp(root: HTMLElement): void {
         if (input instanceof HTMLInputElement && input.type === 'radio') input.checked = input.value === value; else input.value = value;
       }); applyFilters();
     });
-    cards.forEach(card => {
-      const id = Number(card.dataset.catalogId); const form = card.querySelector<HTMLFormElement>('form')!;
-      const input = (name: string): HTMLInputElement => form.elements.namedItem(name) as HTMLInputElement;
-      const update = (): void => {
-        const enabled = input('owned').checked;
-        const ownershipButton = card.querySelector<HTMLButtonElement>('[data-ownership-toggle]')!;
-        ownershipButton.setAttribute('aria-pressed', String(enabled));
-        card.querySelector('[data-owned-label]')!.textContent = enabled ? '✓ 所持' : '未所持';
-        card.classList.toggle('is-owned', enabled);
-        const growth = form.querySelector<HTMLFieldSetElement>('fieldset')!; growth.disabled = !enabled; growth.hidden = !enabled;
-        const preview = form.querySelector<HTMLElement>('[data-preview]')!;
-        if (!enabled) { preview.textContent = '未所持のカードは計算に含まれません。'; return; }
-        if (members) {
-          const row = master.members.find(m => m.id === id)!;
-          const cap = master.memberLevelLimits.find(l => l.rarity === row.rarity && l.trainingStage === Number(input('trainingStage').value))?.limitLevel;
-          input('memberLevel').value = cap === undefined ? '' : String(cap);
-          const storedLevel = collection.members.find(m => m.cardId === id)?.level;
-          form.querySelector('[data-level-output]')!.textContent = cap === undefined ? '特訓を選ぶとLvが決まります' : `Lv ${cap} · 特訓に連動${storedLevel !== undefined && storedLevel !== cap ? `（保存Lv ${storedLevel}・編集時に更新）` : ''}`;
-          try { const display = deriveMemberDisplay(master, memberFormValue(form)).displayedStats;
-            preview.textContent = `育成3項のP/T/V：${number(display.performance)} / ${number(display.technic)} / ${number(display.visual)} · Lv上限 ${cap}`;
-          } catch { preview.textContent = '育成状況を入力してください。' + (cap === undefined ? '' : ' Lv上限 ' + cap); }
-        } else {
-          const row = master.snaps.find(s => s.id === id)!;
-          const rank = Number(input('snapRank').value); const cap = master.snapRanks.find(r => r.group === row.rankGroup && r.rank === rank)?.limitLevel;
-          input('snapLevel').value = cap === undefined ? '' : String(cap);
-          const storedLevel = collection.snaps.find(s => s.supportCardId === id)?.level;
-          form.querySelector('[data-level-output]')!.textContent = cap === undefined ? '上限解放を選ぶとLvが決まります' : `Lv ${cap} · 上限解放に連動${storedLevel !== undefined && storedLevel !== cap ? `（保存Lv ${storedLevel}・編集時に更新）` : ''}`;
-          try { const percent = deriveSnapDisplay(master, { supportCardId: id, level: Number(input('snapLevel').value), rank }).percentBp;
-            preview.textContent = `P/T/V：${pct(percent.performance)} / ${pct(percent.technic)} / ${pct(percent.visual)}% · Lv上限 ${cap}`;
-          } catch { preview.textContent = '育成状況を入力してください。' + (cap === undefined ? '' : ' Lv上限 ' + cap); }
+    cards.forEach(card => bindCollectionCard(kind, Number(card.dataset.catalogId), card, () => {
+      // Keep the edited card in place until the next filter action.
+      root.querySelector('.catalog-count')!.textContent = `表示 ${cards.filter(c => !c.hidden).length} / 全 ${rows.length}種類 · 所持 ${collection[kind].length}枚`;
+    }));
+    applyFilters();
+  }
+  function bindCollectionCard(kind: CardKind, id: number, card: HTMLElement, afterSave: () => void,
+    editor?: { saveButton: HTMLButtonElement }): void {
+    const members = kind === 'members';
+    const form = card.querySelector<HTMLFormElement>('form')!;
+    const input = (name: string): HTMLInputElement => form.elements.namedItem(name) as HTMLInputElement;
+    const update = (): void => {
+      const enabled = input('owned').checked;
+      const ownershipButton = card.querySelector<HTMLButtonElement>('[data-ownership-toggle]')!;
+      ownershipButton.setAttribute('aria-pressed', String(enabled));
+      card.querySelector('[data-owned-label]')!.textContent = enabled ? '✓ 所持' : '未所持';
+      card.classList.toggle('is-owned', enabled);
+      const growth = form.querySelector<HTMLFieldSetElement>('fieldset')!; growth.disabled = !enabled; growth.hidden = !enabled;
+      const preview = form.querySelector<HTMLElement>('[data-preview]')!;
+      if (!enabled) { preview.textContent = '未所持のカードは計算に含まれません。'; return; }
+      if (members) {
+        const row = master.members.find(m => m.id === id)!;
+        const cap = master.memberLevelLimits.find(l => l.rarity === row.rarity && l.trainingStage === Number(input('trainingStage').value))?.limitLevel;
+        input('memberLevel').value = cap === undefined ? '' : String(cap);
+        const storedLevel = collection.members.find(m => m.cardId === id)?.level;
+        form.querySelector('[data-level-output]')!.textContent = cap === undefined ? '特訓を選ぶとLvが決まります' : `Lv ${cap} · 特訓に連動${storedLevel !== undefined && storedLevel !== cap ? `（保存Lv ${storedLevel}・編集時に更新）` : ''}`;
+        try { const display = deriveMemberDisplay(master, memberFormValue(form)).displayedStats;
+          preview.textContent = `育成3項のP/T/V：${number(display.performance)} / ${number(display.technic)} / ${number(display.visual)} · Lv上限 ${cap}`;
+        } catch { preview.textContent = '育成状況を入力してください。' + (cap === undefined ? '' : ' Lv上限 ' + cap); }
+      } else {
+        const row = master.snaps.find(s => s.id === id)!;
+        const rank = Number(input('snapRank').value); const cap = master.snapRanks.find(r => r.group === row.rankGroup && r.rank === rank)?.limitLevel;
+        input('snapLevel').value = cap === undefined ? '' : String(cap);
+        const storedLevel = collection.snaps.find(s => s.supportCardId === id)?.level;
+        form.querySelector('[data-level-output]')!.textContent = cap === undefined ? '上限解放を選ぶとLvが決まります' : `Lv ${cap} · 上限解放に連動${storedLevel !== undefined && storedLevel !== cap ? `（保存Lv ${storedLevel}・編集時に更新）` : ''}`;
+        try { const percent = deriveSnapDisplay(master, { supportCardId: id, level: Number(input('snapLevel').value), rank }).percentBp;
+          preview.textContent = `P/T/V：${pct(percent.performance)} / ${pct(percent.technic)} / ${pct(percent.visual)}% · Lv上限 ${cap}`;
+        } catch { preview.textContent = '育成状況を入力してください。' + (cap === undefined ? '' : ' Lv上限 ' + cap); }
+      }
+    };
+    const key = kind + id;
+    const state = form.querySelector<HTMLElement>('[data-draft-state]')!;
+    const save = (): void => {
+      const pending = pendingSaves.get(key); if (pending) clearTimeout(pending.timer); pendingSaves.delete(key);
+      try {
+        if (!form.checkValidity()) {
+          const invalid = form.querySelector<HTMLInputElement>('input:invalid');
+          state.textContent = `${invalid?.closest('.stage-field')?.querySelector('legend')?.textContent ?? invalid?.labels?.[0]?.textContent?.trim() ?? '育成状況'}を確認してください · 未保存`;
+          state.classList.add('error-text'); syncSaveState(); return;
         }
-      };
-      const key = kind + id;
-      const state = form.querySelector<HTMLElement>('[data-draft-state]')!;
-      const save = (): void => {
-        const pending = pendingSaves.get(key); if (pending) clearTimeout(pending.timer); pendingSaves.delete(key);
-        try {
-          if (!form.checkValidity()) {
-            const invalid = form.querySelector<HTMLInputElement>('input:invalid');
-            state.textContent = `${invalid?.closest('.stage-field')?.querySelector('legend')?.textContent ?? invalid?.labels?.[0]?.textContent?.trim() ?? '育成状況'}を確認してください · 未保存`;
-            state.classList.add('error-text'); syncSaveState(); return;
-          }
-          if (members) {
-            const rest = collection.members.filter(m => m.cardId !== id);
-            persist({ ...collection, members: input('owned').checked ? [...rest, memberFormValue(form)] : rest });
-          } else {
-            const rest = collection.snaps.filter(s => s.supportCardId !== id);
-            persist({ ...collection, snaps: input('owned').checked ? [...rest, { supportCardId: id, level: Number(input('snapLevel').value), rank: Number(input('snapRank').value) }] : rest });
-          }
-          drafts.delete(key); update(); state.textContent = ''; state.classList.remove('error-text');
-          card.classList.toggle('is-owned', input('owned').checked);
-          // Do not reorder/hide the card being edited. Filters refresh on the next filter action.
-          root.querySelector('.catalog-count')!.textContent = `表示 ${cards.filter(c => !c.hidden).length} / 全 ${rows.length}種類 · 所持 ${collection[kind].length}枚`;
-        } catch (error) { state.textContent = errorMessage(error) + ' · 未保存'; state.classList.add('error-text'); }
-        syncSaveState();
-      };
-      const capture = (): void => {
+        if (members) {
+          const rest = collection.members.filter(m => m.cardId !== id);
+          persist({ ...collection, members: input('owned').checked ? [...rest, memberFormValue(form)] : rest }, editor !== undefined);
+        } else {
+          const rest = collection.snaps.filter(s => s.supportCardId !== id);
+          persist({ ...collection, snaps: input('owned').checked ? [...rest, { supportCardId: id, level: Number(input('snapLevel').value), rank: Number(input('snapRank').value) }] : rest }, editor !== undefined);
+        }
+        if (editor && !saved) throw new Error('ブラウザに保存できませんでした。もう一度お試しください。');
+        drafts.delete(key); update(); state.textContent = ''; state.classList.remove('error-text');
+        afterSave();
+      } catch (error) { state.textContent = errorMessage(error) + ' · 未保存'; state.classList.add('error-text'); }
+      syncSaveState();
+    };
+    const capture = (): void => {
+      update();
+      const draft: Record<string, string> = {};
+      form.querySelectorAll<HTMLInputElement>('input').forEach(i => { if (!['checkbox', 'radio'].includes(i.type) || i.checked) draft[i.name] = i.value; });
+      drafts.set(key, draft); update(); state.textContent = '入力中…'; state.classList.remove('error-text'); syncSaveState();
+    };
+    const edit = (): void => {
+      if (editor) {
         update();
-        const draft: Record<string, string> = {};
-        form.querySelectorAll<HTMLInputElement>('input').forEach(i => { if (!['checkbox', 'radio'].includes(i.type) || i.checked) draft[i.name] = i.value; });
-        drafts.set(key, draft); update(); state.textContent = '入力中…'; state.classList.remove('error-text'); syncSaveState();
-      };
+        editor.saveButton.disabled = false;
+        state.textContent = '';
+      } else {
+        capture(); save();
+      }
+    };
+    if (editor) {
+      form.addEventListener('input', edit);
+      editor.saveButton.addEventListener('click', save);
+    } else {
       form.addEventListener('input', () => {
         capture(); const previous = pendingSaves.get(key); if (previous) clearTimeout(previous.timer);
         pendingSaves.set(key, { timer: setTimeout(save, 350), save });
       });
-      form.addEventListener('change', () => { capture(); save(); });
-      form.addEventListener('submit', event => { event.preventDefault(); save(); });
-      const toggleOwnership = (): void => {
-        input('owned').checked = !input('owned').checked;
-        if (input('owned').checked) {
-          // Stage 1 is the application's explicit input starting point, not an observed universal game value.
-          form.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach(radio => { radio.checked = radio.value === '1'; });
-        }
-        capture(); save();
-      };
-      card.querySelector('[data-ownership-toggle]')!.addEventListener('click', toggleOwnership);
-      card.addEventListener('click', event => {
-        const target = event.target as Element;
-        if (target.closest('button, form, input, label, select, summary, details, a')) return;
-        toggleOwnership();
-      });
-      update();
+      form.addEventListener('change', edit);
+    }
+    form.addEventListener('submit', event => { event.preventDefault(); save(); });
+    const toggleOwnership = (): void => {
+      input('owned').checked = !input('owned').checked;
+      if (input('owned').checked) {
+        // Stage 1 is the application's explicit input starting point, not an observed universal game value.
+        form.querySelectorAll<HTMLInputElement>('input[type=radio]').forEach(radio => { radio.checked = radio.value === '1'; });
+      }
+      edit();
+    };
+    card.querySelector('[data-ownership-toggle]')!.addEventListener('click', toggleOwnership);
+    if (!editor) card.addEventListener('click', event => {
+      const target = event.target as Element;
+      if (target.closest('button, form, input, label, select, summary, details, a')) return;
+      toggleOwnership();
     });
-    applyFilters();
+    update();
   }
   function bindMembers(): void { bindCatalog('members'); }
   function bindSnaps(): void { bindCatalog('snaps'); }
