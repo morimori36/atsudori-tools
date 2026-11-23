@@ -36,9 +36,8 @@ test('rating summaries keep readable contrast in both themes', async ({ page }) 
     await page.getByLabel('表示テーマ').selectOption(theme);
     return page.evaluate(() => {
       const summary = document.createElement('div');
-      summary.className = 'color-summary';
-      summary.style.setProperty('--card-color', '#888888');
-      summary.innerHTML = '<span class="color-label"><small>小計</small></span>';
+      summary.className = 'rating-breakdown-heading';
+      summary.innerHTML = '<span class="character-total"><small>小計</small></span>';
       document.body.append(summary);
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 1;

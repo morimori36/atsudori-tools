@@ -14,18 +14,28 @@ for(const width of [1280,390])test(`optimizes shared and dedicated Snaps and pre
   const bytes=()=>page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)));
   const before=await bytes();
   await chooseScreen(page, page.locator('nav [data-tab=rating]'));
-  const rows=page.locator('[data-rating-slot]');
-  await expect(rows).toHaveCount(2);
-  await expect(rows.nth(0).locator('td').nth(1)).toContainText('架空専用Snap');
-  await expect(rows.nth(1).locator('td').nth(1)).toContainText('架空共有Snap');
-  await expect(rows.nth(0).locator('.slot-rating')).toHaveText('793');
-  await expect(rows.nth(1).locator('.slot-rating')).toHaveText('857');
+  const row=page.locator('[data-rating-slot]');
+  const selectCharacter = async (index: number) => {
+    if ((page.viewportSize()?.width ?? 1280) <= 700) {
+      await page.getByLabel('キャラクター', { exact: true }).selectOption({ index });
+    } else {
+      await page.locator('.rating-rail [data-rating-pick="character"]').nth(index).click();
+    }
+  };
+  const snap = row.locator('[data-rating-role="snap"]');
+  await expect(row).toHaveCount(1);
+  await expect(snap).toContainText('架空専用Snap');
+  await expect(row.locator('.slot-rating')).toHaveText('793');
+  await selectCharacter(1);
+  await expect(snap).toContainText('架空共有Snap');
+  await expect(row.locator('.slot-rating')).toHaveText('857');
   await expect(page.locator('.color-total strong')).toHaveText('1,650');
   await page.locator('input[name=rating-mode][value=potential]').check();
-  await expect(rows.nth(0).locator('td').nth(1)).toContainText('架空専用Snap');
-  await expect(rows.nth(1).locator('td').nth(1)).toContainText('架空共有Snap');
-  await expect(rows.nth(0).locator('.slot-rating')).toHaveText('1,187');
-  await expect(rows.nth(1).locator('.slot-rating')).toHaveText('1,282');
+  await expect(snap).toContainText('架空共有Snap');
+  await expect(row.locator('.slot-rating')).toHaveText('1,282');
+  await selectCharacter(0);
+  await expect(snap).toContainText('架空専用Snap');
+  await expect(row.locator('.slot-rating')).toHaveText('1,187');
   await expect(page.locator('.color-total strong')).toHaveText('2,469');
   expect(await bytes()).toEqual(before);
   await page.reload();
@@ -46,12 +56,23 @@ test('E chooses Snap score over member rating and keeps allocation when rating i
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
   const before=await page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)));
   await chooseScreen(page, page.locator('nav [data-tab=rating]'));
-  const rows=page.locator('[data-rating-slot]');
+  const row=page.locator('[data-rating-slot]');
+  const selectCharacter = async (index: number) => {
+    if ((page.viewportSize()?.width ?? 1280) <= 700) {
+      await page.getByLabel('キャラクター', { exact: true }).selectOption({ index });
+    } else {
+      await page.locator('.rating-rail [data-rating-pick="character"]').nth(index).click();
+    }
+  };
+  const snap = row.locator('[data-rating-role="snap"]');
   for(const mode of ['current','potential']) {
     await page.locator(`input[name=rating-mode][value=${mode}]`).check();
-    await expect(rows.nth(0).locator('td').nth(1)).toContainText('架空共有Snap');
-    await expect(rows.nth(1).locator('td').nth(1)).toContainText('架空専用Snap');
-    await expect(rows.locator('.slot-rating')).toHaveCount(2);
+    await selectCharacter(0);
+    await expect(snap).toContainText('架空共有Snap');
+    await expect(row.locator('.slot-rating')).toHaveCount(1);
+    await selectCharacter(1);
+    await expect(snap).toContainText('架空専用Snap');
+    await expect(row.locator('.slot-rating')).toHaveCount(1);
   }
   expect(await page.evaluate(()=>Object.fromEntries(Object.entries(localStorage)))).toEqual(before);
   collection.bandItems={};
@@ -59,7 +80,8 @@ test('E chooses Snap score over member rating and keeps allocation when rating i
   await page.locator('#import-file').setInputFiles(file(collection));
   await expect(page.getByText('所持データをImportしました',{exact:true})).toBeVisible();
   await chooseScreen(page, page.locator('nav [data-tab=rating]'));
-  await expect(rows.nth(1).locator('td').nth(1)).toContainText('架空専用Snap');
-  await expect(rows.nth(1).locator('.slot-rating')).toHaveCount(0);
+  await selectCharacter(1);
+  await expect(snap).toContainText('架空専用Snap');
+  await expect(row.locator('.slot-rating')).toHaveCount(0);
   await expect(page.locator('.color-total')).toContainText('保留');
 });
