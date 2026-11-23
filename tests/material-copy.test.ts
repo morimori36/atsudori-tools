@@ -22,7 +22,7 @@ describe('material report boundaries',()=>{
     const before=JSON.stringify({m,c});
     const text=materialShortageText(m,c,DEFAULT_TRAINING);
     const row=text.split('\n').find(line=>line.startsWith('メンバー\tpaper\t'))!;
-    expect(row.split('\t')).toEqual(['メンバー','paper','架空 素材 名称','個','20','21','0','計算済み小計・必要量と全体の不足は未確定／在庫登録済み']);
+    expect(row.split('\t')).toEqual(['メンバー','paper','架空 素材 名称','個','20','21','0','計算済み小計・必要量と全体の不足は未確定']);
     expect(text).not.toContain('\tcopy\t');
     expect(JSON.stringify({m,c})).toBe(before);
   });

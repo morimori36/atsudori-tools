@@ -25,7 +25,7 @@ const previousResult = '入力は未反映です。変更前の条件による�
 function materialResults(rows: MaterialRow[]): string {
  const rowValues = (row: MaterialRow) => [
   num(row.required),
-  row.stock===null?'0<small class="economy-stock-note">未登録</small>':num(row.stock),
+  num(row.stock),
   num(row.shortage),
   num(row.dailySupply),
   clearance(row),
@@ -48,7 +48,7 @@ export function createEconomyView(
 ){
  let dirty=false, message='';
  let draft:Record<string,string|boolean>={};
- let previewMaterial='', breakdownMaterial='';
+ let breakdownMaterial='';
  let goalsOpen=false, reasonsOpen=false, breakdownOpen=false;
  function mount(host:HTMLElement):void {
   const state=context(), {master,collection}=state;
@@ -93,10 +93,6 @@ export function createEconomyView(
     </fieldset></form>
     </div>
     <div class="economy-dialog-footer">
-     <label class="economy-preview-label" for="economy-preview-material">確認する素材
-      <select id="economy-preview-material"></select>
-     </label>
-     <output class="economy-preview" data-economy-preview></output>
      <button class="secondary" type="button" data-economy-close>閉じる</button>
     </div>
    </dialog>`;
@@ -105,29 +101,14 @@ export function createEconomyView(
   const dialog=host.querySelector<HTMLDialogElement>('.economy-dialog')!;
   host.querySelector<HTMLButtonElement>('[data-economy-open]')!.onclick=()=>dialog.showModal();
   dialog.querySelector<HTMLButtonElement>('[data-economy-close]')!.onclick=()=>dialog.close();
-  const previewSelect=host.querySelector<HTMLSelectElement>('#economy-preview-material')!;
-  const preview=host.querySelector<HTMLOutputElement>('[data-economy-preview]')!;
   const breakdownSelect=host.querySelector<HTMLSelectElement>('#economy-breakdown-material')!;
   const breakdown=host.querySelector<HTMLDetailsElement>('[data-economy-breakdown]')!;
   const reasons=host.querySelector<HTMLDetailsElement>('[data-economy-reasons]')!;
   const resultHost=host.querySelector<HTMLElement>('[data-economy-results]')!;
-  let rows: MaterialRow[]=[];
   reasons.open=reasonsOpen;
   breakdown.open=breakdownOpen;
   reasons.ontoggle=()=>{reasonsOpen=reasons.open;};
   breakdown.ontoggle=()=>{breakdownOpen=breakdown.open;if(breakdownOpen)renderBreakdown();};
-
-  function renderPreview() {
-   const row=rows.find(item=>item.resource.id===previewSelect.value);
-   preview.hidden=!row;
-   previewSelect.closest('label')!.hidden=!row;
-   if(!row){preview.replaceChildren();return;}
-   const partial=result?.requirementsIncomplete||row.supplyIncomplete||row.stock===null;
-   preview.innerHTML=`<span>充足日数</span><strong>${clearance(row)}</strong>
-    <small>不足 ${num(row.shortage)} ／ 供給 ${num(row.dailySupply)} / 日</small>
-    ${partial?'<small class="economy-preview-warning">未確認分を計算上0とした概算</small>':''}
-    ${dirty?`<small class="economy-preview-warning">${previousResult}</small>`:''}`;
-  }
 
   function renderBreakdown() {
    if(!breakdown.open)return;
@@ -139,12 +120,12 @@ export function createEconomyView(
 
   function renderResults() {
    const byId=new Map(result?.rows.map(row=>[row.resource.id,row]));
-   rows=resourcesForDisplay(result?.rows.map(row=>row.resource)??[]).map(resource=>byId.get(resource.id)!);
+   const rows=resourcesForDisplay(result?.rows.map(row=>row.resource)??[]).map(resource=>byId.get(resource.id)!);
    const table=resultHost.querySelector('.economy-table-wrap');
    const top=table?.scrollTop??0, left=table?.scrollLeft??0;
    resultHost.innerHTML=result?materialResults(rows):locked?'':`<p class="warning" role="alert">${esc(message)}</p>`;
    resultHost.querySelector('.economy-table-wrap')?.scrollTo(left,top);
-   const omitted=[result?.requirementsIncomplete?'未確認の需要':null,rows.some(row=>row.stock===null)?'未登録在庫':null,result?.issues.length?'未確認の供給':null].filter(Boolean);
+   const omitted=[result?.requirementsIncomplete?'未確認の需要':null,result?.issues.length?'未確認の供給':null].filter(Boolean);
    const notices=host.querySelector<HTMLElement>('[data-economy-notices]')!;
    notices.hidden=!omitted.length;
    host.querySelector('[data-economy-omitted]')!.textContent=omitted.length
@@ -152,19 +133,15 @@ export function createEconomyView(
    const reasonList=[...new Set([
     ...(result?.issues.map(issue=>issue.reason)??[]),
     ...(result?.pendingRequirements.map(issue=>`${issue.kind} #${issue.cardId} / ${issue.axis}: ${issue.reason}`)??[]),
-    ...rows.filter(row=>row.stock===null).map(row=>`${row.resource.name}の在庫が未登録です。`),
    ])];
    reasons.hidden=!reasonList.length;
    reasons.querySelector('ul')!.innerHTML=reasonList.map(reason=>`<li>${esc(reason)}</li>`).join('');
    const options=rows.map(row=>`<option value="${esc(row.resource.id)}">${esc(row.resource.name)}</option>`).join('');
-   for(const [select,preferred] of [[previewSelect,previewMaterial],[breakdownSelect,breakdownMaterial]] as const){
-    if(select.innerHTML!==options)select.innerHTML=options;
-    select.value=byId.has(preferred)?preferred:rows[0]?.resource.id??'';
-   }
+   if(breakdownSelect.innerHTML!==options)breakdownSelect.innerHTML=options;
+   breakdownSelect.value=byId.has(breakdownMaterial)?breakdownMaterial:rows[0]?.resource.id??'';
    breakdown.hidden=!rows.length;
    renderBreakdown();
   }
-  previewSelect.onchange=()=>{previewMaterial=previewSelect.value;renderPreview();};
   breakdownSelect.onchange=()=>{breakdownMaterial=breakdownSelect.value;renderBreakdown();};
   renderResults();
   const form=host.querySelector<HTMLFormElement>('#economy-form')!;
@@ -176,7 +153,6 @@ export function createEconomyView(
   const feedback=(text:string)=>{
    host.querySelector('[data-economy-message]')!.textContent=text;
    host.querySelector('[data-result-state]')!.textContent=dirty&&result?previousResult:'';
-   renderPreview();
    changed();
   };
   function commit(edited?:HTMLInputElement|HTMLSelectElement):void {
@@ -209,7 +185,7 @@ export function createEconomyView(
   form.oninput=e=>{if((e.target as HTMLInputElement).type==='number')commit(e.target as HTMLInputElement);};
   form.onchange=e=>commit(e.target as HTMLInputElement|HTMLSelectElement);form.onsubmit=e=>{e.preventDefault();commit();};
   form.addEventListener('wheel',e=>{if(e.target===document.activeElement&&e.target instanceof HTMLInputElement&&e.target.type==='number')e.preventDefault();},{passive:false});
-  if(dirty)feedback(message||'未反映の入力を保持しています。');else renderPreview();
+  if(dirty)feedback(message||'未反映の入力を保持しています。');
   bindTrainingSettings(host.closest<HTMLElement>('#app')??host,training);changed();
  }
  return {mount,clearDraft:()=>{draft={};dirty=false;message='';},saveState:()=>({label:dirty?'未反映の試算条件あり':'試算条件',unsaved:dirty})};

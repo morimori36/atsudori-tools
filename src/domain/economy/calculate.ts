@@ -137,16 +137,13 @@ export function calculateEconomy(master:Masterdata,collection:Collection,require
   const rows=resources.map(resource=>{
     const entries=byResource.get(resource.id)??[];
     const sum=(certainty:Certainty)=>safe(entries.filter(e=>e.certainty===certainty).reduce((n,e)=>n+e.dailyQuantity,0));
-    const stock=Object.hasOwn(inventory,resource.id)?inventory[resource.id]!:null;
-    const requiredSubtotal=original.get(resource.id)?.required??0;
-    const required=requiredSubtotal;
-    const shortage=Math.max(0,required-(stock??0));
+    const {stock,required,shortage}=original.get(resource.id)!;
     const supplyIncomplete=issues.some(i=>i.blocksProjection&&(!i.resourceIds.length||i.resourceIds.includes(resource.id)));
     const total=totals.get(resource.id)??zero;
     const knownDailySupply=decimal(total),dailySupply=knownDailySupply;
     const status=shortage===0?'fulfilled':total.n===0n?'unreachable':'estimated';
-    const clearanceDays=status==='fulfilled'?0:status==='estimated'?integer((BigInt(shortage!)*total.d+total.n-1n)/total.n):null;
-    return {resource,required,requiredSubtotal,stock,shortage,dailySupply,knownDailySupply,clearanceDays,status,
+    const clearanceDays=status==='fulfilled'?0:status==='estimated'?integer((BigInt(shortage)*total.d+total.n-1n)/total.n):null;
+    return {resource,required,requiredSubtotal:required,stock,shortage,dailySupply,knownDailySupply,clearanceDays,status,
       confirmedDaily:sum('confirmed'),expectedDaily:sum('expected'),eventDaily:sum('estimated'),
       supplyIncomplete,sources:[...new Set(entries.map(e=>e.sourceName))]};
   });

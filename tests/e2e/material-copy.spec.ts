@@ -28,7 +28,7 @@ for(const width of [1280,390,320])test(`copy current material report at ${width}
   const text=await page.evaluate(()=>(window as unknown as {copied:string}).copied);
   expect(text).toContain('メンバー\tpaper\t架空の折紙\t個\t20\t0\t20\t計算済み小計');
   expect(text).toContain('メンバー\tmember-exp\t架空Member経験値\tEXP\t43\t1000\t0');
-  expect(text).toContain('スナップ\tsnap-exp\t架空Snap経験値\tEXP\t126\t未登録\t未確認');
+  expect(text).toContain('スナップ\tsnap-exp\t架空Snap経験値\tEXP\t126\t0\t126');
   expect(text).toContain('未計算：');expect(text).toContain('全体の不足は未確定');
   for(const card of [...m.members,...m.snaps])expect(text).not.toContain(card.title);
   expect(await page.evaluate(()=>JSON.stringify(localStorage))).toBe(saved);

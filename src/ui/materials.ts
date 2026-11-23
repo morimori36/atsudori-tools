@@ -39,12 +39,12 @@ function materialsPage(master:Masterdata,collection:Collection,result:Simulation
     const resources=consumption.map(({resource,rows,quantity})=>{
       const {stock,shortage}=byId.get(resource.id)!;
       const unit=resource.unit==='exp'?'EXP':resource.unit==='card'?'枚':'個';
-      return `<details class="growth-detail" data-material-resource="${escape(resource.id)}"><summary class="material-columns"><span class="material-name">${escape(resource.name)}<small>（${unit}）</small></span><strong data-material-required>${number(quantity)}</strong><span data-material-stock>${stock===null?'—':number(stock)}</span><strong data-material-shortage class="${shortage!==null&&shortage>0?'material-shortage':''}">${shortage===null?'—':number(shortage)}</strong></summary><ul class="material-consumers">${rows.map(({card,axis,quantity})=>`<li data-material-consumer="${card.kind}-${card.cardId}" data-axis="${axis.axis}" data-quantity="${quantity}">${cardName(card)}　${stage(axis)}　<strong>${number(quantity)}</strong> ${unit}</li>`).join('')}</ul></details>`;
+      return `<details class="growth-detail" data-material-resource="${escape(resource.id)}"><summary class="material-columns"><span class="material-name">${escape(resource.name)}<small>（${unit}）</small></span><strong data-material-required>${number(quantity)}</strong><span data-material-stock>${number(stock)}</span><strong data-material-shortage class="${shortage>0?'material-shortage':''}">${number(shortage)}</strong></summary><ul class="material-consumers">${rows.map(({card,axis,quantity})=>`<li data-material-consumer="${card.kind}-${card.cardId}" data-axis="${axis.axis}" data-quantity="${quantity}">${cardName(card)}　${stage(axis)}　<strong>${number(quantity)}</strong> ${unit}</li>`).join('')}</ul></details>`;
     }).join('');
     return `<section data-material-kind="${kind}"><h3>${kind==='member'?'メンバー':'スナップ'}</h3>${unavailable.length?'<p class="warning">計算済み小計：必要・不足は計算済み分に対する値です。全体の不足は未確定です。</p>':''}${resources?'<div class="material-columns material-column-headings"><span>素材名</span><span>必要</span><span>在庫</span><span>不足</span></div>':''}${resources}${!resources?`<p>${unavailable.length?'要求量は未確定です。':'追加の要求量なし'}</p>`:''}${unavailable.length?`<details data-material-unavailable><summary>未計算項目（${unavailable.length}）</summary><ul>${unavailable.join('')}</ul></details>`:''}</section>`;
   }).join('');
   return `<div class="growth-page"><section class="panel" data-material-total><h2>必要素材</h2><button type="button" class="secondary" data-material-copy>不足状況をコピー</button><p role="status" data-material-copy-status></p>
-    <p class="muted material-help">在庫未登録は — · 素材を開くと消費内訳を表示</p>
+    <p class="muted material-help">素材を開くと消費内訳を表示</p>
     ${result.materials.incomplete?'<p class="warning">未計算項目あり・計算済み分の小計</p>':''}
     ${!hasTrackingScope(master.materialDefinition)?`<p class="warning">${master.materialDefinition?trackingUpdateMessage:'素材マスタ未登録・未計算です。'}</p>`:''}
     ${sections}
@@ -77,17 +77,17 @@ export function materialShortageText(master:Masterdata,collection:Collection,set
   const fields=[['trainingStage','メンバー 特訓'],['awakeningStage','メンバー 覚醒'],['liveSkillLevel','メンバー ライブスキルLv'],['gekisouSkillLevel','メンバー 撃奏スキルLv'],['snapRank','スナップ 上限解放']] as const;
   for(const [key,label] of fields)lines.push(label+'：'+(settings[key]??'変更しない'));
   lines.push('メンバー／スナップ Lv：育成後の段階の上限まで（現在値を下げず合法な目標を適用）');
-  lines.push('在庫未登録は不足未確認。区分ごとに在庫を比較し、区分間の在庫分配は行わない。');
+  lines.push('区分ごとに在庫を比較し、区分間の在庫分配は行わない。');
   if(!master.materialDefinition)lines.push('素材マスタ未登録・必要量未計算');
   else if(!hasTrackingScope(master.materialDefinition))lines.push(trackingUpdateMessage);
-  lines.push(['区分','素材ID','名称','単位','必要数','登録済み在庫数','不足数','状態'].join('\t'));
+  lines.push(['区分','素材ID','名称','単位','必要数','在庫数','不足数','状態'].join('\t'));
   for(const kind of ['member','snap'] as const) {
     const label=kind==='member'?'メンバー':'スナップ';
     const {pending,consumption,byId}=materialSection(result.materials,collection,kind);
     for(const {resource,quantity} of consumption.filter(row=>row.quantity>0)) {
       const {stock,shortage}=byId.get(resource.id)!;
-      lines.push([label,resource.id,resource.name,resource.unit==='exp'?'EXP':resource.unit==='card'?'枚':'個',quantity,stock??'未登録',shortage??'未確認',
-        [pending.length?'計算済み小計・必要量と全体の不足は未確定':'必要量計算済み',stock===null?'在庫未登録':'在庫登録済み'].join('／')].map(cell).join('\t'));
+      lines.push([label,resource.id,resource.name,resource.unit==='exp'?'EXP':resource.unit==='card'?'枚':'個',quantity,stock,shortage,
+        pending.length?'計算済み小計・必要量と全体の不足は未確定':'必要量計算済み'].map(cell).join('\t'));
     }
     if(!consumption.some(row=>row.quantity>0))lines.push(label+'：'+(pending.length?'必要量未計算':'追加の要求量なし'));
     const counts=new Map<string,number>();

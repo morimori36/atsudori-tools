@@ -23,11 +23,11 @@ describe('normal live and shared supply conditions',()=>{
   expect(paper(f).dailySupply).toBe(0);f.c.supplyConditions!.scoreRank='Alto';
   f.supply.lives.push({...f.supply.lives[0]!,id:'duplicate'});expect(()=>paper(f)).toThrow('重複');
  });
- it('retains missing inventory state while computing known supply',()=>{
+ it('uses zero for missing inventory while computing known supply',()=>{
   const f=fixture();delete f.c.resourceInventory!['member-exp'];f.c.supplyConditions={lbPerDay:1,scoreRank:'Alto',studioLevels:[]};
   f.supply.lives[0]!.perLb.unavailable.push({reason:'架空の抽選条件不明',resourceIds:['paper']});
   expect(paper(f)).toMatchObject({knownDailySupply:21,dailySupply:21,clearanceDays:96});
-  expect(run(f).rows.find(r=>r.resource.id==='member-exp')!.stock).toBeNull();
+  expect(run(f).rows.find(r=>r.resource.id==='member-exp')!.stock).toBe(0);
  });
  it.each([[false,false,10],[true,false,30],[false,true,50],[true,true,70]])('fully collects free tracks and only purchased additions: %s %s',(eventPremium,seasonPremium,expected)=>{
   const f=fixture();f.c.starBudgetScenario={...defaultStarBudgetScenario(),eventPremium,seasonPremium};

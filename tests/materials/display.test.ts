@@ -16,7 +16,7 @@ test('reverse index preserves totals, separate axes and shared Snap identity',()
   expect(indexed.get('member-exp')![0]!.axis.status).toBe('calculated');
 });
 
-test('materials render separate numeric columns including EXP and unknown stock',()=>{
+test('materials render separate numeric columns including EXP and omitted stock',()=>{
   const {m,c}=maximumTrainingFixture();c.resourceInventory={'member-exp':20,'snap-exp':200,paper:0};
   const settings=createTrainingSettings(undefined);
   const before=JSON.stringify(c);
@@ -27,8 +27,8 @@ test('materials render separate numeric columns including EXP and unknown stock'
   expect(row('snap-exp')).toContain('<span data-material-stock>200</span><strong data-material-shortage class="">0</strong>');
   expect(row('paper')).toContain('<span data-material-stock>0</span><strong data-material-shortage class="material-shortage">20</strong>');
   delete c.resourceInventory.paper;
-  const unknown=createMaterialsPage(m,c,settings).html;
-  expect(unknown).toContain('<span data-material-stock>—</span><strong data-material-shortage class="">—</strong>');
+  const omitted=createMaterialsPage(m,c,settings).html;
+  expect(omitted).toContain('<span data-material-stock>0</span><strong data-material-shortage class="material-shortage">20</strong>');
   expect(html).not.toMatch(/（上限）|途中EXP|上限見積もり/);
   expect(html).toContain('計算済み小計：必要・不足は計算済み分に対する値です。全体の不足は未確定です。');
   c.resourceInventory.paper=0;expect(JSON.stringify(c)).toBe(before);
