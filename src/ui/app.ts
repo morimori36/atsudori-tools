@@ -231,20 +231,27 @@ export function mountApp(root: HTMLElement): void {
     root.querySelectorAll<HTMLButtonElement>('[data-note-target]').forEach(button => {
       const tip = document.getElementById(button.dataset.noteTarget!)!;
       const hide = () => { if (tip.matches(':popover-open')) tip.hidePopover(); };
-      const show = () => {
-        if (!tip.matches(':popover-open')) tip.showPopover();
-        const rect = button.getBoundingClientRect();
+      const position = (rect: DOMRect) => {
         const width = tip.getBoundingClientRect().width;
         const height = tip.getBoundingClientRect().height;
         tip.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`;
         tip.style.top = `${Math.max(8, rect.bottom + height + 8 <= window.innerHeight ? rect.bottom + 6 : rect.top - height - 6)}px`;
+      };
+      const show = () => {
+        if (!tip.matches(':popover-open')) tip.showPopover();
+        position(button.getBoundingClientRect());
       };
       button.addEventListener('mouseenter', show);
       button.addEventListener('mouseleave', () => { if (document.activeElement !== button) hide(); });
       button.addEventListener('focus', show);
       button.addEventListener('blur', hide);
       button.addEventListener('click', show);
-      window.addEventListener('scroll', hide, { capture: true, signal: noteListenerController.signal });
+      window.addEventListener('scroll', () => {
+        if (!tip.matches(':popover-open')) return;
+        const rect = button.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) hide();
+        else position(rect);
+      }, { capture: true, signal: noteListenerController.signal });
       window.addEventListener('resize', hide, { signal: noteListenerController.signal });
     });
   }
