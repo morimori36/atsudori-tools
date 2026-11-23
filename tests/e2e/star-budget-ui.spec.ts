@@ -19,10 +19,13 @@ for (const width of [320,375,390,1280]) for (const theme of ['light','dark'] as 
     await expect(premium(page)).toHaveText('+106.17');
     const results = page.locator('.budget-results'), conditions = page.locator('.budget-conditions');
     expect((await results.boundingBox())!.y).toBeLessThan((await conditions.boundingBox())!.y);
-    await expect(results.getByRole('columnheader')).toHaveText(['項目','なし（計画で選択中）','Lite','Standard','Premium']);
-    await expect(results.locator('[data-budget-metric]').first()).toContainText('週平均総供給');
-    await expect(results.locator('[data-budget-metric=weekly-cost] td')).toHaveText(['2,190','2,190','2,190','2,190']);
-    await expect(results.locator('caption')).toHaveText('スター/週（円価格の行を除く）');
+    const comparison = results.getByRole('table', {name:'スター/週（週平均）', exact:true});
+    await expect(comparison.getByRole('columnheader')).toHaveText(['パス','総供給','全交換費','差引']);
+    await expect(comparison.getByRole('rowheader')).toHaveText(['なし計画で選択中','Lite','Standard','Premium']);
+    await expect(comparison.locator('[data-budget-metric=total-supply]')).toHaveText(['1,316.17','1,479.5','1,806.17','2,296.17']);
+    await expect(comparison.locator('[data-budget-metric=weekly-cost]')).toHaveText(['2,190','2,190','2,190','2,190']);
+    await expect(comparison.locator('[data-budget-balance]')).toHaveText(['-873.83','-710.5','-383.83','+106.17']);
+    await expect(comparison).not.toContainText(/スター不足|平均余剰あり/);
     for (const name of ['ランク・イベント','供給に含める報酬','毎週の全交換']) await expect(conditions.getByRole('group',{name,exact:true})).toBeVisible();
     await page.getByRole('button',{name:'試算条件へ',exact:true}).click();
     await expect(page.locator('#budget-conditions-heading')).toBeFocused();
@@ -47,19 +50,22 @@ for (const width of [320,375,390,1280]) for (const theme of ['light','dark'] as 
     await page.getByRole('button',{name:'比較結果へ戻る',exact:true}).click();
     await expect(page.locator('#budget-comparison-heading')).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    const region = page.getByRole('region',{name:'パス4種類の収支比較',exact:true});
+    expect(await comparison.evaluate(table => {
+      const bounds = table.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= innerWidth &&
+        [...table.querySelectorAll('th, td')].every(cell => cell.scrollWidth <= cell.clientWidth);
+    })).toBe(true);
+    for (const result of await comparison.locator('[data-budget-balance]').all()) await expect(result).toBeInViewport();
+    const details = results.locator('[data-section=currency]');
+    await expect(details).toHaveJSProperty('open',false);
+    await details.locator('summary').focus();
+    await page.keyboard.press('Space');
+    await expect(details).toHaveJSProperty('open',true);
     if (width<700) {
+      const region = details.getByRole('region',{name:'通貨内訳とパス参考価格の比較'});
       await region.focus(); await page.keyboard.press('ArrowRight');
       await expect.poll(() => region.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
-      await region.evaluate(el => {el.scrollLeft=el.scrollWidth;});
-      const rowLabel = region.locator('[data-budget-metric=balance] th');
-      expect(Math.abs((await rowLabel.boundingBox())!.x-(await region.boundingBox())!.x)).toBeLessThanOrEqual(2);
-      await expect(premium(page)).toBeInViewport();
     }
-    // Explicitly exercise a constrained table viewport and its two sticky axes.
-    await region.evaluate(el => {el.style.maxHeight='180px'; el.scrollTop=120;});
-    const column = region.getByRole('columnheader',{name:'Premium',exact:true});
-    expect(Math.abs((await column.boundingBox())!.y-(await region.boundingBox())!.y)).toBeLessThanOrEqual(2);
   });
 }
 
@@ -90,8 +96,7 @@ test('unknown supply preserves known subtotals, reasons and expanded evidence ac
   fixture.master.starBudgetDefinition!.loginDaily = {value:null,status:'unconfirmed',basis:''};
   await seed(page,fixture);
   await expect(premium(page)).toHaveText('算出不可');
-  await expect(page.locator('[data-budget-metric=total-supply]')).toContainText('未確認（既知分');
-  await expect(page.locator('.budget-pending')).toBeVisible();
+  await expect(page.locator('[data-budget-metric=total-supply]').first()).toContainText('未確認（既知分');
   const issues = page.locator('[data-section=issues]');
   await expect(issues).toHaveJSProperty('open',true); await expect(issues).toContainText('通常ログイン');
   const supply = page.locator('[data-section=supply]'); await supply.locator('summary').click();
@@ -105,7 +110,6 @@ test('unknown reference yen does not claim that known star balances are pending'
   fixture.master.starBudgetDefinition!.passes.premium.priceYen={value:null,status:'unconfirmed',basis:''};
   await seed(page,fixture); await expect(premium(page)).toHaveText('+106.17');
   await expect(page.locator('[data-budget-metric=yen]')).toContainText('未確認');
-  await expect(page.locator('.budget-pending')).toHaveCount(0);
   await expect(page.locator('[data-section=issues]')).toBeVisible();
 });
 

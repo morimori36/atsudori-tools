@@ -40,7 +40,7 @@ for (const width of [320, 390, 1280]) test(`integrated plan shares settings, pro
   expect(successful.snaps).toEqual(before.snaps);
   await chooseScreen(page, page.locator('nav [data-tab=star-budget]'));
   await expect(page.locator('[name="scenario.passPlan"][value=premium]')).toBeChecked();
-  await expect(page.locator('th[aria-current=true]')).toHaveText('Premium（計画で選択中）');
+  await expect(page.locator('th[aria-current=true]')).toHaveText('Premium計画で選択中');
   await page.locator('[name="scenario.passPlan"][value=lite]').check();
   await page.locator('[name="selected-crystal-luck"]').uncheck();
   await chooseScreen(page, page.locator('nav [data-tab=seal-budget]'));

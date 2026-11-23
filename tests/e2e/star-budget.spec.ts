@@ -43,7 +43,7 @@ test('catalog import alone enables calculation using unsaved reading defaults', 
   await page.locator('#catalog-import').setInputFiles(file(catalog()));
   await expect(page.getByText('マスタをImportしました', { exact: true })).toBeVisible();
   await chooseScreen(page, page.locator(menu));
-  await expect(page.locator('.budget-comparison thead th')).toHaveText(['項目', 'なし（計画で選択中）', 'Lite', 'Standard', 'Premium']);
+  await expect(page.locator('.budget-comparison thead th')).toHaveText(['パス', '総供給', '全交換費', '差引']);
   await expect(balance(page)).toHaveText('算出不可');
   await expect(field(page, 'scenario.rank')).toHaveValue('');
   await expect(field(page, 'selected-sr-1')).toBeChecked();
@@ -157,8 +157,7 @@ test('keeps four comparisons accessible at mobile width', async ({ page }) => {
   await expect(balance(page)).toHaveText('+106.17');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await balance(page).scrollIntoViewIfNeeded();
-  const scroll = page.locator('.budget-comparison').locator('..');
-  await scroll.evaluate(el => { el.scrollLeft = el.scrollWidth; });
-  await expect(balance(page)).toBeInViewport();
+  await expect(page.locator('.budget-comparison tbody th')).toHaveCount(4);
+  for (const result of await page.locator('[data-budget-balance]').all()) await expect(result).toBeInViewport();
   await page.screenshot({ path: '.cache/star-budget/catalog-mobile.png', fullPage: true });
 });
