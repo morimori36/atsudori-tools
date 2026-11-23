@@ -1,13 +1,11 @@
 .economy-table-wrap { max-width:100%; overflow-x:auto; margin-block:1rem; }
-.economy-table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+.economy-table { border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums; }
 .economy-table th,.economy-table td { padding:.6rem; text-align:right; white-space:nowrap; }
 .economy-table th:first-child { text-align:left; }
-#economy-simulator details { margin-block:1rem; }
 #economy-simulator input[type=checkbox] { width:auto; }
-.economy-conditions h2,.economy-results h2 { margin:0 0 1rem; }
+.economy-conditions h2 { margin:0 0 1rem; }
 .economy-group { min-width:0; margin:0 0 1rem; padding:1rem 0; border:0; border-bottom:1px solid var(--line); }
 .economy-group legend,.economy-group > summary { font-size:14px; font-weight:700; line-height:1.5; }
-#economy-simulator .economy-group { margin-block:0 1rem; }
 .economy-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr)); gap:.75rem 1rem; align-items:start; }
 .economy-fields .field { min-width:0; margin:0; display:grid; gap:.35rem; font-size:13px; font-weight:500; line-height:1.5; }
 .economy-fields input,.economy-fields select { width:100%; min-width:0; min-height:44px; padding:8px 10px; font-size:16px; }
@@ -17,10 +15,102 @@
 /* Keep overflow and sticky cells inside the economy screen. */
 #economy-simulator .panel,#economy-simulator [data-economy-results] { min-width:0; max-width:100%; }
 #economy-simulator .economy-table-wrap { max-height:32rem; }
-#economy-simulator .economy-table thead th { position:sticky; top:0; background:light-dark(#fff, #252431); z-index:1; }
-#economy-simulator .economy-table th[scope=row] { position:sticky; left:0; background:light-dark(#fff, #252431); max-width:10rem; white-space:normal; min-width:7rem; }
+#economy-simulator .economy-table thead th { position:sticky; top:0; }
+#economy-simulator .economy-table th[scope=row] { position:sticky; left:0; max-width:10rem; white-space:normal; }
 #economy-simulator .economy-fields > div { min-width:0; overflow-wrap:anywhere; }
-#economy-simulator .economy-table td:last-child { white-space:normal; min-width:9rem; }
+#economy-simulator .economy-table td:last-child { white-space:normal; }
 #economy-simulator [aria-invalid=true] { border-color:var(--accent); }
-#economy-simulator #economy-conditions-heading,#economy-simulator #economy-results-heading { scroll-margin-top:calc(var(--shell-height) + 1rem); }
 #economy-form > fieldset { min-width:0; margin:0; padding:0; border:0; }
+
+#economy-simulator {
+  --economy-ink:light-dark(#5942a0,#c7b6ff);
+  --economy-surface:light-dark(#fff,#292632);
+  --economy-tint:light-dark(#f4f0ff,#332946);
+  --economy-rule:light-dark(#ded9ec,#504760);
+  --economy-warning:light-dark(#fff5e1,#3e3224);
+  --economy-warning-ink:light-dark(#69471f,#f3d2a2);
+}
+#economy-simulator :focus-visible { outline:3px solid var(--economy-ink); outline-offset:2px; }
+#economy-simulator .economy-goals {
+  margin:0 0 12px;
+  padding-inline:14px;
+  border:1px solid var(--economy-rule);
+  border-radius:8px;
+  background:var(--economy-surface);
+}
+.economy-goals > summary { color:var(--economy-ink); font-weight:700; }
+.economy-goals .training-settings { margin-block:0 12px; }
+.economy-result-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; margin-bottom:6px; }
+.economy-result-heading > h2 { margin:0; }
+.economy-result-heading > button { min-height:44px; }
+#economy-simulator .economy-table th,
+#economy-simulator .economy-table td { min-width:0; vertical-align:middle; }
+#economy-simulator .economy-table thead th { background:var(--economy-tint); color:inherit; z-index:2; }
+#economy-simulator .economy-table thead th:first-child { left:0; z-index:3; }
+#economy-simulator .economy-table th[scope=row] { background:var(--economy-surface); border-bottom:1px solid var(--economy-rule); color:inherit; min-width:6rem; z-index:1; overflow-wrap:anywhere; }
+#economy-simulator .economy-table td:last-child { min-width:7.5rem; color:var(--economy-ink); font-weight:700; }
+.economy-stock-note { display:block; color:inherit; font-size:.83em; }
+.economy-materials { display:none; }
+.economy-notices { background:var(--economy-warning); color:var(--economy-warning-ink); border-radius:6px; padding:8px 12px; margin:12px 0; }
+.economy-notices p { margin:0; color:inherit; }
+#economy-simulator .economy-notices details,
+#economy-simulator .economy-breakdown { margin:0; }
+.economy-notices summary { color:inherit; font-weight:700; }
+.economy-warnings { overflow-wrap:anywhere; }
+.economy-breakdown { border-top:1px solid var(--economy-rule); }
+.economy-breakdown summary { color:inherit; font-weight:700; }
+.economy-breakdown > label { display:block; margin-bottom:4px; font-size:12px; }
+.economy-breakdown select,.economy-preview-label select { font-size:16px; min-height:44px; }
+.economy-sources { list-style:none; padding:0; margin:8px 0 0; font-size:13px; }
+.economy-sources li { display:flex; justify-content:space-between; gap:8px 16px; padding:8px 4px; border-bottom:1px solid var(--economy-rule); overflow-wrap:anywhere; }
+.economy-sources li > strong { text-align:right; font-variant-numeric:tabular-nums; }
+
+.economy-dialog {
+  width:min(36rem,calc(100% - 24px));
+  max-height:calc(100dvh - 24px);
+  padding:0;
+  border:1px solid var(--economy-rule);
+  border-radius:12px;
+  background:var(--economy-surface);
+  color:inherit;
+}
+.economy-dialog[open] { display:flex; flex-direction:column; overflow:hidden; overscroll-behavior:contain; }
+.economy-dialog::backdrop { background:#17112980; overflow:hidden; overscroll-behavior:contain; }
+.economy-conditions { min-height:0; overflow:auto; overscroll-behavior:contain; padding:18px; }
+.economy-conditions form > fieldset > .economy-fields:first-of-type { margin-bottom:12px; }
+.economy-dialog-footer {
+  flex:none;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  padding:12px 16px;
+  background:var(--economy-surface);
+  border-top:1px solid var(--economy-rule);
+}
+.economy-dialog-footer > button { grid-column:3; min-height:44px; }
+.economy-preview-label { min-width:0; font-size:12px; }
+.economy-preview-label select { display:block; margin-top:4px; }
+.economy-preview:not([hidden]) { display:grid; gap:2px; font-size:12px; overflow-wrap:anywhere; }
+.economy-preview strong { color:var(--economy-ink); font-size:clamp(15px,4vw,22px); line-height:1.3; font-variant-numeric:tabular-nums; }
+.economy-preview small { font-size:11px; }
+.economy-preview-warning { color:var(--economy-warning-ink); }
+[data-result-state]:empty { display:none; }
+
+@media (max-width:700px) {
+  #economy-simulator .economy-results { padding:12px; }
+  .economy-result-heading > button { width:100%; }
+  #economy-simulator .economy-table-wrap { display:none; }
+  .economy-materials { display:block; list-style:none; margin:8px 0; padding:0; }
+  .economy-materials > li { padding:12px 0; border-bottom:1px solid var(--economy-rule); }
+  .economy-material-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:start; }
+  .economy-material-heading h3 { margin:0; color:inherit; font-size:14px; overflow-wrap:anywhere; }
+  .economy-material-heading strong { max-width:8em; color:var(--economy-ink); text-align:right; font-size:14px; font-variant-numeric:tabular-nums; }
+  .economy-materials dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 10px; margin:6px 0 0; font-size:12px; }
+  .economy-materials dl > div { display:flex; gap:5px; justify-content:space-between; min-width:0; }
+  .economy-materials dt { flex-shrink:0; }
+  .economy-materials dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  .economy-dialog { width:100%; max-width:100%; max-height:85dvh; margin:auto auto 0; border-radius:12px 12px 0 0; }
+  .economy-conditions,.economy-dialog-footer { padding:12px; }
+  .economy-dialog-footer > button { padding-inline:10px; }
+}
