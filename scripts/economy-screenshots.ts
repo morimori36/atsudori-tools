@@ -13,12 +13,15 @@ async function reviewFixture(directory:string):Promise<ReviewFixture> {
   const loader = await createServer({root:directory, configFile:false, server:{middlewareMode:true, hmr:false}});
   let fixture: ReviewFixture;
   try { fixture = (await loader.ssrLoadModule('/tests/helpers/economy.ts')).economyFixture(); } finally { await loader.close(); }
+  fixture.c.supplyConditions={lbPerDay:6,scoreRank:'Alto',studioLevels:[{bandId:8101,level:8}]};
+  fixture.c.resourceInventory!.paper=1;
+  delete fixture.c.resourceInventory!['member-exp'];
   return fixture;
 }
 const beforeOnly = process.argv[3] === 'before';
 const root = process.cwd(), output = resolve('.cache/economy-review');
 mkdirSync(output, {recursive:true});
-const source = mkdtempSync(resolve('.cache/star-budget-base-'));
+const source = mkdtempSync(resolve('.cache/economy-base-'));
 const servers: ReturnType<typeof spawn>[] = [];
 let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
 try {
@@ -48,12 +51,19 @@ try {
       },fixture);
       await page.goto(`${url}#economy`); await page.reload();
       await page.getByLabel('表示テーマ').selectOption(theme);
-      await page.locator('[data-economy-resource]').first().waitFor();
+      await page.locator('[data-economy-resource]').first().waitFor({state:'attached'});
       if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Page overflow');
       const name = `${version}-${width}-${theme}`;
       await page.screenshot({path:join(output,`${name}-overview.png`)});
       await page.locator('.economy-results').screenshot({path:join(output,`${name}-results.png`),style:'.site-header {visibility:hidden!important}'});
-      await page.locator('.economy-conditions').screenshot({path:join(output,`${name}-conditions.png`),style:'.site-header {visibility:hidden!important}'});
+      const editor = page.getByRole('button',{name:'試算条件を編集'});
+      if(await editor.count()){
+        await editor.click();
+        await page.getByRole('dialog',{name:'試算条件'}).waitFor();
+        await page.screenshot({path:join(output,`${name}-conditions.png`)});
+      }else{
+        await page.locator('.economy-conditions').screenshot({path:join(output,`${name}-conditions.png`),style:'.site-header {visibility:hidden!important}'});
+      }
       await page.close();
     }
   }
