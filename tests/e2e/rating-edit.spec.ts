@@ -16,16 +16,15 @@ async function openRating(page: Page, pending = false) {
     if (!localStorage.getItem(collectionKey)) localStorage.setItem(collectionKey, JSON.stringify(collection));
   }, { master, collection, catalogKey: CATALOG_STORAGE_KEY, collectionKey: STORAGE_KEY });
   await page.goto('./#rating');
-  const detail = page.locator('.color-result[data-color="7"]');
-  await detail.locator('summary').click();
-  return detail;
+  return page.locator('.rating-breakdown');
 }
 
-test('mobile rating edit restores selection, open details and scroll after saving or closing', async ({ page }) => {
+test('mobile rating edit restores selection, focus and scroll after saving or closing', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 520 });
   const detail = await openRating(page);
-  const otherDetail = page.locator('.color-result[data-color="8"]');
-  await otherDetail.locator('summary').click();
+  const color = page.getByLabel('色別合計', { exact: true });
+  await color.selectOption('8');
+  await color.selectOption('7');
   const snap = detail.locator('[data-rating-edit="snaps"]');
   await snap.focus();
   const y = await page.evaluate(() => scrollY);
@@ -48,8 +47,7 @@ test('mobile rating edit restores selection, open details and scroll after savin
   await expect(dialog).toHaveCount(0);
   await expect(rating).not.toHaveText(before!);
   await expect(snap).toBeFocused();
-  await expect(detail).toHaveAttribute('open', '');
-  await expect(otherDetail).toHaveAttribute('open', '');
+  await expect(color).toHaveValue('7');
   expect(await page.evaluate(() => scrollY)).toBe(y);
   await page.keyboard.press('Enter');
   await dialog.getByRole('button', { name: '閉じる' }).click();
@@ -64,8 +62,7 @@ test('mobile rating edit restores selection, open details and scroll after savin
   await dialog.getByRole('button', { name: '保存', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('input[name="rating-mode"][value="potential"]')).toBeChecked();
-  await expect(detail).toHaveAttribute('open', '');
-  await expect(otherDetail).toHaveAttribute('open', '');
+  await expect(color).toHaveValue('7');
   const stored = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
   expect(stored.snaps).toContainEqual({ supportCardId: 8501, rank: 2, level: 2 });
   expect(stored.members.find((row: { cardId: number }) => row.cardId === 8301)).toMatchObject({ trainingStage: 2, level: 2 });
@@ -98,7 +95,7 @@ test('pending candidate targets its own card and a failed save preserves both th
   await expect(dialog).toHaveCount(0);
   await expect(detail.locator('[data-card-id="8301"]')).toHaveCount(0);
   await expect(detail.locator('[data-card-id="8302"]')).toBeVisible();
-  await expect(detail).toHaveAttribute('open', '');
+  await expect(detail).toHaveAttribute('data-rating-character', '8201');
   const stored = JSON.parse((await bytes())!);
   expect(stored.members.map((row: { cardId: number }) => row.cardId)).toEqual([8302, 8303, 8304, 8305]);
 });

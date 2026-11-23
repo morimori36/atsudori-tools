@@ -32,7 +32,11 @@ for (const legacy of [false, true]) test(`character order across views and JSON 
     expect(await page.locator('[data-bond-character]').evaluateAll(els => els.map(el => el.getAttribute('data-bond-character')))).toEqual(second);
     await page.locator('[data-progress-band="8101"]').click();
     await chooseScreen(page, page.locator('nav [data-tab=rating]'));
-    if (!legacy) expect(await page.locator('[data-rating-character]').evaluateAll(els => els.map(el => el.getAttribute('data-rating-character')))).toEqual([...expected, ...second]);
+    const ratingCharacters = page.locator('.rating-rail [data-rating-pick="character"]');
+    expect(await ratingCharacters.evaluateAll(els => els.map(el => (el as HTMLButtonElement).value))).toEqual(legacy ? [...expected].sort() : expected);
+    await page.locator('.rating-band-picker > fieldset [value="8197"]').click();
+    expect(await ratingCharacters.evaluateAll(els => els.map(el => (el as HTMLButtonElement).value))).toEqual(legacy ? [...second].sort() : second);
+    await page.locator('.rating-band-picker > fieldset [value="8101"]').click();
     await chooseScreen(page, page.locator('nav [data-tab=snaps]'));
     await expect(page.locator('.card-characters').first()).toHaveText(legacy ? '架空の青紙 / 架空の黄紙 / 架空の白紙 / 架空の赤紙 / 架空の緑紙' : '架空の赤紙 / 架空の黄紙 / 架空の緑紙 / 架空の白紙 / 架空の青紙');
     if (!legacy) expect(await page.locator('[data-filter=character]').evaluateAll(els => els.map(el => (el as HTMLInputElement).value).filter(Boolean))).toEqual([...expected, ...second]);

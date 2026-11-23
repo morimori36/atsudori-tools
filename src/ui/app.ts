@@ -138,6 +138,10 @@ export function mountApp(root: HTMLElement): void {
   },trainingSettings,syncSaveState);
   const conversionExport = createConversionExport(storage, () => ({master,collection,rules:rankRules.current(),protected:!allowWrites || !allowCatalogWrites}), download, trainingSettings);
   let ratingMode: 'current' | 'potential' = 'current';
+  let ratingBandId: number | undefined;
+  const ratingColors = new Map<number, number>();
+  const ratingCharacters = new Map<string, number>();
+  let ratingBandListOpen = false;
   const expView={targetRank:30};
   let characterExpView:ReturnType<typeof createCharacterExpView>|undefined;
   let inventoryView:ReturnType<typeof createResourceInventoryView>|undefined;
@@ -221,26 +225,33 @@ export function mountApp(root: HTMLElement): void {
   }
   function noteMarker(notes: readonly string[], id: string, label: string): string {
     if (!notes.length) return '';
-    return `<button type="button" class="note-marker" data-note-target="${id}" aria-label="${label}" aria-describedby="${id}">※</button><span class="selection-tooltip" popover="auto" role="tooltip" id="${id}">${notes.map(n => `<span>${escape(n)}</span>`).join('')}</span>`;
+    return `<button type="button" class="note-marker" data-note-target="${id}" aria-describedby="${id}">${label}</button><span class="selection-tooltip" popover="auto" role="tooltip" id="${id}">${notes.map(n => `<span>${escape(n)}</span>`).join('')}</span>`;
   }
   function bindNotes(): void {
     root.querySelectorAll<HTMLButtonElement>('[data-note-target]').forEach(button => {
       const tip = document.getElementById(button.dataset.noteTarget!)!;
       const hide = () => { if (tip.matches(':popover-open')) tip.hidePopover(); };
-      const show = () => {
-        if (!tip.matches(':popover-open')) tip.showPopover();
-        const rect = button.getBoundingClientRect();
+      const position = (rect: DOMRect) => {
         const width = tip.getBoundingClientRect().width;
         const height = tip.getBoundingClientRect().height;
         tip.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`;
         tip.style.top = `${Math.max(8, rect.bottom + height + 8 <= window.innerHeight ? rect.bottom + 6 : rect.top - height - 6)}px`;
+      };
+      const show = () => {
+        if (!tip.matches(':popover-open')) tip.showPopover();
+        position(button.getBoundingClientRect());
       };
       button.addEventListener('mouseenter', show);
       button.addEventListener('mouseleave', () => { if (document.activeElement !== button) hide(); });
       button.addEventListener('focus', show);
       button.addEventListener('blur', hide);
       button.addEventListener('click', show);
-      window.addEventListener('scroll', hide, { capture: true, signal: noteListenerController.signal });
+      window.addEventListener('scroll', () => {
+        if (!tip.matches(':popover-open')) return;
+        const rect = button.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) hide();
+        else position(rect);
+      }, { capture: true, signal: noteListenerController.signal });
       window.addEventListener('resize', hide, { signal: noteListenerController.signal });
     });
   }
@@ -252,26 +263,94 @@ export function mountApp(root: HTMLElement): void {
     if (!colors.length) return `${controls}<section class="panel empty"><div class="empty-symbol">＋</div><h2>所持データから始める</h2>
       <p>メンバーとスナップを登録し、キャラクターランク・アイテムを設定すると、登録分の評価値を確認できます。</p>
       <button class="primary" data-tab="members">メンバーを登録</button><button class="secondary" data-tab="manual">表示値で試す</button></section>`;
-    return `${controls}${bands.map(band => `<section class="panel band-result" data-band="${band.bandId}">
-        <div class="panel-heading"><div><h2>${escape(master.bands.find(b => b.id === band.bandId)!.name)}</h2></div>
-        <div class="rating-total"><span>${band.rating === null ? 'バンド全体の合計は保留' : '合計'}</span><strong>${band.rating === null ? '—' : number(band.rating)}</strong>
-        ${band.rating === null ? `<small>計算済み小計 ${number(band.subtotal)}</small>` : ''}</div></div>
-        ${band.colors.map(color => `<details class="color-result" data-band="${color.bandId}" data-color="${color.cardType}" style="--card-color: ${cardTypeAccent(color.cardType)}" ${band.colors.length === 1 ? 'open' : ''}>
-        <summary class="color-summary"><span class="color-label">${cardTypeName(color.cardType)}</span>
-        <span class="color-total"><span>${color.rating === null ? '合計は保留' : ''}</span><strong>${color.rating === null ? '—' : number(color.rating)}</strong>${color.rating === null ? `<small>計算済み小計 ${number(color.subtotal)}</small>` : ''}</span></summary>
-        <div class="table-scroll"><table><thead><tr><th>メンバー</th><th>スナップ</th><th class="numeric">評価値</th></tr></thead><tbody>
-        ${characterRowsForDisplay(summarizeCharacters(color), master.characters.filter(c => c.bandId === band.bandId), c => c.characterId).map(character => `<tr class="character-heading" data-rating-character="${character.characterId}"><th scope="rowgroup" colspan="${character.slots.length === 1 ? 3 : 2}">${escape(master.characters.find(c => c.id === character.characterId)!.name)}</th>${character.slots.length === 1 ? '' : `<td class="numeric character-total">${character.rating === null ? `<span>合計は保留</span><strong>—</strong><small>計算済み小計 ${number(character.subtotal)}</small>` : `<span>合計</span><strong>${number(character.rating)}</strong>`}</td>`}</tr>
-        ${character.slots.map(slot => {
-          const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${slot.selection.characterId}`;
-          const key = `note-${band.bandId}-${color.cardType}-${memberKey}`;
-          const note = noteMarker(slot.selection.notices, key, '暫定選出の注記');
-          return `<tr data-rating-slot="${memberKey}"><td><div class="candidate">${choice(slot.selection.member, 'members')}${slot.selection.snap.status === 'none' ? note : ''}</div></td>
-          <td><div class="candidate">${choice(slot.selection.snap, 'snaps')}${slot.selection.snap.status !== 'none' ? note : ''}</div></td>
-          <td class="numeric">${slot.result ? `<strong class="slot-rating">${number(slot.result.bandRating)}</strong>`
-            : `<span class="pending-pill">${slot.selection.status === 'resolved' ? '入力待ち' : '選出未確定'}</span>${noteMarker(slot.reasons, key + '-pending', '計算待ちの理由')}`}</td></tr>`;
-        }).join('')}`).join('</tbody><tbody>')}
-        </tbody></table></div></details>`).join('')}</section>`).join('')}
-`;
+    const band = bands.find(row => row.bandId === ratingBandId) ?? bands[0]!;
+    const color = band.colors.find(row => row.cardType === ratingColors.get(band.bandId)) ?? band.colors[0]!;
+    const colorKey = `${band.bandId}:${color.cardType}`;
+    const names = master.characters.filter(row => row.bandId === band.bandId);
+    const characters = characterRowsForDisplay(summarizeCharacters(color), names, row => row.characterId);
+    const character = characters.find(row => row.characterId === ratingCharacters.get(colorKey)) ?? characters[0]!;
+    const bandName = (id: number) => escape(master.bands.find(row => row.id === id)!.name);
+    const characterName = (id: number) => escape(names.find(row => row.id === id)!.name);
+    const total = (row: {rating: number | null; subtotal: number}) => row.rating === null
+      ? `<strong>—</strong><small>合計は保留</small><small>計算済み小計 ${number(row.subtotal)}</small>`
+      : `<strong>${number(row.rating)}</strong>`;
+    const optionTotal = (row: {rating: number | null; subtotal: number}) => row.rating === null
+      ? `保留（小計 ${number(row.subtotal)}）` : number(row.rating);
+    const bandButtons = bands.map(row => `<button type="button" data-rating-pick="band" value="${row.bandId}" aria-pressed="${row === band}"><span>${bandName(row.bandId)}</span><span>${total(row)}</span></button>`).join('');
+    const bandPicker = bands.length > 1 ? `<div class="rating-band-picker">
+      <fieldset class="rating-band-buttons"><legend>バンド別合計</legend>${bandButtons}</fieldset>
+      <details class="rating-band-list" ${ratingBandListOpen ? 'open' : ''}><summary><span>バンド別合計<small>${bandName(band.bandId)}</small></span><span>${total(band)}</span></summary>
+        <div class="rating-band-buttons" role="group" aria-label="バンド別合計">${bandButtons}</div></details></div>` : '';
+    const colorButtons = band.colors.map(row => `<button type="button" data-rating-pick="color" value="${row.cardType}" aria-pressed="${row === color}" style="--rating-color: ${cardTypeAccent(row.cardType)}"><span>${cardTypeName(row.cardType)}</span><span>${total(row)}</span></button>`).join('');
+    const characterButtons = characters.map(row => `<button type="button" data-rating-pick="character" value="${row.characterId}" aria-pressed="${row === character}"><span>${characterName(row.characterId)}</span><span>${total(row)}</span></button>`).join('');
+    const colorOptions = band.colors.map(row => `<option value="${row.cardType}" ${row === color ? 'selected' : ''}>${cardTypeName(row.cardType)}　${optionTotal(row)}</option>`).join('');
+    const characterOptions = characters.map(row => `<option value="${row.characterId}" ${row === character ? 'selected' : ''}>${characterName(row.characterId)}</option>`).join('');
+    return `<div class="rating-controls">${controls}</div><section class="panel band-result" data-band="${band.bandId}" data-color="${color.cardType}">
+      ${bandPicker}<div class="panel-heading"><h2 tabindex="-1">${bandName(band.bandId)}</h2><div class="rating-total"><span>バンド合計</span>${total(band)}</div></div>
+      <div class="rating-workspace">
+        <div class="rating-rail">
+          <fieldset><legend>色別合計</legend>${colorButtons}</fieldset>
+          <fieldset><legend>キャラクター</legend>${characterButtons}</fieldset>
+        </div>
+        <div class="rating-pickers">
+          <div><label for="rating-color">色別合計</label><select id="rating-color" data-rating-pick="color">${colorOptions}</select></div>
+          <div><label for="rating-character">キャラクター</label><select id="rating-character" data-rating-pick="character">${characterOptions}</select></div>
+        </div>
+        <section class="rating-breakdown" aria-labelledby="rating-character-heading" data-rating-character="${character.characterId}">
+          <div class="rating-breakdown-heading" style="--rating-color: ${cardTypeAccent(color.cardType)}">
+            <div><div class="color-total"><span>${cardTypeName(color.cardType)}の合計</span>${total(color)}</div><h3 id="rating-character-heading" tabindex="-1">${characterName(character.characterId)}</h3></div>
+            <div class="character-total"><span>キャラ合計</span>${total(character)}</div>
+          </div>
+          ${character.slots.map((slot, i) => {
+            const memberKey = slot.selection.member.status === 'selected' ? `member-${slot.selection.member.candidate.id}` : `pending-${character.characterId}`;
+            const key = `note-${colorKey.replace(':', '-')}-${memberKey}`;
+            return `<section class="rating-slot-card" data-rating-slot="${memberKey}" aria-labelledby="${key}-heading">
+              <h4 id="${key}-heading">枠 ${i + 1}</h4>
+              <div class="rating-slot-value"><span>枠評価値</span>${slot.result ? `<strong class="slot-rating">${number(slot.result.bandRating)}</strong>`
+                : `<span class="pending-pill">${slot.selection.status === 'resolved' ? '入力待ち' : '選出未確定'}</span>`}</div>
+              <div class="rating-slot-card-field" data-rating-role="member"><h5>メンバー</h5>${choice(slot.selection.member, 'members')}</div>
+              <div class="rating-slot-card-field" data-rating-role="snap"><h5>スナップ</h5>${choice(slot.selection.snap, 'snaps')}</div>
+              <div class="rating-slot-notes">${noteMarker(slot.reasons, key + '-pending', '計算待ちの理由')}${noteMarker(slot.selection.notices, key, '暫定選出の注記')}</div>
+            </section>`;
+          }).join('')}
+        </section>
+      </div>
+    </section>`;
+  }
+  function bindRatingNavigation(): void {
+    const list = root.querySelector<HTMLDetailsElement>('.rating-band-list');
+    list?.addEventListener('toggle', () => {
+      if (list.isConnected) ratingBandListOpen = list.open;
+    });
+    const selected = root.querySelector<HTMLElement>('.band-result');
+    root.querySelectorAll<HTMLButtonElement | HTMLSelectElement>('[data-rating-pick]').forEach(control => {
+      control.addEventListener(control.tagName === 'SELECT' ? 'change' : 'click', () => {
+        const kind = control.dataset.ratingPick;
+        const id = Number(control.value);
+        const bandId = Number(selected!.dataset.band);
+        const color = Number(selected!.dataset.color);
+        if (kind === 'band') {
+          if (id === bandId) return;
+          ratingBandId = id;
+        } else if (kind === 'color') {
+          if (id === color) return;
+          ratingColors.set(bandId, id);
+        } else {
+          if (String(id) === root.querySelector<HTMLElement>('[data-rating-character]')!.dataset.ratingCharacter) return;
+          ratingCharacters.set(`${bandId}:${color}`, id);
+        }
+        if (list) ratingBandListOpen = list.open;
+        const mobileBand = control.closest('.rating-band-list');
+        if (mobileBand) ratingBandListOpen = false;
+        render();
+        const selector = control.tagName === 'SELECT'
+          ? `select[data-rating-pick="${kind}"]`
+          : `button[data-rating-pick="${kind}"][aria-pressed="true"]`;
+        const focus = mobileBand ? root.querySelector<HTMLElement>('.rating-band-list > summary')
+          : root.querySelector<HTMLElement>(selector);
+        focus?.focus({preventScroll: true});
+      });
+    });
   }
   function bindRatingEditors(): void {
     root.querySelectorAll<HTMLButtonElement>('[data-rating-edit]').forEach(button => {
@@ -311,14 +390,10 @@ export function mountApp(root: HTMLElement): void {
     });
   }
   function captureRatingView(button: HTMLButtonElement): (committed: boolean) => void {
-    const details = button.closest<HTMLDetailsElement>('.color-result')!;
-    const row = button.closest('tr')!;
-    const character = row.parentElement!.querySelector<HTMLElement>('[data-rating-character]')!;
-    // If selection changes, anchor to the surviving row, character, color, or band.
-    const offsets = [button, row, character, details, details.parentElement!].map(el => el.getBoundingClientRect().top);
-    const key = (el: HTMLDetailsElement): string => `${el.dataset.band}:${el.dataset.color}`;
-    const sections = new Map([...root.querySelectorAll<HTMLDetailsElement>('.color-result')].map(el =>
-      [key(el), { open: el.open, scroll: el.querySelector('.table-scroll')!.scrollLeft }]));
+    const band = button.closest<HTMLElement>('.band-result')!;
+    const character = button.closest<HTMLElement>('[data-rating-character]')!;
+    const row = button.closest<HTMLElement>('[data-rating-slot]')!;
+    const offsets = [button, row, character, band].map(el => el.getBoundingClientRect().top);
     const x = window.scrollX, y = window.scrollY;
     return committed => {
       if (!committed) {
@@ -327,27 +402,20 @@ export function mountApp(root: HTMLElement): void {
         return;
       }
       render();
-      let current: HTMLDetailsElement | undefined;
-      for (const el of root.querySelectorAll<HTMLDetailsElement>('.color-result')) {
-        const state = sections.get(key(el));
-        if (state) {
-          el.open = state.open;
-          el.querySelector('.table-scroll')!.scrollLeft = state.scroll;
-        }
-        if (key(el) === key(details)) current = el;
-      }
-      const group = current?.querySelector(`[data-rating-character="${character.dataset.ratingCharacter}"]`);
-      const sameRow = group?.parentElement?.querySelector(`[data-rating-slot="${row.dataset.ratingSlot}"]`);
+      const currentBand = root.querySelector<HTMLElement>(`.band-result[data-band="${band.dataset.band}"]`);
+      const currentCharacter = currentBand?.dataset.color === band.dataset.color
+        ? currentBand?.querySelector<HTMLElement>(`[data-rating-character="${character.dataset.ratingCharacter}"]`)
+        : undefined;
+      const sameRow = currentCharacter?.querySelector<HTMLElement>(`[data-rating-slot="${row.dataset.ratingSlot}"]`);
       const selector = `[data-rating-edit="${button.dataset.ratingEdit}"][data-card-id="${button.dataset.cardId}"]`;
-      const sameCard = sameRow?.querySelector<HTMLElement>(selector) ?? group?.parentElement?.querySelector<HTMLElement>(selector);
-      const band = root.querySelector<HTMLElement>(`.band-result[data-band="${details.dataset.band}"]`);
-      const anchors = [sameCard, sameRow, group, current, band];
+      const sameCard = sameRow?.querySelector<HTMLElement>(selector) ?? currentCharacter?.querySelector<HTMLElement>(selector);
+      const anchors = [sameCard, sameRow, currentCharacter, currentBand];
       const index = anchors.findIndex(Boolean);
       if (index !== -1) window.scrollTo(x, window.scrollY + anchors[index]!.getBoundingClientRect().top - offsets[index]!);
       else window.scrollTo(x, y);
       const focus = sameCard ?? sameRow?.querySelector<HTMLElement>('[data-rating-edit]') ??
-        group?.parentElement?.querySelector<HTMLElement>('[data-rating-edit]') ??
-        current?.querySelector('summary') ?? root.querySelector<HTMLElement>('.page-heading h1');
+        currentCharacter?.querySelector<HTMLElement>('h3') ?? currentBand?.querySelector<HTMLElement>('.panel-heading h2') ??
+        root.querySelector<HTMLElement>('.page-heading h1');
       focus?.focus({ preventScroll: true });
     };
   }
@@ -531,16 +599,14 @@ export function mountApp(root: HTMLElement): void {
     themeSelect.addEventListener('change', () => setTheme(themeSelect.value));
     bindNavigation(root, tab => navigate(tab, true), noteListenerController.signal);
     root.querySelectorAll<HTMLInputElement>('input[name="rating-mode"]').forEach(input => input.addEventListener('change', () => {
-      const expanded = [...root.querySelectorAll<HTMLDetailsElement>('.color-result')].map(d => ({ band: d.dataset.band, color: d.dataset.color, open: d.open }));
       ratingMode = input.value as typeof ratingMode;
       render();
-      for (const state of expanded) {
-        const details = root.querySelector<HTMLDetailsElement>(`.color-result[data-band="${state.band}"][data-color="${state.color}"]`);
-        if (details) details.open = state.open;
-      }
-      root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus();
+      root.querySelector<HTMLInputElement>(`input[name="rating-mode"][value="${ratingMode}"]`)?.focus({preventScroll: true});
     }));
-    if (active === 'rating') bindRatingEditors();
+    if (active === 'rating') {
+      bindRatingNavigation();
+      bindRatingEditors();
+    }
     if (active === 'rating' || active === 'materials' || active === 'progress') bindTrainingSettings(root,trainingSettings);
     if (active === 'materials') bindMaterialCopy(root,()=>materialShortageText(master,collection,trainingSettings.current()));
     if (active === 'progress') characterExpView?.bind(root,refreshProgress);

@@ -26,7 +26,7 @@ for (const width of [1280,390]) for (const snapCount of [1,3,4]) {
     expect(await rows.evaluateAll(els=>els.map(el=>el.getAttribute('data-rating-slot')))).toEqual(['member-8301','member-8302','member-8303']);
     for (let i=0;i<3;i++) {
       await expect(rows.nth(i)).toContainText(`架空の独立カード${i+1}`);
-      await expect(rows.nth(i).locator('td').nth(1)).toContainText(i<snapCount ? `架空の独立Snap${i+1}` : 'なし');
+      await expect(rows.nth(i).locator('[data-rating-role="snap"]')).toContainText(i<snapCount ? `架空の独立Snap${i+1}` : 'なし');
       await expect(rows.nth(i).locator('.slot-rating')).toHaveText(i<snapCount ? '857' : '767');
     }
     await expect(page.locator('.color-total strong')).toHaveText(snapCount===1 ? '2,391' : '2,571');
@@ -70,7 +70,7 @@ test('pending reasons have separate tooltip IDs for each card of the same charac
   await page.reload();
   const rows=page.locator('[data-rating-slot]');await expect(rows).toHaveCount(3);
   await expect(page.locator('.character-total')).toContainText('合計は保留');
-  await expect(page.locator('.character-total small')).toHaveText('計算済み小計 0');
+  await expect(page.locator('.character-total small').last()).toHaveText('計算済み小計 0');
   await expect(page.locator('.character-total strong')).toHaveText('—');
   for(let i=0;i<3;i++) {
     const marker=rows.nth(i).getByRole('button',{name:'計算待ちの理由'}), target=await marker.getAttribute('aria-describedby');

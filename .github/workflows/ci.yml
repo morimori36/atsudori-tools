@@ -99,6 +99,25 @@ jobs:
           path: .cache/star-budget-review/*.png
           retention-days: 30
           if-no-files-found: error
+      - name: Capture populated rating UI before and after
+        if: github.event_name == 'pull_request'
+        id: rating_layout_review
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src/ui/app.ts src/ui/styles.css scripts/rating-screenshots.ts tests/helpers/rating-layout.ts; then
+            exit 0
+          fi
+          node scripts/rating-screenshots.ts "$BASE"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Attach populated rating UI comparisons
+        if: steps.rating_layout_review.outputs.ready == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rating-layout-review
+          path: .cache/rating-layout-review/*.png
+          retention-days: 30
+          if-no-files-found: error
       - name: Capture populated economy UI before and after
         if: github.event_name == 'pull_request'
         run: node scripts/economy-screenshots.ts "${{ github.event.pull_request.base.sha }}"
