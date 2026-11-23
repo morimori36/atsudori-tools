@@ -22,11 +22,11 @@ for(const width of [320,375,390,1280])for(const theme of ['light','dark'])test(`
   await page.getByLabel('表示テーマ').selectOption(theme);
   const metric=(key:string)=>page.locator(`[data-budget-metric=${key}] td`).first();
   await expect(metric('free-supply')).toHaveText('90');await expect(metric('paid-supply')).toHaveText('40');
-  await expect(metric('free-balance')).toHaveText('0');await expect(metric('paid-balance')).toHaveText('-20（不足）');
-  await expect(page.locator('.budget-interpretation')).toContainText('ガチャ支出は差し引いていません');
+  await expect(metric('free-balance')).toHaveText('0');await expect(metric('paid-balance')).toHaveText('-20');
+  await expect(page.locator('.budget-interpretation')).toContainText('ガチャ支出は含みません');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   const before=await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
-  await page.reload();await expect(metric('paid-balance')).toHaveText('-20（不足）');
+  await page.reload();await expect(metric('paid-balance')).toHaveText('-20');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
 });
 test('failed save retains split results and damaged catalog/collection stay protected',async({page})=>{
@@ -35,7 +35,7 @@ test('failed save retains split results and damaged catalog/collection stay prot
   await page.evaluate(key=>{const set=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===key)throw Error('quota');set.call(this,k,v);};},STORAGE_KEY);
   await page.locator('[name=selected-crystal-luck]').uncheck();
   await expect(page.locator('[data-budget-result-state]')).toBeVisible();
-  await expect(page.locator('[data-budget-metric=paid-balance] td').first()).toHaveText('-20（不足）');
+  await expect(page.locator('[data-budget-metric=paid-balance] td').first()).toHaveText('-20');
   expect(await page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY)).toBe(before);
   await page.reload();
   await chooseScreen(page,page.locator('nav [data-tab=exchange]'));

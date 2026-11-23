@@ -11,18 +11,21 @@
 .budget-products [data-product-cost] { text-align: right; font-variant-numeric: tabular-nums; }
 .budget-products .ui-choice { border: 0; border-radius: 0; padding: 6px 0; background: transparent; }
 .budget-products th:first-child { position: sticky; left: 0; z-index: 1; background: light-dark(#f7f7fb, #2d2937); }
-.budget-comparison-scroll { max-height: 30rem; }
-.budget-comparison { min-width: 720px; font-variant-numeric: tabular-nums; border-collapse: separate; border-spacing: 0; margin: 0; }
-.budget-comparison caption { text-align: left; padding: 8px 12px; font-size: 12px; color: var(--muted); }
-.budget-comparison thead th { position: sticky; top: 0; z-index: 2; font-size: 14px; font-weight: 700; background: light-dark(#f0eef8, #302842); }
-.budget-comparison td { text-align: right; width: 19%; white-space: normal; overflow-wrap: anywhere; }
-.budget-comparison tr th:first-child { position: sticky; left: 0; z-index: 1; white-space: normal; min-width: 160px; background: light-dark(#f7f7fb, #2d2937); }
-.budget-comparison thead th:first-child { z-index: 3; background: light-dark(#f0eef8, #302842); }
-.budget-comparison .budget-primary td { font-size: 16px; font-weight: 600; }
-.budget-comparison tr[data-budget-metric="balance"] td { font-size: 20px; font-weight: 700; background: light-dark(#f5f2fb, #302842); }
+.budget-comparison, .budget-breakdown { font-variant-numeric: tabular-nums; }
+.budget-comparison { table-layout: fixed; margin-block: 12px; }
+.budget-comparison caption, .budget-breakdown caption { text-align: left; padding-block: 6px; font-size: 12px; color: var(--muted); }
+.budget-comparison tbody th { font-weight: 700; }
+.budget-comparison thead th, .budget-breakdown thead th { font-weight: 700; background: light-dark(#f0eef8, #302842); }
+.budget-comparison :is(th, td) { min-width: 0; white-space: normal; overflow-wrap: anywhere; vertical-align: middle; }
+.budget-comparison :is(td, thead th:not(:first-child)), .budget-breakdown td { text-align: right; }
+.budget-comparison .budget-difference { font-size: 20px; font-weight: 700; background: light-dark(#f5f2fb, #302842); }
+.budget-current-plan { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
 .budget-comparison .budget-surplus { color: light-dark(#286341, #a6dcbc); }
 .budget-comparison .budget-shortfall { color: light-dark(#a32d40, #ffadba); }
-.budget-stale, .budget-pending { border-left: 3px solid var(--accent); padding-left: 10px; }
+.budget-breakdown { min-width: 620px; border-collapse: separate; border-spacing: 0; }
+.budget-breakdown caption { padding-inline: 12px; }
+.budget-breakdown tbody th { position: sticky; left: 0; background: light-dark(#f7f7fb, #2d2937); }
+.budget-stale { border-left: 3px solid var(--accent); padding-left: 10px; }
 .budget-interpretation { margin-bottom: 12px; }
 #star-budget-form details ul { font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
 #star-budget-form .ui-details { border-top: 1px solid var(--line); margin-top: 12px; }
@@ -30,9 +33,11 @@
 #star-budget-form button { min-height: 44px; }
 [data-budget-message]:empty { display: none; }
 @media (max-width: 700px) {
-  .budget-comparison { min-width: 650px; table-layout: fixed; }
-  .budget-comparison tr th:first-child { width: 110px; min-width: 110px; }
-  .budget-comparison td { width: auto; }
+  .budget-results { padding-inline: 10px; }
+  .budget-comparison :is(th, td) { padding: 10px 4px; font-size: 12px; }
+  .budget-comparison thead th:last-child { width: 29%; }
+  .budget-comparison .budget-difference { font-size: 15px; }
+  .budget-current-plan { font-size: 10px; }
   .budget-products th { min-width: 150px; }
   .budget-products { min-width: 440px; }
 }

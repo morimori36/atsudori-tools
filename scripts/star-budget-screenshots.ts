@@ -1,6 +1,6 @@
 /** Compare populated UI using only the independent arithmetic review fixture. */
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -29,6 +29,7 @@ let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
 try {
   const archive = execFileSync('git', ['archive', base], {maxBuffer:32 * 1024 * 1024});
   execFileSync('tar', ['-x', '-C', source], {input:archive});
+  const legacyArena = readFileSync(join(source, 'src/domain/star-budget/model.ts'), 'utf8').includes('includeArena');
   symlinkSync(resolve('node_modules'), join(source, 'node_modules'), 'dir');
   execFileSync('npm', ['run','build'], {cwd:source, stdio:'inherit'});
   browser = await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined});
@@ -48,15 +49,16 @@ try {
       await page.evaluate(({master,collection}) => {
         localStorage.setItem('atsudori-tools.catalog.v1', JSON.stringify(master));
         localStorage.setItem('atsudori-tools.collection.v1', JSON.stringify(collection));
-      },version === 'before' ? beforeFixture : fixture);
+      },version === 'before' && legacyArena ? beforeFixture : fixture);
       await page.goto(`${url}#star-budget`); await page.reload();
       await page.getByLabel('表示テーマ').selectOption(theme);
       await page.locator('[data-budget-balance=premium]').waitFor();
+      await page.evaluate(() => window.scrollTo({top:0, behavior:'instant'}));
       const name = `${version}-${width}-${theme}`;
       await page.screenshot({path:join(output,`${name}-overview.png`)});
       await page.locator('[data-budget-results]').screenshot({path:join(output,`${name}-results.png`), style:'.site-header { visibility: hidden !important; }'});
-      if (width === 390) {
-        const comparison = page.locator('.budget-comparison').locator('..');
+      const comparison = page.locator('.budget-comparison-scroll');
+      if (width === 390 && await comparison.count()) {
         await comparison.evaluate(el => {el.scrollLeft=el.scrollWidth;});
         await page.locator('[data-budget-results]').screenshot({path:join(output,`${name}-results-right.png`), style:'.site-header { visibility: hidden !important; }'});
         await comparison.evaluate(el => {el.scrollLeft=0;});
