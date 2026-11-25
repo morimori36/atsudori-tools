@@ -45,7 +45,9 @@ for(const width of [1280,390,320])test(`minimal conditions, material order, focu
 test('preserves invalid drafts across navigation and keeps results and saved bytes atomic on failure',async({page})=>{
  await setup(page);const lb=page.locator('[name=lb]');const saved=await page.evaluate(key=>localStorage.getItem(key),STORAGE_KEY);
  await lb.fill('');await expect(lb).toHaveAttribute('aria-invalid','true');
- await expect(editor(page).locator('[data-economy-preview]')).toContainText('変更前');
+ await editor(page).getByRole('button',{name:'閉じる'}).click();
+ await expect(page.locator('[data-result-state]')).toContainText('変更前');
+ await openEditor(page);
  expect(await page.evaluate(key=>localStorage.getItem(key),STORAGE_KEY)).toBe(saved);
  await chooseScreen(page,page.locator('nav [data-tab=inventory]'));await chooseScreen(page,page.locator('nav [data-tab=economy]'));await expect(lb).toHaveValue('');
  await lb.fill('0');const band=page.locator('[name=band-8101]');await band.fill('999');await expect(band).toHaveAttribute('aria-invalid','true');
@@ -130,7 +132,7 @@ test('protects a saved v4 catalog and retains ownership and inventory through ex
  await chooseScreen(page,page.locator('nav [data-tab=economy]'));await expect(page.locator('[data-economy-resource=paper]')).toBeVisible();
 });
 
-for(const width of [1280,390,375,320])for(const theme of ['light','dark'] as const)test(`B layout and result preview at ${width}px in ${theme}`,async({page})=>{
+for(const width of [1280,390,375,320])for(const theme of ['light','dark'] as const)test(`results layout and conditions-only editor at ${width}px in ${theme}`,async({page})=>{
  await page.setViewportSize({width,height:844});
  await setup(page,false);
  await page.getByLabel('表示テーマ').selectOption(theme);
@@ -143,23 +145,24 @@ for(const width of [1280,390,375,320])for(const theme of ['light','dark'] as con
   const paper=list.getByRole('listitem').filter({has:page.getByRole('heading',{name:'架空の折紙'})});
   for(const value of ['必要量','現在庫','不足量','日平均供給','充足日数','10日'])await expect(paper).toContainText(value);
   const unregistered=list.getByRole('listitem').filter({has:page.getByRole('heading',{name:'架空Member経験値'})});
-  await expect(unregistered).toContainText('未登録');
+  await expect(unregistered.locator('dl div').filter({hasText:'現在庫'}).locator('dd')).toHaveText('0');
+  await expect(unregistered).not.toContainText('未登録');
  }
  const detail=page.locator('[data-economy-breakdown]');
  await detail.locator('summary').click();
  await page.getByLabel('内訳を見る素材').selectOption('paper');
  await expect(detail).toContainText('イベント推計');
+ await expect(results).not.toContainText('未登録在庫');
  const open=page.getByRole('button',{name:'試算条件を編集'});
  await open.focus();
  await open.press('Enter');
- const preview=editor(page).locator('[data-economy-preview]');
- await editor(page).getByLabel('確認する素材').selectOption('paper');
- await expect(preview).toContainText('10日');
+ await expect(editor(page)).not.toContainText('充足日数');
+ await expect(editor(page).getByLabel('確認する素材')).toHaveCount(0);
  const lb=editor(page).getByLabel('LB消費量 / 日');
  await editor(page).getByLabel('ライブのスコアランク').selectOption('Alto');
  await lb.fill('12');
  await expect(lb).toBeFocused();
- await expect(preview).toContainText('1日');
+ await expect(page.locator('[data-economy-resource=paper] td').last()).toHaveText('1日');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  expect(await editor(page).evaluate(dialog=>dialog.scrollWidth<=dialog.clientWidth)).toBe(true);
  await lb.press('Escape');
@@ -167,8 +170,7 @@ for(const width of [1280,390,375,320])for(const theme of ['light','dark'] as con
  await expect(open).toBeFocused();
  await expect(detail).toHaveAttribute('open','');
  await expect(detail).toContainText('架空ライブ Alto');
- await openEditor(page);
- await expect(editor(page).getByLabel('確認する素材')).toHaveValue('paper');
+
 });
 
 test('keeps the training controls open and restores focus after changing a goal',async({page})=>{

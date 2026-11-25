@@ -22,7 +22,7 @@ test('shared resource stock is deducted once from global requirements, retaining
   expect(result.materials.cards.filter(r=>r.kind==='member').flatMap(r=>r.amounts).find(r=>r.resourceId==='paper')!.quantity).toBe(31);
   expect(JSON.stringify([m,c,inventoryTraining])).toBe(saved);
 });
-test.each([[undefined,null,null],[0,0,41],[30,30,11],[60,60,0],[Number.MAX_SAFE_INTEGER,Number.MAX_SAFE_INTEGER,0]] as const)('distinguishes unknown, zero and quantity %s', (n,stock,shortage)=>{
+test.each([[undefined,0,41],[0,0,41],[30,30,11],[60,60,0],[Number.MAX_SAFE_INTEGER,Number.MAX_SAFE_INTEGER,0]] as const)('uses zero for omitted stock and calculates balances for quantity %s', (n,stock,shortage)=>{
   const {m,c}=inventoryFixture();const requirements=simulateTrainingEvaluation(m,c,inventoryTraining).materials;
   const r=materialInventoryBalances(requirements,n===undefined?{}:{paper:n}).balances.find(r=>r.resource.id==='paper')!;
   expect(r.stock).toBe(stock);expect(r.shortage).toBe(shortage);
@@ -32,15 +32,15 @@ test('partial costs remain subtotals while EXP uses its own stock and shortage',
   const r=materialInventoryBalances(simulateTrainingEvaluation(m,c,{...inventoryTraining,gekisouSkillLevel:2}).materials,{paper:60,'member-exp':999});
   expect(r.balances.find(r=>r.resource.id==='paper')).toMatchObject({required:41,shortage:0,incomplete:true});
   expect(r.balances.find(r=>r.resource.id==='member-exp')).toMatchObject({required:43,stock:999,shortage:0,incomplete:true});
-  expect(r.balances.find(r=>r.resource.id==='snap-exp')).toMatchObject({required:366,stock:null,shortage:null});
+  expect(r.balances.find(r=>r.resource.id==='snap-exp')).toMatchObject({required:366,stock:0,shortage:366});
   expect(r.unsupported).toEqual([]);
 });
-test.each(['member-exp','snap-exp'])('%s distinguishes missing stock, explicit zero, shortage and surplus',id=>{
+test.each(['member-exp','snap-exp'])('%s treats missing stock as zero and calculates shortage and surplus',id=>{
   const {m,c}=inventoryFixture();const requirements=simulateTrainingEvaluation(m,c,inventoryTraining).materials;
   const required=id==='member-exp'?43:366;
-  for(const [stock,shortage] of [[undefined,null],[0,required],[20,required-20],[required,0],[required+1,0]] as const){
+  for(const [stock,shortage] of [[undefined,required],[0,required],[20,required-20],[required,0],[required+1,0]] as const){
     const balance=materialInventoryBalances(requirements,stock===undefined?{}:{[id]:stock}).balances.find(r=>r.resource.id===id)!;
-    expect(balance).toMatchObject({required,stock:stock??null,shortage});
+    expect(balance).toMatchObject({required,stock:stock??0,shortage});
   }
   const balances=materialInventoryBalances(requirements,{'member-exp':1000,'snap-exp':20}).balances;
   expect(balances.find(r=>r.resource.id==='member-exp')!.shortage).toBe(0);
@@ -91,5 +91,5 @@ test.each([null,[],3,{'bad id':0},JSON.parse('{"constructor":1}'),Object.fromEnt
 test('prototype properties cannot masquerade as inventory quantities',()=>{
   const {m,c}=inventoryFixture();m.materialDefinition!.resources.push({id:'constructor',name:'架空の予約名',unit:'item'});
   const r=materialInventoryBalances(simulateTrainingEvaluation(m,c,inventoryTraining).materials).balances.find(r=>r.resource.id==='constructor')!;
-  expect(r.stock).toBeNull();expect(r.shortage).toBeNull();
+  expect(r.stock).toBe(0);expect(r.shortage).toBe(0);
 });

@@ -15,14 +15,15 @@ const bytes=(page:Page)=>page.evaluate(k=>localStorage.getItem(k),STORAGE_KEY);
 for(const width of [1280,390,320])test(`inventory autosave, zero, missing and reload at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:844});const {c}=await seed(page);
   const paper=page.locator('[data-inventory-row="paper"]'),input=paper.locator('input');
-  await expect(paper.locator('[data-inventory-status]')).toHaveText('未登録');
+  await expect(input).toHaveValue('0');
+  await expect(paper.locator('[data-inventory-status]')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('[data-inventory-input="member-exp"]')).toBeVisible();
   await expect(page.locator('[data-inventory-row]')).toHaveCount(5);
   for(const [value,expected] of [['30',30],['0',0],['',undefined],['60',60]]) {
     await input.fill(value as string);
     await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory?.paper).toBe(expected);
     await expect(input).toBeFocused();await expect(page.locator('.save-state')).toHaveText('自動保存済み');
-    await expect(paper.locator('[data-inventory-status]')).toHaveText(value===''?'未登録':'登録済み');
+    await expect(input).toHaveValue(String(value||'0'));
   }
   await page.locator('[data-inventory-input="member-exp"]').fill('20');
   await page.locator('[data-inventory-input="snap-exp"]').fill('100');
@@ -51,7 +52,7 @@ test('invalid values, failed autosaves and damaged storage remain protected',asy
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw Error('quota');};});
   await input.fill('99');await input.press('Tab');await expect(row.getByRole('alert')).toContainText('保存できません');expect(await bytes(page)).toBe(before);
   await chooseScreen(page, page.locator('nav [data-tab=members]'));await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
-  await expect(input).toHaveValue('99');await expect(row.locator('[data-inventory-status]')).toHaveText('登録済み');
+  await expect(input).toHaveValue('99');
   await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(input).toHaveValue('30');
   await page.evaluate(k=>localStorage.setItem(k,'{broken'),STORAGE_KEY);await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
   await input.fill('100');await input.press('Tab');await expect(row.getByRole('alert')).toContainText('保存できません');expect(await bytes(page)).toBe('{broken');
@@ -143,7 +144,7 @@ test('partial number input never clears saved stock and wheel does not change it
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBe(123);
   await input.fill('');await input.press('Tab');
   await expect.poll(async()=>JSON.parse((await bytes(page))!).resourceInventory.paper).toBeUndefined();
-  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(input).toHaveValue('');
+  await page.reload();await chooseScreen(page, page.locator('nav [data-tab=inventory]'));await expect(input).toHaveValue('0');
 });
 
 for(const metadata of [false,true])for(const width of [1280,390,320])test(`${metadata?'ordered':'legacy'} catalog import, sections and grid at ${width}px`,async({page})=>{
@@ -185,17 +186,17 @@ for(const metadata of [false,true])for(const width of [1280,390,320])test(`${met
   await expect(input).toHaveValue('17');await expect(page.locator('[data-inventory-input="copy"]')).toHaveValue('2');
 });
 
-test('EXP stock edits distinguish unknown and zero and update independent shortages',async({page})=>{
+test('EXP stock edits treat omitted inventory as zero and update independent shortages',async({page})=>{
   await seed(page);
   const requirements={'member-exp':43,'snap-exp':366};
   for(const [id,required] of Object.entries(requirements)){
     const input=page.locator(`[data-inventory-input="${id}"]`);
     await expect(input.locator('..')).toContainText('現在庫（EXP）');
-    for(const [value,shortage] of [['','—'],['0',String(required)],['20',String(required-20)],[String(required),'0'],[String(required+100),'0']]){
+    for(const [value,shortage] of [['',String(required)],['0',String(required)],['20',String(required-20)],[String(required),'0'],[String(required+100),'0']]){
       await input.fill(value!);
       await chooseScreen(page, page.locator('nav [data-tab=materials]'));
       const row=page.locator(`[data-material-resource="${id}"]`);
-      await expect(row.locator('[data-material-stock]')).toHaveText(value===''?'—':value!);
+      await expect(row.locator('[data-material-stock]')).toHaveText(value||'0');
       await expect(row.locator('[data-material-shortage]')).toHaveText(shortage!);
       await chooseScreen(page, page.locator('nav [data-tab=inventory]'));
     }

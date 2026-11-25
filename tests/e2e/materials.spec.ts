@@ -28,15 +28,16 @@ for(const width of [1280,390,320])for(const theme of ['light','dark'] as const)t
   await expect(total).toContainText('未計算項目');
   await expect(page.locator('[data-growth-band], [data-growth-character], [data-snap-materials]')).toHaveCount(0);
   const paper=page.locator('[data-material-resource="paper"]');
-  const expected=[['member','paper','20','12','8'],['member','member-exp','43','1,000','0'],['member','currency','23','—','—'],['snap','snap-exp','126','100','26']];
+  const expected=[['member','paper','20','12','8'],['member','member-exp','43','1,000','0'],['member','currency','23','0','23'],['snap','snap-exp','126','100','26']];
   for(const [kind,id,required,stock,shortage] of expected){
     const section=total.locator(`[data-material-kind="${kind}"]`);
     const row=section.locator(`[data-material-resource="${id}"] > summary`);
     await expect(row.locator('[data-material-required]')).toHaveText(required!);
     await expect(row.locator('[data-material-stock]')).toHaveText(stock!);
     await expect(row.locator('[data-material-shortage]')).toHaveText(shortage!);
-    await expect(row.locator('[data-material-shortage]')).toHaveClass(shortage==='8'||shortage==='26'?'material-shortage':'');
-    if(shortage==='8'||shortage==='26')await expect(row.locator('[data-material-shortage]')).toHaveCSS('color',theme==='dark'?'rgb(255, 166, 174)':'rgb(177, 42, 53)');
+    const hasShortage=Number(shortage)>0;
+    await expect(row.locator('[data-material-shortage]')).toHaveClass(hasShortage?'material-shortage':'');
+    if(hasShortage)await expect(row.locator('[data-material-shortage]')).toHaveCSS('color',theme==='dark'?'rgb(255, 166, 174)':'rgb(177, 42, 53)');
     const headers=await section.locator('.material-column-headings > span').evaluateAll(cells=>cells.map(c=>c.getBoundingClientRect().right));
     const edges=await row.locator(':scope > *').evaluateAll(cells=>cells.map(c=>c.getBoundingClientRect().right));
     expect(edges).toEqual(headers);
